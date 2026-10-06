@@ -48,6 +48,22 @@
   }
   #mute svg { width: 28px; height: 28px; display: block; }
   #mute svg[hidden] { display: none; }
+  #eyes {
+    position: fixed; z-index: 40;
+    left: 10px; bottom: calc(10px + env(safe-area-inset-bottom));
+    background: rgba(255, 248, 236, 0.94); color: var(--ink);
+    border-radius: 999px; padding: 7px 12px; font-weight: 800; font-size: 16px;
+  }
+  #eyes[hidden] { display: none !important; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border: none; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(255, 248, 236, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(255, 248, 236, 0.95);
+  }
+  #gaze[hidden] { display: none !important; }
 
   .panel {
     position: absolute; z-index: 10;
@@ -126,14 +142,23 @@
     width: 100%; font-size: 22px; padding: 10px 12px; border-radius: 12px;
     border: 3px solid var(--line); background: #fff; color: var(--ink);
   }
-  dialog {
-    border: none; border-radius: 24px; padding: 18px 16px;
-    width: min(520px, calc(100vw - 24px));
-    background: var(--cream); color: var(--ink);
+  #scrim {
+    position: fixed; inset: 0; z-index: 30;
+    background: rgba(30, 20, 10, 0.45);
   }
-  dialog::backdrop { background: rgba(30, 20, 10, 0.45); }
-  dialog ol { margin: 8px 0 14px; padding-left: 20px; }
-  dialog li { margin: 6px 0; }
+  #scrim[hidden] { display: none !important; }
+  .sheet {
+    position: fixed; z-index: 31;
+    left: 50%; top: 50%; transform: translate(-50%, -50%);
+    border-radius: 24px; padding: 18px 16px;
+    width: min(520px, calc(100vw - 24px));
+    max-height: calc(100dvh - 24px); overflow: auto;
+    background: var(--cream); color: var(--ink);
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.28);
+  }
+  .sheet[hidden] { display: none !important; }
+  .sheet ol { margin: 8px 0 14px; padding-left: 20px; }
+  .sheet li { margin: 6px 0; }
   #board-list { list-style: none; margin: 8px 0 14px; padding: 0; }
   #board-list li {
     display: flex; justify-content: space-between; gap: 12px;
@@ -158,6 +183,9 @@
       <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 9l5 6M21 9l-5 6"/>
     </svg>
   </button>
+  <div id="eyes" hidden>Eyes</div>
+  <div id="gaze" hidden></div>
+  <div id="scrim" hidden></div>
 
   <section id="screen-start" class="panel">
     <h1>Pop Pals</h1>
@@ -223,25 +251,26 @@
     </div>
   </section>
 
-  <dialog id="how">
+  <div id="how" class="sheet" hidden>
     <h2>How to play</h2>
     <ol>
       <li>Pick a place and a speed. You look down at the holes.</li>
       <li>Animals pop up. Tap one that lives in that place. It goes back down and makes its sound. Its name shows on it.</li>
-      <li>On Tiny Tots and Little Pals, green means tap and red means leave it.</li>
+      <li>If Eyes is showing, look at an animal until the ring closes. That pops it too. Look away to cancel. Menu buttons take twice as long, so reading one does not press it.</li>
+      <li>On Tiny Tots and Little Pals, green means the one to choose and red means leave it.</li>
       <li>Other animals, and people, add an oops. Fill the oops dots and the burrow goes boing. Everyone flies out.</li>
       <li>Send home the number of pals on the counter before the timer ends.</li>
       <li>On Ranger Rush, a safari bus, submarine, bubble, pet van, or forest jeep rolls past and hides the holes. Wait, then tap.</li>
     </ol>
     <button id="how-close" class="mid" type="button" style="width:100%">Got it</button>
-  </dialog>
+  </div>
 
-  <dialog id="board">
+  <div id="board" class="sheet" hidden>
     <h2>Leaderboard</h2>
     <p id="board-empty">No scores yet. Finish a round and save a name.</p>
     <ol id="board-list"></ol>
     <button id="board-close" class="mid" type="button" style="width:100%">Close</button>
-  </dialog>
+  </div>
 </div>
 <script>
 (function () {
@@ -250,11 +279,11 @@
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const LEVELS = {
-    tots: { id: "tots", name: "Tiny Tots", holes: 3, rise: 460, stay: 3600, fall: 380, gap: 1300, maxUp: 1, goal: 5, time: 90, oopsMax: 5, decoy: 0, human: 0, vehicle: false, assist: "full", forgive: 1.75 },
-    little: { id: "little", name: "Little Pals", holes: 4, rise: 340, stay: 2300, fall: 300, gap: 1050, maxUp: 1, goal: 8, time: 70, oopsMax: 4, decoy: 0.16, human: 0.08, vehicle: false, assist: "full", forgive: 1.4 },
-    explorer: { id: "explorer", name: "Explorer", holes: 5, rise: 260, stay: 1450, fall: 240, gap: 780, maxUp: 2, goal: 12, time: 55, oopsMax: 3, decoy: 0.22, human: 0.12, vehicle: false, assist: "names", forgive: 1.12 },
-    ranger: { id: "ranger", name: "Ranger", holes: 6, rise: 200, stay: 920, fall: 200, gap: 540, maxUp: 2, goal: 16, time: 45, oopsMax: 3, decoy: 0.28, human: 0.14, vehicle: false, assist: "peek", forgive: 1 },
-    rush: { id: "rush", name: "Ranger Rush", holes: 6, rise: 180, stay: 860, fall: 180, gap: 480, maxUp: 2, goal: 18, time: 45, oopsMax: 3, decoy: 0.3, human: 0.14, vehicle: true, assist: "peek", forgive: 1 }
+    tots: { id: "tots", name: "Tiny Tots", holes: 3, rise: 529, stay: 4140, fall: 437, gap: 1495, maxUp: 1, goal: 5, time: 104, oopsMax: 5, decoy: 0, human: 0, vehicle: false, assist: "full", forgive: 1.75 },
+    little: { id: "little", name: "Little Pals", holes: 4, rise: 391, stay: 2645, fall: 345, gap: 1208, maxUp: 1, goal: 8, time: 81, oopsMax: 4, decoy: 0.16, human: 0.08, vehicle: false, assist: "full", forgive: 1.4 },
+    explorer: { id: "explorer", name: "Explorer", holes: 5, rise: 299, stay: 1668, fall: 276, gap: 897, maxUp: 2, goal: 12, time: 63, oopsMax: 3, decoy: 0.22, human: 0.12, vehicle: false, assist: "names", forgive: 1.12 },
+    ranger: { id: "ranger", name: "Ranger", holes: 6, rise: 230, stay: 1058, fall: 230, gap: 621, maxUp: 2, goal: 16, time: 52, oopsMax: 3, decoy: 0.28, human: 0.14, vehicle: false, assist: "peek", forgive: 1 },
+    rush: { id: "rush", name: "Ranger Rush", holes: 6, rise: 207, stay: 989, fall: 207, gap: 552, maxUp: 2, goal: 18, time: 52, oopsMax: 3, decoy: 0.3, human: 0.14, vehicle: true, assist: "peek", forgive: 1 }
   };
 
   const THEMES = {
@@ -462,17 +491,29 @@
   add({ id: "elephant", name: "Elephant", top: -200, headY: -100, headR: 46, lives: "on the savanna", line: "Elephants trumpet.",
     cry(t) { osc(t, 0.55, "sine", 300, 85, 0.12); osc(t, 0.55, "triangle", 150, 55, 0.05); },
     draw(c, t) {
-      ell(c, -40, -100, 26, 34, "#b7c1cb");
-      ell(c, 40, -100, 26, 34, "#b7c1cb");
-      circ(c, 0, -102, 40, "#c5ced6");
-      ell(c, 0, -78, 18, 14, "#d5dee6");
-      c.lineWidth = 16; c.strokeStyle = "#c5ced6"; c.lineCap = "round";
-      c.beginPath(); c.moveTo(6, -74); c.quadraticCurveTo(48, -30, 8, -6); c.stroke();
-      c.lineWidth = 4; c.strokeStyle = INK;
-      c.beginPath(); c.moveTo(6, -74); c.quadraticCurveTo(48, -30, 8, -6); c.stroke();
-      dot(c, 10, -8, 5, "#8ea0ae");
-      eye(c, -14, -112, 6, t, 1); eye(c, 12, -112, 6, t, 1.2);
-      blush(c, -24, -90);
+      ell(c, -46, -112, 28, 38, "#b7c1cb");
+      ell(c, 46, -112, 28, 38, "#b7c1cb");
+      ell(c, -46, -110, 14, 22, "#e7c8c4");
+      ell(c, 46, -110, 14, 22, "#e7c8c4");
+      circ(c, 0, -104, 40, "#c5ced6");
+      ell(c, 0, -84, 18, 14, "#d5dee6");
+      shp(c, "#c5ced6", () => {
+        c.moveTo(-6, -86);
+        c.quadraticCurveTo(0, -56, 16, -40);
+        c.quadraticCurveTo(32, -26, 36, -40);
+        c.quadraticCurveTo(40, -54, 24, -50);
+        c.quadraticCurveTo(14, -48, 10, -64);
+        c.quadraticCurveTo(6, -78, 6, -86);
+        c.closePath();
+      });
+      c.strokeStyle = "#8ea0ae"; c.lineWidth = 3; c.lineCap = "round";
+      c.beginPath();
+      c.moveTo(8, -62); c.quadraticCurveTo(16, -52, 22, -46);
+      c.stroke();
+      dot(c, 30, -40, 3, "#6d7c88");
+      eye(c, -14, -114, 6, t, 1); eye(c, 12, -114, 6, t, 1.2);
+      blush(c, -26, -94); blush(c, 22, -94);
+      smile(c, -2, -86, 7);
     }
   });
   add({ id: "giraffe", name: "Giraffe", top: -224, headY: -168, headR: 26, lives: "on the savanna", line: "Giraffes are quiet.",
@@ -491,17 +532,35 @@
   add({ id: "zebra", name: "Zebra", top: -168, headY: -112, headR: 36, lives: "on the savanna", line: "Zebras bray.",
     cry(t) { osc(t, 0.16, "sawtooth", 680, 360, 0.04); osc(t + 0.18, 0.16, "sawtooth", 620, 340, 0.04); },
     draw(c, t) {
-      shp(c, "#f7f4ee", () => { c.moveTo(-18, -40); c.lineTo(-14, -100); c.lineTo(14, -100); c.lineTo(18, -40); c.closePath(); });
-      c.strokeStyle = INK; c.lineWidth = 4;
-      for (let y = -92; y <= -48; y += 14) { c.beginPath(); c.moveTo(-16, y); c.lineTo(16, y + 4); c.stroke(); }
-      circ(c, 0, -118, 32, "#f7f4ee");
-      shp(c, INK, () => { c.moveTo(-8, -148); c.lineTo(0, -128); c.lineTo(8, -148); c.lineTo(4, -148); c.lineTo(0, -136); c.lineTo(-4, -148); c.closePath(); });
-      ell(c, -22, -124, 8, 12, "#f7f4ee"); ell(c, 22, -124, 8, 12, "#f7f4ee");
-      ell(c, 0, -100, 14, 10, "#f7f4ee");
-      c.strokeStyle = INK; c.lineWidth = 3;
-      c.beginPath(); c.moveTo(-18, -128); c.lineTo(18, -122); c.moveTo(-16, -112); c.lineTo(14, -108); c.stroke();
-      eye(c, -12, -124, 5, t, 0.3); eye(c, 12, -124, 5, t, 0.8);
-      dot(c, 0, -102, 4, "#444");
+      shp(c, "#f7f4ee", () => { c.moveTo(-20, -36); c.lineTo(-16, -108); c.lineTo(16, -108); c.lineTo(20, -36); c.closePath(); });
+      for (const y of [-98, -76, -54]) {
+        c.beginPath();
+        c.moveTo(-17, y); c.lineTo(17, y + 2); c.lineTo(16, y + 12); c.lineTo(-16, y + 10);
+        c.closePath();
+        c.fillStyle = INK; c.fill();
+      }
+      for (let i = 0; i < 5; i++) ell(c, -4, -108 + i * 16, 8, 13, INK, -0.35);
+      ell(c, -26, -146, 10, 16, "#f7f4ee", -0.45);
+      ell(c, 26, -146, 10, 16, "#f7f4ee", 0.45);
+      ell(c, -26, -144, 4, 9, INK, -0.45);
+      ell(c, 26, -144, 4, 9, INK, 0.45);
+      circ(c, 0, -124, 34, "#f7f4ee");
+      c.beginPath();
+      c.moveTo(-24, -142); c.quadraticCurveTo(0, -156, 24, -140);
+      c.lineTo(20, -132); c.quadraticCurveTo(0, -146, -20, -134);
+      c.closePath();
+      c.fillStyle = INK; c.fill();
+      c.beginPath();
+      c.moveTo(-28, -112); c.quadraticCurveTo(0, -102, 28, -114);
+      c.lineTo(26, -106); c.quadraticCurveTo(0, -96, -26, -106);
+      c.closePath();
+      c.fillStyle = INK; c.fill();
+      ell(c, 0, -156, 9, 14, INK);
+      ell(c, 0, -102, 16, 12, "#f4efe4");
+      eye(c, -12, -126, 5.5, t, 0.3); eye(c, 12, -126, 5.5, t, 0.8);
+      dot(c, -5, -100, 2.4, "#444"); dot(c, 5, -100, 2.4, "#444");
+      smile(c, 0, -94, 6);
+      blush(c, -22, -116); blush(c, 22, -116);
     }
   });
   add({ id: "hippo", name: "Hippo", top: -150, headY: -90, headR: 52, lives: "on the savanna", line: "Hippos grunt.",
@@ -947,6 +1006,7 @@
     }
     return px > box.left && px < box.right && py > box.top && py < box.bottom;
   }
+  const HIT_SCALE = 1.1;
   function layout(view, actors) {
     const lv = level();
     const box = (mode === "play" || mode === "boom") && vehicle ? vehicleBox(view, vehicle) : null;
@@ -964,8 +1024,8 @@
         };
         const hr = (meta.headR || 36) * p.s;
         head.y += hr * 0.15;
-        head.rx = Math.max(36, hr * lv.forgive);
-        head.ry = Math.max(42, hr * lv.forgive * 1.45);
+        head.rx = Math.max(36, hr * lv.forgive) * HIT_SCALE;
+        head.ry = Math.max(42, hr * lv.forgive * 1.45) * HIT_SCALE;
         if (box) covered = covers(box, head.x, head.y);
         if (occ.tapped && occ.t < 140) squash = 0.78 + 0.22 * (occ.t / 140);
         if (lv.assist === "peek" && !occ.tapped) {
@@ -1009,12 +1069,12 @@
       if (vehWait <= 0) {
         let kind = theme().vehicle;
         if (kind === "sub" && Math.random() < 0.5) kind = "bubble";
-        vehicle = { kind, dir: Math.random() < 0.5 ? 1 : -1, p: 0, dur: kind === "bubble" ? 2000 : 1650 };
+        vehicle = { kind, dir: Math.random() < 0.5 ? 1 : -1, p: 0, dur: kind === "bubble" ? 2300 : 1900 };
       }
       return;
     }
     vehicle.p += dt / vehicle.dur;
-    if (vehicle.p >= 1) { vehicle = null; vehWait = 2600 + Math.random() * 1400; }
+    if (vehicle.p >= 1) { vehicle = null; vehWait = 2990 + Math.random() * 1610; }
   }
   function stepBodies(dt) {
     const g = reduceMotion ? 280 : 1100;
@@ -1195,10 +1255,11 @@
     ended = false; endKind = ""; score = 0; correct = 0; oops = 0; streak = 0;
     met = new Set(); timeLeft = lv.time; finalScore = 0;
     holes = HOLES[lv.holes].map((s) => ({ x: s.x, d: s.d, occ: null }));
-    spawnIn = 420; vehicle = null; vehWait = 1800;
+    spawnIn = 420; vehicle = null; vehWait = 2070;
     particles = []; floaters = []; bodies = [];
     savedThisRound = false; leaveArm = 0; bannerIsLeave = false;
-    intro = lv.assist === "full" ? "Tap the green animals." : "Tap the " + theme().adj + " animals.";
+    const verb = eyesOn() ? "Look at" : "Tap";
+    intro = lv.assist === "full" ? verb + " the green animals." : verb + " the " + theme().adj + " animals.";
     setBanner(intro);
     buildRoster();
     renderOops();
@@ -1382,7 +1443,7 @@
       const minBottom = (view ? view.top : 0) + plaqueH + 4;
       let bg = "#fff8ec", fg = INK, sub = "";
       if (level().assist === "full" && mode !== "start" && mode !== "setup") {
-        if (occ.good) { bg = "#d9f5c8"; fg = "#145224"; sub = "Tap"; }
+        if (occ.good) { bg = "#d9f5c8"; fg = "#145224"; sub = eyesOn() ? "Look" : "Tap"; }
         else { bg = "#ffd2cc"; fg = "#8d2430"; sub = "Skip"; }
       }
       drawPlaque(x, Math.max(minBottom, Math.min(anchor, y - 16)), meta.name, sub, bg, fg, g.labelA);
@@ -1519,6 +1580,183 @@
     if (mode === "start" || mode === "setup") return [{ x: 0, d: 0.05, occ: demo.occ }];
     return holes;
   }
+
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const DWELL_MS = 650;
+  const MENU_DWELL_MS = DWELL_MS * 2;
+  const GAZE_FRESH_MS = 500;
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const startTag = startScr.querySelector(".tag");
+  let gazeSock = null;
+  let gazeBuf = new Uint8Array(0);
+  let gazeTimer = 0;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let gazeHold = null;
+  let gazeWarp = null;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive() {
+    return !!(gazePoint && performance.now() - gazeAt < GAZE_FRESH_MS && eyesOn());
+  }
+  function scheduleGaze() {
+    if (gazeTimer) return;
+    gazeTimer = setTimeout(() => { gazeTimer = 0; connectGaze(); }, 2000);
+  }
+  function connectGaze() {
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (e) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = () => {
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = (ev) => {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = () => {};
+    sock.onclose = () => {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold) { gazePoint = null; gazeAt = 0; }
+      scheduleGaze();
+    };
+  }
+  function takeGaze(chunk) {
+    if (gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    gazePoint = { x: point.x * window.innerWidth, y: point.y * window.innerHeight };
+    gazeAt = performance.now();
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const h = gazeWarp;
+    if (!h) return { x: x, y: y };
+    const w = h[6] * x + h[7] * y + h[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (h[0] * x + h[1] * y + h[2]) / w,
+      y: (h[3] * x + h[4] * y + h[5]) / w
+    };
+  }
+  function dwellTarget() {
+    if (!eyesLive() || !gazePoint) return null;
+    const el = document.elementFromPoint(gazePoint.x, gazePoint.y);
+    const btn = el && el.closest("button");
+    if (btn && !btn.disabled && !btn.closest("[hidden]")) {
+      const open = document.querySelector(".sheet:not([hidden])");
+      if (!open || open.contains(btn)) return { key: btn, ms: MENU_DWELL_MS, fire: () => btn.click() };
+    }
+    if (mode !== "play" || ended) return null;
+    if (!hud.hidden) {
+      const hb = hud.getBoundingClientRect();
+      if (gazePoint.x >= hb.left && gazePoint.x <= hb.right && gazePoint.y >= hb.top && gazePoint.y <= hb.bottom) return null;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const px = gazePoint.x - rect.left;
+    const py = gazePoint.y - rect.top;
+    const items = layout(viewRect(), holes).slice().sort((a, b) => a.h.d - b.h.d);
+    for (let i = 0; i < items.length; i++) {
+      const g = items[i];
+      const occ = g.h.occ;
+      if (!occ || g.covered || g.pop < 0.42 || occ.phase === "fall" || !g.head) continue;
+      const dx = (px - g.head.x) / g.head.rx;
+      const dy = (py - g.head.y) / g.head.ry;
+      if (dx * dx + dy * dy <= 1) return { key: occ, ms: DWELL_MS, fire: () => whack(g.h) };
+    }
+    return null;
+  }
+  function stepGaze(now) {
+    if (gazeHold) {
+      gazePoint = gazeHold;
+      gazeAt = now;
+    }
+    const on = eyesOn();
+    const live = eyesLive();
+    eyesEl.hidden = !on;
+    if (mode === "start") {
+      const next = on ? "Look at the animals. Learn their sounds." : "Tap the animals. Learn their sounds.";
+      if (startTag.textContent !== next) startTag.textContent = next;
+    }
+    if (!live) {
+      gazeEl.hidden = true;
+      dwellKey = null;
+      dwellFired = false;
+      dwellProgress = 0;
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    const target = dwellTarget();
+    const key = target ? target.key : null;
+    if (key !== dwellKey) {
+      dwellKey = key;
+      dwellStart = now;
+      dwellFired = false;
+    }
+    let p = 0;
+    const dwellMs = target && target.ms ? target.ms : DWELL_MS;
+    if (target && !dwellFired) {
+      p = Math.min(1, (now - dwellStart) / dwellMs);
+      if (now - dwellStart >= dwellMs) {
+        dwellFired = true;
+        p = 1;
+        target.fire();
+      }
+    } else if (target) p = 1;
+    dwellProgress = p;
+    gazeEl.style.setProperty("--p", Math.round(p * 100) + "%");
+  }
+
   function frame(now) {
     const dt = Math.min(48, now - (frame.last || now));
     frame.last = now;
@@ -1548,6 +1786,7 @@
     }
     stepParticles(dt);
     stepFloaters(dt);
+    stepGaze(now);
     syncHud();
     draw();
     requestAnimationFrame(frame);
@@ -1618,12 +1857,24 @@
     setPressed("#level-choices .choice", "data-level", levelId);
   });
   document.getElementById("btn-go").addEventListener("click", beginRound);
-  document.getElementById("btn-how").addEventListener("click", () => document.getElementById("how").showModal());
-  document.getElementById("how-close").addEventListener("click", () => document.getElementById("how").close());
+  function openSheet(id) {
+    document.getElementById("how").hidden = id !== "how";
+    document.getElementById("board").hidden = id !== "board";
+    document.getElementById("scrim").hidden = false;
+  }
+  function closeSheets() {
+    document.getElementById("how").hidden = true;
+    document.getElementById("board").hidden = true;
+    document.getElementById("scrim").hidden = true;
+  }
+  document.getElementById("btn-how").addEventListener("click", () => openSheet("how"));
+  document.getElementById("how-close").addEventListener("click", closeSheets);
   document.getElementById("btn-board").addEventListener("click", openBoard);
-  document.getElementById("board-close").addEventListener("click", () => document.getElementById("board").close());
-  document.getElementById("how").addEventListener("click", (e) => { if (e.target.id === "how") e.target.close(); });
-  document.getElementById("board").addEventListener("click", (e) => { if (e.target.id === "board") e.target.close(); });
+  document.getElementById("board-close").addEventListener("click", closeSheets);
+  document.getElementById("scrim").addEventListener("click", closeSheets);
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeSheets();
+  });
   document.getElementById("home").addEventListener("click", () => {
     if (mode === "end") { goStart(); return; }
     if (leaveArm > 0) { goStart(); return; }
@@ -1682,7 +1933,7 @@
       li.append(left, sc);
       list.appendChild(li);
     });
-    document.getElementById("board").showModal();
+    openSheet("board");
   }
 
   window.popPals = {
@@ -1701,6 +1952,15 @@
     },
     tap(index) { if (holes[index]) whack(holes[index]); },
     tapXY(x, y) { tapAt(x, y); },
+    eyes() { return { on: eyesOn(), live: eyesLive() }; },
+    look(nx, ny) {
+      if (nx == null || ny == null) { gazeHold = null; gazePoint = null; gazeAt = 0; return; }
+      gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+      gazePoint = { x: gazeHold.x, y: gazeHold.y };
+      gazeAt = performance.now();
+    },
+    dwell() { return dwellProgress; },
+    warp() { return gazeWarp ? Array.from(gazeWarp) : null; },
     centers() {
       return layout(viewRect(), holes).map((g) => g.head ? { x: g.head.x, y: g.head.y, covered: g.covered, id: g.h.occ && g.h.occ.id } : null);
     },
@@ -1714,6 +1974,7 @@
 
   applyMute();
   showScreen("start");
+  connectGaze();
   requestAnimationFrame(frame);
 })();
 </script>
