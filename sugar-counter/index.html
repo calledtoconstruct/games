@@ -1,0 +1,2027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f3d2a8">
+<title>Sugar Counter</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #3a2a22;
+    --paper: #fff3e4;
+    --card: rgba(255, 248, 236, 0.96);
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border: none; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(255, 248, 236, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(255, 248, 236, 0.95);
+  }
+  #gaze.squeezing { box-shadow: 0 0 0 3px #fff8ec, inset 0 0 0 12px #e86a9a; }
+  #gaze[hidden] { display: none !important; }
+  #eyes {
+    position: fixed; z-index: 45;
+    top: calc(18px + env(safe-area-inset-top));
+    left: 172px;
+    background: var(--card); border-radius: 999px; padding: 7px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #eyes[hidden] { display: none !important; }
+  .panel {
+    position: fixed; z-index: 50; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(460px, calc(100% - 24px));
+    background: var(--card); border-radius: 28px;
+    padding: 22px 16px 16px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.28);
+  }
+  .panel[hidden] { display: none !important; }
+  h1 { font-size: 52px; line-height: 0.9; margin: 6px 0 8px; text-align: center; letter-spacing: -1px; }
+  .tag, .ages { text-align: center; margin: 0 0 8px; }
+  .ages { color: #6d5a48; font-size: 15px; }
+  .tag { font-size: 18px; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .big, .mid {
+    border: none; border-radius: 18px; min-height: 76px;
+    font-size: 32px; font-weight: 800; color: var(--ink);
+  }
+  .big { background: var(--sun); box-shadow: 0 5px 0 var(--sun-d); }
+  .mid { background: #f7b7cf; box-shadow: 0 5px 0 #d4849f; }
+  .big:active, .mid:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+  #mute, #full, #done, #back {
+    position: fixed; z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #e2d0b4;
+  }
+  #mute, #full, #back { top: calc(10px + env(safe-area-inset-top)); width: 72px; height: 72px; font-size: 15px; }
+  #mute { left: 10px; }
+  #full { left: 90px; }
+  #back { right: 114px; }
+  #done {
+    top: calc(10px + env(safe-area-inset-top)); right: 10px;
+    width: 96px; height: 96px; font-size: 22px; background: var(--sun);
+  }
+  #done[hidden], #back[hidden], #tray[hidden], #card[hidden] { display: none !important; }
+  #tray { position: fixed; z-index: 44; left: 0; right: 0; bottom: 0; pointer-events: none; }
+  #tray > button {
+    position: absolute; pointer-events: auto; border: none; border-radius: 50%;
+    box-shadow: 0 4px 0 rgba(58, 42, 34, 0.25);
+  }
+  #tray > button[aria-pressed="true"] { outline: 4px solid var(--ink); outline-offset: 3px; }
+  #tool-pink { background: #e86a9a; }
+  #tool-chocolate { background: #6b3a2a; }
+  #tool-white { background: #fff6ea; box-shadow: 0 4px 0 rgba(58, 42, 34, 0.25), inset 0 0 0 3px #e2c7a4; }
+  #tool-blue { background: #6eb5e8; }
+  #tool-sprinkles {
+    background:
+      radial-gradient(circle at 30% 35%, #e23b3b 0 5px, transparent 6px),
+      radial-gradient(circle at 70% 30%, #2f8a3e 0 5px, transparent 6px),
+      radial-gradient(circle at 40% 70%, #ffc857 0 5px, transparent 6px),
+      radial-gradient(circle at 68% 68%, #6eb5e8 0 5px, transparent 6px),
+      #fff6ea;
+  }
+  #tool-cherry { background: radial-gradient(circle at 50% 58%, #e23b3b 0 42%, #2f8a3e 43% 52%, transparent 53%), #fff6ea; }
+  #card {
+    position: fixed; z-index: 40; display: flex; align-items: center; gap: 10px;
+    background: var(--card); border-radius: 18px; padding: 8px 10px; overflow: auto;
+  }
+  #card.wiggle { animation: wiggle 0.4s ease; }
+  @keyframes wiggle {
+    0%, 100% { translate: 0 0; }
+    25% { translate: -8px 0; }
+    75% { translate: 8px 0; }
+  }
+  #face { width: 54px; height: 54px; border-radius: 50%; background: #ffd7a8; position: relative; flex: none; }
+  #face i, #face b { position: absolute; display: block; }
+  #face i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); top: 18px; }
+  #face i:first-child { left: 14px; }
+  #face i:nth-child(2) { right: 14px; }
+  #face b {
+    left: 16px; right: 16px; bottom: 16px; height: 0;
+    border-bottom: 3px solid var(--ink);
+  }
+  #face.happy b {
+    height: 12px; border: 3px solid var(--ink); border-top: none;
+    border-radius: 0 0 12px 12px;
+  }
+  #reqs { display: flex; gap: 8px; align-items: center; }
+  .req { display: flex; flex-direction: column; gap: 4px; min-width: 54px; }
+  .req b { font-size: 13px; }
+  .swatch { width: 28px; height: 28px; border-radius: 50%; }
+  .swatch.stripe { width: 36px; height: 14px; border-radius: 8px; margin-top: 7px; }
+  .swatch.sprinkle {
+    background:
+      radial-gradient(circle at 20% 50%, #e23b3b 0 3px, transparent 4px),
+      radial-gradient(circle at 50% 50%, #2f8a3e 0 3px, transparent 4px),
+      radial-gradient(circle at 80% 50%, #ffc857 0 3px, transparent 4px);
+  }
+  .swatch.cherry { background: #e23b3b; }
+  .pips { display: flex; gap: 4px; }
+  .pips i { width: 12px; height: 12px; border-radius: 50%; background: #e6d3bf; display: block; }
+  .pips i.on { background: #2f8a3e; }
+  .panel { max-height: calc(100dvh - 16px); overflow: auto; }
+  .levels { display: flex; flex-direction: column; gap: 8px; }
+  .choice {
+    text-align: left; border-radius: 16px; border: 3px solid transparent;
+    background: #fff; padding: 8px 12px; color: var(--ink);
+  }
+  .choice b { display: block; font-size: 18px; }
+  .choice small { display: block; margin-top: 2px; color: #6d5a48; font-size: 13px; }
+  .choice[aria-pressed="true"] { border-color: #e2a62e; background: #fff6df; }
+  #order-treat { font-size: 14px; }
+  #treats {
+    position: absolute; left: 8px; right: 8px; top: 6px; height: 48px;
+    display: flex; gap: 6px; justify-content: center; pointer-events: auto;
+  }
+  #treats[hidden] { display: none !important; }
+  #treats button {
+    position: static; flex: 1; max-width: 128px; min-height: 44px;
+    border: none; border-radius: 12px;
+    background: #fff8ec; color: var(--ink); font-weight: 800; font-size: 15px;
+    box-shadow: 0 3px 0 #e2d0b4;
+  }
+  #treats button[hidden] { display: none !important; }
+  #treats button[aria-pressed="true"] { background: var(--sun); }
+  #clock {
+    position: fixed; z-index: 46; top: calc(18px + env(safe-area-inset-top));
+    left: 50%; transform: translateX(-50%);
+    background: var(--card); border-radius: 999px; padding: 8px 14px;
+    font-weight: 800; font-size: 22px;
+  }
+  #clock.up { background: #ffd0c8; }
+  #clock[hidden] { display: none !important; }
+  @media (max-width: 799px) {
+    #done { width: 64px; height: 64px; font-size: 16px; }
+    #back { right: 82px; width: 64px; height: 64px; font-size: 14px; }
+    #clock { left: 168px; right: 154px; transform: none; text-align: center; font-size: 16px; line-height: 1.05; padding: 6px 6px; }
+    #treats button { font-size: 13px; padding: 0 4px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #card.wiggle { animation: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">Mute</button>
+<button id="full" type="button" aria-label="Fullscreen">Full</button>
+<button id="back" type="button" hidden aria-label="Back to the start screen">Back</button>
+<button id="done" type="button" hidden>Done</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<div id="clock" hidden>1:30</div>
+<div id="tray" hidden>
+  <div id="treats" hidden>
+    <button type="button" data-treat="donut" aria-pressed="true">Donut</button>
+    <button type="button" data-treat="cupcake" aria-pressed="false">Cupcake</button>
+    <button type="button" data-treat="cake" aria-pressed="false">Cake</button>
+    <button type="button" data-treat="scoops" aria-pressed="false">Scoops</button>
+    <button type="button" data-treat="soft" aria-pressed="false">Soft</button>
+  </div>
+  <button id="tool-pink" type="button" data-tool="pink" aria-label="Pink icing" aria-pressed="true"></button>
+  <button id="tool-chocolate" type="button" data-tool="chocolate" aria-label="Chocolate icing" aria-pressed="false"></button>
+  <button id="tool-white" type="button" data-tool="white" aria-label="White icing" aria-pressed="false"></button>
+  <button id="tool-blue" type="button" data-tool="blue" aria-label="Blue icing" aria-pressed="false"></button>
+  <button id="tool-sprinkles" type="button" data-tool="sprinkles" aria-label="Sprinkles" aria-pressed="false"></button>
+  <button id="tool-cherry" type="button" data-tool="cherry" aria-label="Cherry" aria-pressed="false"></button>
+</div>
+<aside id="card" hidden>
+  <div id="face" aria-hidden="true"><i></i><i></i><b></b></div>
+  <div>
+    <b id="order-treat"></b>
+    <div id="reqs"></div>
+  </div>
+</aside>
+<section id="screen-start" class="panel">
+  <h1>Sugar Counter</h1>
+  <p id="tag" class="tag">Press and move on the donut to ice it.</p>
+  <p class="ages">Ages 2 and up</p>
+  <div class="levels" id="level-choices">
+    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Donuts and cupcakes to decorate.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. Cakes too, and picture orders.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. Scoops and soft serve.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Fill the card before the clock ends.</small></button>
+  </div>
+  <div class="stack">
+    <button id="decorate" class="big" type="button">Decorate</button>
+    <button id="orders" class="mid" type="button" hidden>Orders</button>
+  </div>
+</section>
+<script>
+(function () {
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const POINTER_DEAD = 18;
+  const COLORS = { pink: "#e86a9a", chocolate: "#6b3a2a", white: "#fff6ea", blue: "#6eb5e8" };
+  const FLAVOR_OF = { pink: "strawberry", chocolate: "chocolate", white: "vanilla", blue: "mint" };
+  const FLAVOR_COLOR = { strawberry: "#e86a9a", chocolate: "#6b3a2a", vanilla: "#fff6ea", mint: "#3aaa6a" };
+  const TOOLS = ["pink", "chocolate", "white", "blue", "sprinkles", "cherry"];
+  const TREAT_NAME = { donut: "Donut", cupcake: "Cupcake", cake: "Cake", scoops: "Cone", soft: "Soft serve" };
+  const ORDERS = [
+    [{ kind: "glob", color: "pink", n: 3 }],
+    [{ kind: "stripe", color: "chocolate", n: 1 }, { kind: "cherry", n: 1 }],
+    [{ kind: "sprinkle", n: 2 }, { kind: "glob", color: "white", n: 1 }],
+    [{ kind: "glob", color: "blue", n: 2 }, { kind: "cherry", n: 1 }],
+    [{ kind: "stripe", color: "pink", n: 1 }, { kind: "sprinkle", n: 1 }],
+    [{ kind: "stripe", color: "white", n: 1 }, { kind: "cherry", n: 2 }],
+    [{ kind: "sprinkle", n: 3 }],
+    [{ kind: "glob", color: "chocolate", n: 1 }, { kind: "glob", color: "blue", n: 1 }, { kind: "cherry", n: 1 }]
+  ];
+  const CUPCAKE_ORDERS = [
+    { treat: "cupcake", reqs: [{ kind: "glob", color: "pink", n: 2 }] },
+    { treat: "cupcake", reqs: [{ kind: "cherry", n: 1 }] },
+    { treat: "cupcake", reqs: [{ kind: "stripe", color: "blue", n: 1 }, { kind: "sprinkle", n: 1 }] },
+    { treat: "cupcake", reqs: [{ kind: "sprinkle", n: 3 }] }
+  ];
+  const CAKE_ORDERS = [
+    { treat: "cake", reqs: [{ kind: "glob", color: "white", n: 2 }, { kind: "cherry", n: 1 }] },
+    { treat: "cake", reqs: [{ kind: "stripe", color: "chocolate", n: 1 }] },
+    { treat: "cake", reqs: [{ kind: "sprinkle", n: 2 }, { kind: "glob", color: "pink", n: 1 }] }
+  ];
+  const SCOOP_ORDERS = [
+    { treat: "scoops", reqs: [{ kind: "scoop", color: "chocolate", n: 1 }] },
+    { treat: "scoops", reqs: [{ kind: "scoop", color: "vanilla", n: 2 }] },
+    { treat: "scoops", reqs: [{ kind: "scoop", color: "strawberry", n: 1 }, { kind: "scoop", color: "mint", n: 1 }] },
+    { treat: "scoops", reqs: [{ kind: "scoop", color: "chocolate", n: 1 }, { kind: "scoop", color: "vanilla", n: 1 }, { kind: "scoop", color: "strawberry", n: 1 }] }
+  ];
+  const SOFT_ORDERS = [
+    { treat: "soft", reqs: [{ kind: "swirl", color: "chocolate", n: 1 }] },
+    { treat: "soft", reqs: [{ kind: "swirl", color: "vanilla", n: 2 }] },
+    { treat: "soft", reqs: [{ kind: "swirl", color: "strawberry", n: 1 }, { kind: "swirl", color: "mint", n: 1 }] }
+  ];
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d");
+  const gazeEl = document.getElementById("gaze");
+  const eyesEl = document.getElementById("eyes");
+  const tag = document.getElementById("tag");
+  const screen = document.getElementById("screen-start");
+  const tray = document.getElementById("tray");
+  const card = document.getElementById("card");
+  const face = document.getElementById("face");
+  const reqsEl = document.getElementById("reqs");
+  const doneBtn = document.getElementById("done");
+  const backBtn = document.getElementById("back");
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const decorateBtn = document.getElementById("decorate");
+  const ordersBtn = document.getElementById("orders");
+  const treatsEl = document.getElementById("treats");
+  const clockEl = document.getElementById("clock");
+  const orderTreatEl = document.getElementById("order-treat");
+  const toolEls = {};
+  TOOLS.forEach((id) => { toolEls[id] = document.getElementById("tool-" + id); });
+
+  let mode = "start";
+  let levelId = "tiny";
+  let treat = "donut";
+  let tool = "pink";
+  let orderIndex = 1;
+  let timeLeft = 90;
+  let timeUp = false;
+  let marks = [];
+  let score = emptyScore();
+  let gesture = null;
+  let cherryDrag = null;
+  let scoopDrag = null;
+  let trayScoop = null;
+  let latch = false;
+  let pointerActive = false;
+  let capId = null;
+  let mute = false;
+  let clock = 0;
+  let checking = false;
+  let flashUntil = 0;
+  let wiggleUntil = 0;
+  let groupSeq = 1;
+  let ac = null;
+  let master = null;
+  let lastTick = -1e9;
+  let lastSplat = -1e9;
+
+  let gazeSock = null;
+  let gazeBuf = new Uint8Array(0);
+  let gazeTimer = 0;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let gazeHold = null;
+  let refreshHold = true;
+  let gazeWarp = null;
+  let haveSmooth = false;
+  let smoothed = null;
+  let suppressReconnect = false;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let leaveAt = 0;
+
+  function emptyScore() {
+    return {
+      globs: { pink: 0, chocolate: 0, white: 0, blue: 0 },
+      stripes: { pink: 0, chocolate: 0, white: 0, blue: 0 },
+      sprinkles: 0,
+      cherries: 0,
+      scoops: { strawberry: 0, chocolate: 0, vanilla: 0, mint: 0 },
+      swirls: { strawberry: 0, chocolate: 0, vanilla: 0, mint: 0 }
+    };
+  }
+  function iceTreat() { return treat === "scoops" || treat === "soft"; }
+  function flavorOf(id) { return FLAVOR_OF[id] || null; }
+  function treatsForLevel() {
+    if (levelId === "tiny") return ["donut", "cupcake"];
+    if (levelId === "little") return ["donut", "cupcake", "cake"];
+    return ["donut", "cupcake", "cake", "scoops", "soft"];
+  }
+  function deck() {
+    const donutCards = ORDERS.map((reqs) => ({ treat: "donut", reqs }));
+    const bakery = donutCards.concat(CUPCAKE_ORDERS, CAKE_ORDERS);
+    if (levelId === "shop" || levelId === "rush") return bakery.concat(SCOOP_ORDERS, SOFT_ORDERS);
+    if (levelId === "little") return bakery;
+    return donutCards;
+  }
+  function currentCard() {
+    const cards = deck();
+    return cards[(orderIndex - 1) % cards.length];
+  }
+  function blobR() {
+    return Math.max(18, 0.045 * Math.min(window.innerWidth, window.innerHeight));
+  }
+  function stripeLength() { return 4 * blobR(); }
+  function gazeDead() { return Math.max(28, blobR()); }
+  function layout() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const trayBase = Math.min(180, Math.max(120, h * 0.18));
+    const trayH = trayBase + (mode === "free" ? 56 : 0);
+    const wide = w >= 800;
+    const ordersOn = mode === "orders";
+    const cardW = ordersOn && wide ? 220 : 0;
+    const cardH = ordersOn && !wide ? 82 + 88 : 0;
+    const play = { x: cardW, y: cardH, w: Math.max(0, w - cardW), h: Math.max(0, h - trayH - cardH) };
+    const short = Math.min(play.w, play.h);
+    let rx = 0.42 * short;
+    let ry = 0.36 * short;
+    rx = Math.min(rx, Math.max(8, play.w / 2 - 12));
+    ry = Math.min(ry, Math.max(8, play.h / 2 - 12));
+    const gap = 8;
+    const shown = iceTreat() ? 4 : 6;
+    const toolD = Math.min(112, (w - 16 - gap * (shown - 1)) / shown);
+    let cy = play.y + play.h / 2;
+    if (treat === "cupcake") cy -= ry * 0.08;
+    if (treat === "scoops" || treat === "soft") cy -= ry * 0.12;
+    return {
+      trayH, wide, cardW, cardH, toolD,
+      donut: { cx: play.x + play.w / 2, cy, rx, ry }
+    };
+  }
+  function toUV(x, y) {
+    const d = layout().donut;
+    return { u: (x - d.cx) / d.rx, v: (y - d.cy) / d.ry };
+  }
+  function fromUV(u, v) {
+    const d = layout().donut;
+    return { x: d.cx + u * d.rx, y: d.cy + v * d.ry };
+  }
+  function inDonut(x, y) {
+    const d = layout().donut;
+    if (d.rx <= 0 || d.ry <= 0) return false;
+    const u = (x - d.cx) / d.rx;
+    const v = (y - d.cy) / d.ry;
+    if (u * u + v * v <= 1) return true;
+    if (treat !== "scoops" && treat !== "soft") return false;
+    const rim = d.cy + d.ry * 0.35;
+    const tip = d.cy + d.ry * 1.45;
+    if (y < rim || y > tip) return false;
+    const along = (y - rim) / (tip - rim);
+    const half = d.rx * 0.42 * (1 - along) + 16;
+    return Math.abs(x - d.cx) <= half;
+  }
+  function countMarks(type) {
+    let n = 0;
+    for (let i = 0; i < marks.length; i++) if (marks[i].type === type) n++;
+    return n;
+  }
+  function playSound(name) {
+    if (name === "tick") {
+      if (clock - lastTick < 80) return;
+      lastTick = clock;
+    }
+    if (!ac || mute) return;
+    const t = ac.currentTime + 0.01;
+    if (name === "tool") osc(t, 0.08, "triangle", 520, 680, 0.05);
+    else if (name === "glob") osc(t, 0.14, "sine", 300, 160, 0.08);
+    else if (name === "tick") osc(t, 0.05, "sine", 380, 300, 0.04);
+    else if (name === "sprinkle") noise(t, 0.08, 0.06, 800 + Math.random() * 1800);
+    else if (name === "splat") {
+      const roll = Math.random();
+      if (roll < 0.34) noise(t, 0.07, 0.08, 280);
+      else if (roll < 0.67) { noise(t, 0.1, 0.07, 480); osc(t, 0.08, "triangle", 240, 130, 0.05); }
+      else { noise(t, 0.06, 0.09, 160); osc(t, 0.1, "sine", 180, 90, 0.06); }
+    }
+    else if (name === "cherry") osc(t, 0.12, "triangle", 620, 440, 0.06);
+    else if (name === "release") osc(t, 0.08, "sine", 240, 180, 0.04);
+    else if (name === "serve") { osc(t, 0.12, "triangle", 520, 780, 0.07); osc(t + 0.1, 0.16, "sine", 780, 980, 0.06); }
+    else if (name === "wait") osc(t, 0.16, "sine", 180, 140, 0.05);
+  }
+  function ensureAudio() {
+    if (!ac) {
+      const AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      ac = new AC();
+      master = ac.createGain();
+      master.gain.value = mute ? 0 : 0.6;
+      master.connect(ac.destination);
+    }
+    if (ac.state === "suspended") ac.resume();
+  }
+  function envGain(t, dur, peak) {
+    const g = ac.createGain();
+    g.connect(master);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.03, dur));
+    return g;
+  }
+  function osc(t, dur, type, f0, f1, peak) {
+    const o = ac.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(Math.max(40, f0), t);
+    if (f1 && Math.abs(f1 - f0) > 1) o.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
+    o.connect(envGain(t, dur, peak));
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+  function noise(t, dur, peak, freq) {
+    const len = Math.max(1, Math.floor(ac.sampleRate * dur));
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    const filter = ac.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = freq;
+    filter.Q.value = 0.7;
+    src.connect(filter);
+    filter.connect(envGain(t, dur, peak));
+    src.start(t);
+  }
+
+  function clearDonut() {
+    marks = [];
+    score = emptyScore();
+    gesture = null;
+    cherryDrag = null;
+    scoopDrag = null;
+  }
+  function selectTool(id) {
+    if (capId !== null) return;
+    if (tool === id) return;
+    tool = id;
+    TOOLS.forEach((name) => { toolEls[name].setAttribute("aria-pressed", name === id ? "true" : "false"); });
+    playSound("tool");
+  }
+  function makeSplat() {
+    const n = 6 + Math.floor(Math.random() * 4);
+    const lobes = [];
+    for (let i = 0; i < n; i++) {
+      lobes.push({ a: (i / n) * Math.PI * 2 + (Math.random() - 0.5) * 0.5, r: 0.45 + Math.random() * 0.75 });
+    }
+    const drops = [];
+    const dn = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < dn; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const rad = 0.85 + Math.random() * 1.15;
+      drops.push({ ox: Math.cos(a) * rad, oy: Math.sin(a) * rad * 0.85, s: 0.12 + Math.random() * 0.22 });
+    }
+    return { lobes, drops, rot: Math.random() * Math.PI * 2 };
+  }
+  function addBlob(x, y, color, group) {
+    if (countMarks("blob") >= 400) return null;
+    const uv = toUV(x, y);
+    const splat = makeSplat();
+    const mark = { type: "blob", color, u: uv.u, v: uv.v, group, lobes: splat.lobes, drops: splat.drops, rot: splat.rot };
+    marks.push(mark);
+    return mark;
+  }
+  function addCluster(x, y, group) {
+    if (countMarks("sprinkle") >= 80 * 7) return;
+    const hues = ["#e23b3b", "#2f8a3e", "#ffc857", "#6eb5e8", "#ffffff", "#6b3a2a", "#e86a9a"];
+    const center = toUV(x, y);
+    const splash = makeSplat();
+    for (let i = 0; i < 7; i++) {
+      const ang = Math.random() * Math.PI * 2;
+      const rad = 0.15 + Math.random() * 1.05;
+      const ox = Math.cos(ang) * rad;
+      const oy = Math.sin(ang) * rad * 0.8;
+      const uv = toUV(x + ox * blobR(), y + oy * blobR());
+      const mark = {
+        type: "sprinkle", group, u: uv.u, v: uv.v, shape: i < 3 ? "dot" : "rod",
+        rot: ang, hue: hues[i % hues.length], ox, oy, len: 0.5 + Math.random()
+      };
+      if (i === 0) {
+        mark.splash = splash;
+        mark.cu = center.u;
+        mark.cv = center.v;
+      }
+      marks.push(mark);
+    }
+  }
+  function moveGroup(group, x, y) {
+    const center = toUV(x, y);
+    for (let i = 0; i < marks.length; i++) {
+      const m = marks[i];
+      if (m.group !== group) continue;
+      if (m.type === "blob") { m.u = center.u; m.v = center.v; }
+      if (m.type === "sprinkle") {
+        const p = toUV(x + m.ox * blobR(), y + m.oy * blobR());
+        m.u = p.u;
+        m.v = p.v;
+        if (m.splash) { m.cu = center.u; m.cv = center.v; }
+      }
+    }
+  }
+  function beginGesture(x, y, source) {
+    const group = groupSeq++;
+    const g = {
+      source, tool, group, color: tool,
+      lastX: x, lastY: y, drawX: x, drawY: y,
+      path: 0, lined: false, promoted: false, scored: null
+    };
+    if (tool === "sprinkles") {
+      addCluster(x, y, group);
+      score.sprinkles++;
+      g.scored = "cluster";
+      playSound("sprinkle");
+    } else if (COLORS[tool]) {
+      addBlob(x, y, tool, group);
+      score.globs[tool]++;
+      g.scored = "glob";
+      playSound("splat");
+    } else return null;
+    gesture = g;
+    return g;
+  }
+  function extendGesture(g, x, y) {
+    if (!g || g.kind === "swirl") return;
+    const step = Math.hypot(x - g.lastX, y - g.lastY);
+    if (step < 0.4) return;
+    g.path += step;
+    g.lastX = x;
+    g.lastY = y;
+    const dead = g.source === "gaze" ? gazeDead() : POINTER_DEAD;
+    if (g.path < dead) {
+      moveGroup(g.group, x, y);
+      g.drawX = x;
+      g.drawY = y;
+      return;
+    }
+    g.lined = true;
+    const diameter = blobR() * 2;
+    const spacing = (g.tool === "sprinkles" ? 0.7 : 0.45) * diameter;
+    let guard = 0;
+    while (Math.hypot(x - g.drawX, y - g.drawY) >= spacing && guard < 80) {
+      const dist = Math.hypot(x - g.drawX, y - g.drawY);
+      const t = spacing / dist;
+      g.drawX += (x - g.drawX) * t;
+      g.drawY += (y - g.drawY) * t;
+      if (g.tool === "sprinkles") addCluster(g.drawX, g.drawY, g.group);
+      else addBlob(g.drawX, g.drawY, g.color, g.group);
+      guard++;
+    }
+    if (!g.promoted && g.path >= stripeLength()) {
+      g.promoted = true;
+      if (g.scored === "glob") score.globs[g.color] = Math.max(0, score.globs[g.color] - 1);
+      if (g.scored === "cluster") score.sprinkles = Math.max(0, score.sprinkles - 1);
+      if (COLORS[g.color]) score.stripes[g.color]++;
+      g.scored = "stripe";
+    }
+    if (g.lined && clock - lastSplat > 80) {
+      lastSplat = clock;
+      playSound(g.tool === "sprinkles" ? "sprinkle" : "splat");
+    }
+  }
+  function endGesture() { gesture = null; }
+  function placeCherry(x, y) {
+    if (!inDonut(x, y)) return null;
+    if (countMarks("cherry") >= 24) { playSound("cherry"); return null; }
+    const uv = toUV(x, y);
+    const mark = { type: "cherry", u: uv.u, v: uv.v };
+    marks.push(mark);
+    score.cherries++;
+    playSound("cherry");
+    return mark;
+  }
+  function beginCherry(x, y) {
+    cherryDrag = placeCherry(x, y);
+  }
+  function moveCherry(x, y) {
+    if (!cherryDrag) return;
+    const uv = toUV(x, y);
+    cherryDrag.u = uv.u;
+    cherryDrag.v = uv.v;
+  }
+  function endCherry(x, y) {
+    if (!cherryDrag) return;
+    if (!inDonut(x, y)) {
+      const idx = marks.indexOf(cherryDrag);
+      if (idx >= 0) marks.splice(idx, 1);
+      score.cherries = Math.max(0, score.cherries - 1);
+    } else {
+      const uv = toUV(x, y);
+      cherryDrag.u = uv.u;
+      cherryDrag.v = uv.v;
+    }
+    cherryDrag = null;
+  }
+  function placedScoops() {
+    let n = 0;
+    for (let i = 0; i < marks.length; i++) if (marks[i].type === "scoop" && marks[i].placed) n++;
+    return n;
+  }
+  function placeScoop(color) {
+    if (!color) return;
+    if (placedScoops() >= 8) { playSound("glob"); return; }
+    marks.push({ type: "scoop", color, u: 0, v: 0, placed: true });
+    score.scoops[color]++;
+    playSound("glob");
+  }
+  function beginScoopDrag(x, y) {
+    const color = flavorOf(tool);
+    if (!color || placedScoops() >= 8) { playSound("glob"); return; }
+    const uv = toUV(x, y);
+    const mark = { type: "scoop", color, u: uv.u, v: uv.v, placed: false };
+    marks.push(mark);
+    scoopDrag = mark;
+    playSound("glob");
+  }
+  function moveScoop(x, y) {
+    if (!scoopDrag) return;
+    const uv = toUV(x, y);
+    scoopDrag.u = uv.u;
+    scoopDrag.v = uv.v;
+  }
+  function endScoop(x, y) {
+    if (!scoopDrag) return;
+    if (inDonut(x, y)) {
+      scoopDrag.placed = true;
+      scoopDrag.u = 0;
+      scoopDrag.v = 0;
+      score.scoops[scoopDrag.color]++;
+    } else {
+      const idx = marks.indexOf(scoopDrag);
+      if (idx >= 0) marks.splice(idx, 1);
+    }
+    scoopDrag = null;
+  }
+  function beginSwirl(source) {
+    const color = flavorOf(tool);
+    if (!color) return null;
+    if (countMarks("swirl") >= 6) { playSound("glob"); return null; }
+    const mark = { type: "swirl", color, h: 0.35 };
+    marks.push(mark);
+    score.swirls[color]++;
+    const g = { kind: "swirl", source, mark, tool: "swirl", path: 0 };
+    gesture = g;
+    playSound("glob");
+    return g;
+  }
+  function releaseLatch() {
+    if (!latch) { leaveAt = 0; return; }
+    latch = false;
+    endGesture();
+    leaveAt = 0;
+    gazeEl.classList.remove("squeezing");
+    dwellKey = null;
+    dwellFired = false;
+    dwellProgress = 0;
+    playSound("release");
+  }
+  function startLatch(x, y) {
+    if (latch) return;
+    const g = treat === "soft" ? beginSwirl("gaze") : beginGesture(x, y, "gaze");
+    if (!g) return;
+    latch = true;
+    leaveAt = 0;
+    gazeEl.classList.add("squeezing");
+  }
+
+  function haveOf(req) {
+    if (req.kind === "glob") return score.globs[req.color];
+    if (req.kind === "stripe") return score.stripes[req.color];
+    if (req.kind === "sprinkle") return score.sprinkles;
+    if (req.kind === "scoop") return score.scoops[req.color] || 0;
+    if (req.kind === "swirl") return score.swirls[req.color] || 0;
+    return score.cherries;
+  }
+  function cardFilled() {
+    if (mode !== "orders") return false;
+    const cardReqs = currentCard().reqs;
+    for (let i = 0; i < cardReqs.length; i++) if (haveOf(cardReqs[i]) < cardReqs[i].n) return false;
+    return true;
+  }
+  function updateCard() {
+    face.classList.toggle("happy", mode === "orders" && cardFilled());
+    if (mode !== "orders") { reqsEl.replaceChildren(); orderTreatEl.textContent = ""; return; }
+    orderTreatEl.textContent = TREAT_NAME[currentCard().treat] || "";
+    const frag = document.createDocumentFragment();
+    const cardReqs = currentCard().reqs;
+    cardReqs.forEach((req) => {
+      const wrap = document.createElement("div");
+      wrap.className = "req";
+      const sw = document.createElement("div");
+      sw.className = "swatch";
+      const label = document.createElement("b");
+      if (req.kind === "glob") {
+        sw.style.background = COLORS[req.color];
+        label.textContent = req.n + " " + req.color;
+      } else if (req.kind === "stripe") {
+        sw.classList.add("stripe");
+        sw.style.background = COLORS[req.color];
+        label.textContent = req.color + " stripe";
+      } else if (req.kind === "sprinkle") {
+        sw.classList.add("sprinkle");
+        label.textContent = req.n + " sprinkles";
+      } else if (req.kind === "scoop") {
+        sw.style.background = FLAVOR_COLOR[req.color];
+        label.textContent = req.n + " " + req.color + (req.n === 1 ? " scoop" : " scoops");
+      } else if (req.kind === "swirl") {
+        sw.style.background = FLAVOR_COLOR[req.color];
+        label.textContent = req.n + " " + req.color + (req.n === 1 ? " swirl" : " swirls");
+      } else {
+        sw.classList.add("cherry");
+        label.textContent = req.n + (req.n === 1 ? " cherry" : " cherries");
+      }
+      const pips = document.createElement("div");
+      pips.className = "pips";
+      const have = Math.min(req.n, haveOf(req));
+      for (let i = 0; i < req.n; i++) {
+        const pip = document.createElement("i");
+        if (i < have) pip.className = "on";
+        pips.appendChild(pip);
+      }
+      wrap.append(sw, label, pips);
+      frag.appendChild(wrap);
+    });
+    reqsEl.replaceChildren(frag);
+  }
+  function serve() {
+    if (mode === "free") {
+      playSound("serve");
+      flashUntil = clock + (reduceMotion ? 40 : 700);
+      clearDonut();
+      updateCard();
+      return;
+    }
+    if (mode !== "orders") return;
+    if (!cardFilled()) {
+      playSound("wait");
+      card.classList.remove("wiggle");
+      void card.offsetWidth;
+      card.classList.add("wiggle");
+      wiggleUntil = clock + 400;
+      return;
+    }
+    playSound("serve");
+    flashUntil = clock + (reduceMotion ? 40 : 700);
+    clearDonut();
+    orderIndex = orderIndex >= deck().length ? 1 : orderIndex + 1;
+    treat = currentCard().treat;
+    timeLeft = 90;
+    timeUp = false;
+    showTools();
+    updateCard();
+    updateClock();
+  }
+  function showTools() {
+    const ice = iceTreat();
+    const labels = ice
+      ? { pink: "Strawberry", chocolate: "Chocolate", white: "Vanilla", blue: "Mint" }
+      : { pink: "Pink icing", chocolate: "Chocolate icing", white: "White icing", blue: "Blue icing", sprinkles: "Sprinkles", cherry: "Cherry" };
+    TOOLS.forEach((id) => {
+      const hide = ice && (id === "sprinkles" || id === "cherry");
+      toolEls[id].hidden = hide;
+      toolEls[id].setAttribute("aria-label", labels[id]);
+      toolEls[id].setAttribute("aria-pressed", id === tool ? "true" : "false");
+    });
+    toolEls.blue.style.background = ice ? "#3aaa6a" : "";
+  }
+  function syncTreatButtons() {
+    const allowed = treatsForLevel();
+    treatsEl.querySelectorAll("button").forEach((btn) => {
+      btn.hidden = !allowed.includes(btn.dataset.treat);
+      btn.setAttribute("aria-pressed", btn.dataset.treat === treat ? "true" : "false");
+    });
+    treatsEl.hidden = mode !== "free";
+  }
+  function setTreat(id) {
+    if (mode === "orders") return treat;
+    if (!treatsForLevel().includes(id)) return treat;
+    treat = id;
+    tool = iceTreat() ? "chocolate" : "pink";
+    clearDonut();
+    showTools();
+    syncTreatButtons();
+    placeChrome();
+    render();
+    return treat;
+  }
+  function selectLevel(id) {
+    if (!id) return levelId;
+    levelId = id;
+    document.querySelectorAll("[data-level]").forEach((btn) => {
+      btn.setAttribute("aria-pressed", btn.dataset.level === id ? "true" : "false");
+    });
+    ordersBtn.hidden = id === "tiny";
+    return levelId;
+  }
+  function updateClock() {
+    const show = mode === "orders" && levelId === "rush";
+    clockEl.hidden = !show;
+    if (!show) return;
+    clockEl.classList.toggle("up", timeUp);
+    clockEl.textContent = timeUp ? "Time's up" : fmtTime(timeLeft);
+  }
+  function fmtTime(s) {
+    s = Math.max(0, Math.ceil(s));
+    const m = Math.floor(s / 60);
+    return m + ":" + String(s % 60).padStart(2, "0");
+  }
+  function showStart() {
+    mode = "start";
+    tool = "pink";
+    treat = "donut";
+    orderIndex = 1;
+    latch = false;
+    pointerActive = false;
+    capId = null;
+    gesture = null;
+    cherryDrag = null;
+    leaveAt = 0;
+    dwellKey = null;
+    dwellFired = false;
+    clearDonut();
+    trayScoop = null;
+    toolEls.blue.style.background = "";
+    showTools();
+    screen.hidden = false;
+    tray.hidden = true;
+    treatsEl.hidden = true;
+    backBtn.hidden = true;
+    doneBtn.hidden = true;
+    card.hidden = true;
+    clockEl.hidden = true;
+    gazeEl.classList.remove("squeezing");
+    placeChrome();
+  }
+  function start(which) {
+    mode = which === "orders" ? "orders" : "free";
+    orderIndex = 1;
+    treat = mode === "orders" ? currentCard().treat : "donut";
+    tool = iceTreat() ? "chocolate" : "pink";
+    timeLeft = 90;
+    timeUp = false;
+    latch = false;
+    pointerActive = false;
+    capId = null;
+    leaveAt = 0;
+    dwellKey = null;
+    dwellFired = false;
+    dwellProgress = 0;
+    gazeHold = null;
+    refreshHold = true;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    gazeEl.classList.remove("squeezing");
+    clearDonut();
+    showTools();
+    syncTreatButtons();
+    screen.hidden = true;
+    tray.hidden = false;
+    backBtn.hidden = false;
+    doneBtn.hidden = false;
+    card.hidden = mode !== "orders";
+    placeChrome();
+    updateCard();
+    updateClock();
+    render();
+  }
+
+  function tipFrom(x, y, pointerType) {
+    if (pointerType === "touch") return { x, y: y - blobR() };
+    return { x, y };
+  }
+  function pointerDown(x, y) {
+    if (capId !== null) return;
+    capId = 1;
+    pointerActive = true;
+    releaseLatch();
+    if (mode !== "free" && mode !== "orders") return;
+    if (!inDonut(x, y)) return;
+    if (treat === "scoops") beginScoopDrag(x, y);
+    else if (treat === "soft") beginSwirl("pointer");
+    else if (tool === "cherry") beginCherry(x, y);
+    else beginGesture(x, y, "pointer");
+    render();
+  }
+  function pointerMove(x, y) {
+    if (capId === null) return;
+    if (scoopDrag) moveScoop(x, y);
+    else if (cherryDrag) moveCherry(x, y);
+    else extendGesture(gesture, x, y);
+    render();
+  }
+  function pointerUp(x, y) {
+    if (capId === null) return;
+    if (scoopDrag) endScoop(x, y);
+    else if (cherryDrag) endCherry(x, y);
+    else endGesture();
+    capId = null;
+    pointerActive = false;
+    render();
+  }
+  function tap(nx, ny) {
+    const x = nx * window.innerWidth;
+    const y = ny * window.innerHeight;
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest("button");
+    if (btn) { btn.click(); render(); return; }
+    pointerDown(x, y);
+    pointerUp(x, y);
+  }
+  function drag(points) {
+    if (!points.length) return;
+    const abs = points.map((p) => ({ x: p.x * window.innerWidth, y: p.y * window.innerHeight }));
+    pointerDown(abs[0].x, abs[0].y);
+    for (let i = 1; i < abs.length; i++) pointerMove(abs[i].x, abs[i].y);
+    pointerUp(abs[abs.length - 1].x, abs[abs.length - 1].y);
+  }
+
+  function placeChrome() {
+    const L = layout();
+    tray.style.height = L.trayH + "px";
+    const gap = 8;
+    const d = L.toolD;
+    const visible = TOOLS.filter((id) => !toolEls[id].hidden);
+    let x = (window.innerWidth - (d * visible.length + gap * (visible.length - 1))) / 2;
+    const toolBand = mode === "free" ? L.trayH - 56 : L.trayH;
+    const top = (mode === "free" ? 56 : 0) + Math.max(0, (toolBand - d) / 2);
+    visible.forEach((id) => {
+      const btn = toolEls[id];
+      btn.style.width = d + "px";
+      btn.style.height = d + "px";
+      btn.style.left = x + "px";
+      btn.style.top = top + "px";
+      x += d + gap;
+    });
+    syncTreatButtons();
+    if (mode === "orders") {
+      card.hidden = false;
+      if (L.wide) {
+        card.style.left = "8px";
+        card.style.right = "auto";
+        card.style.top = "88px";
+        card.style.width = "204px";
+        card.style.height = "auto";
+        card.style.flexDirection = "column";
+        card.style.alignItems = "flex-start";
+        reqsEl.style.flexDirection = "column";
+        reqsEl.style.alignItems = "flex-start";
+      } else {
+        card.style.left = "8px";
+        card.style.right = "8px";
+        card.style.top = "82px";
+        card.style.width = "auto";
+        card.style.height = "88px";
+        card.style.flexDirection = "row";
+        card.style.alignItems = "center";
+        reqsEl.style.flexDirection = "row";
+        reqsEl.style.alignItems = "center";
+      }
+    }
+  }
+  function resize() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.max(1, Math.round(window.innerWidth * dpr));
+    canvas.height = Math.max(1, Math.round(window.innerHeight * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    placeChrome();
+    render();
+  }
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const L = layout();
+    const d = L.donut;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#fff3e4";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#f3d2a8";
+    ctx.fillRect(0, h - L.trayH, w, L.trayH);
+    drawStage(d);
+    for (let i = 0; i < marks.length; i++) if (marks[i].type !== "cherry" && marks[i].type !== "scoop" && marks[i].type !== "swirl") drawMark(marks[i]);
+    for (let i = 0; i < marks.length; i++) if (marks[i].type === "cherry") drawMark(marks[i]);
+    if (trayScoop) {
+      ctx.beginPath();
+      ctx.arc(trayScoop.x, trayScoop.y, blobR() * 0.7, 0, Math.PI * 2);
+      ctx.fillStyle = FLAVOR_COLOR[trayScoop.color];
+      ctx.fill();
+    }
+    if (clock < flashUntil) {
+      ctx.save();
+      ctx.globalAlpha = reduceMotion ? 0.45 : Math.max(0, (flashUntil - clock) / 700) * 0.35;
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.ellipse(d.cx, d.cy, d.rx, d.ry, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+    updateCard();
+    updateClock();
+  }
+  function drawStage(d) {
+    if (treat === "cupcake") drawCupcake(d);
+    else if (treat === "cake") drawCake(d);
+    else if (treat === "scoops" || treat === "soft") drawCone(d);
+    else drawDonut(d);
+  }
+  function drawDonut(d) {
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy + 6, d.rx * 1.06, d.ry * 1.06, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#e7c49a";
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, d.rx, d.ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#f2c07a";
+    ctx.fill();
+    ctx.lineWidth = 6;
+    ctx.strokeStyle = "#d39a55";
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, d.rx * 0.38, d.ry * 0.38, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#f6d7b0";
+    ctx.fill();
+  }
+  function drawCupcake(d) {
+    const top = d.cy + d.ry * 0.55;
+    const bot = d.cy + d.ry * 1.35;
+    ctx.beginPath();
+    ctx.moveTo(d.cx - d.rx * 0.72, top);
+    ctx.lineTo(d.cx + d.rx * 0.72, top);
+    ctx.lineTo(d.cx + d.rx * 0.48, bot);
+    ctx.lineTo(d.cx - d.rx * 0.48, bot);
+    ctx.closePath();
+    ctx.fillStyle = "#f4a3c2";
+    ctx.fill();
+    ctx.fillStyle = "#fff8ec";
+    for (let i = -2; i <= 2; i++) {
+      ctx.fillRect(d.cx + i * d.rx * 0.22 - 3, top, 6, bot - top);
+    }
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, d.rx, d.ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#f6d2e4";
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "#e7a0c4";
+    ctx.stroke();
+  }
+  function drawCake(d) {
+    const side = d.ry * 0.55;
+    ctx.fillStyle = "#f7d7e2";
+    ctx.fillRect(d.cx - d.rx, d.cy, d.rx * 2, side);
+    ctx.fillStyle = "#e7a0c4";
+    ctx.fillRect(d.cx - d.rx, d.cy + side - 10, d.rx * 2, 10);
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, d.rx, d.ry * 0.72, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff6ea";
+    ctx.fill();
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "#e2c7a4";
+    ctx.stroke();
+  }
+  function drawCone(d) {
+    const rim = d.cy + d.ry * 0.35;
+    const tip = d.cy + d.ry * 1.45;
+    if (treat === "soft") {
+      const boxTop = d.cy - d.ry * 0.95;
+      ctx.fillStyle = "#d7dee6";
+      ctx.fillRect(d.cx - d.rx * 0.55, boxTop, d.rx * 1.1, d.ry * 0.42);
+      ctx.fillStyle = "#f7f4ef";
+      ctx.fillRect(d.cx - d.rx * 0.16, boxTop + d.ry * 0.42, d.rx * 0.32, d.ry * 0.22);
+    }
+    ctx.beginPath();
+    ctx.moveTo(d.cx - d.rx * 0.42, rim);
+    ctx.lineTo(d.cx + d.rx * 0.42, rim);
+    ctx.lineTo(d.cx, tip);
+    ctx.closePath();
+    ctx.fillStyle = "#e7b15a";
+    ctx.fill();
+    ctx.strokeStyle = "#c4843a";
+    ctx.lineWidth = 3;
+    for (let i = 1; i <= 4; i++) {
+      const t = i / 5;
+      const y = rim + (tip - rim) * t;
+      const half = d.rx * 0.42 * (1 - t);
+      ctx.beginPath();
+      ctx.moveTo(d.cx - half, y);
+      ctx.lineTo(d.cx + half, y);
+      ctx.stroke();
+    }
+    if (treat === "soft") {
+      let y = rim;
+      marks.forEach((m) => {
+        if (m.type !== "swirl") return;
+        const rh = Math.min(d.rx, d.ry) * (0.28 + m.h * 0.45);
+        y -= rh * 0.55;
+        ctx.beginPath();
+        ctx.ellipse(d.cx, y, d.rx * 0.34, rh * 0.45, 0, 0, Math.PI * 2);
+        ctx.fillStyle = FLAVOR_COLOR[m.color];
+        ctx.fill();
+      });
+    } else {
+      const r = Math.min(d.rx, d.ry) * 0.34;
+      let i = 0;
+      marks.forEach((m) => {
+        if (m.type !== "scoop") return;
+        if (!m.placed) {
+          const p = fromUV(m.u, m.v);
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = FLAVOR_COLOR[m.color];
+          ctx.fill();
+          return;
+        }
+        ctx.beginPath();
+        ctx.arc(d.cx, rim - r * 0.55 - i * r * 0.72, r, 0, Math.PI * 2);
+        ctx.fillStyle = FLAVOR_COLOR[m.color];
+        ctx.fill();
+        i++;
+      });
+    }
+  }
+  function traceLobes(lobes, radius) {
+    const pts = lobes.map((lobe) => ({
+      x: Math.cos(lobe.a) * radius * lobe.r,
+      y: Math.sin(lobe.a) * radius * lobe.r
+    }));
+    const n = pts.length;
+    ctx.beginPath();
+    for (let i = 0; i < n; i++) {
+      const cur = pts[i];
+      const next = pts[(i + 1) % n];
+      if (i === 0) {
+        const prev = pts[n - 1];
+        ctx.moveTo((prev.x + cur.x) / 2, (prev.y + cur.y) / 2);
+      }
+      ctx.quadraticCurveTo(cur.x, cur.y, (cur.x + next.x) / 2, (cur.y + next.y) / 2);
+    }
+    ctx.closePath();
+  }
+  function drawMark(m) {
+    const p = fromUV(m.u, m.v);
+    if (m.type === "blob") {
+      const radius = blobR();
+      const lobes = m.lobes || [{ a: 0, r: 1 }, { a: 2, r: 1 }, { a: 4, r: 1 }];
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(m.rot || 0);
+      traceLobes(lobes, radius);
+      ctx.fillStyle = COLORS[m.color];
+      ctx.fill();
+      if (m.color === "white") {
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "#e2c7a4";
+        ctx.stroke();
+      }
+      ctx.save();
+      ctx.translate(-radius * 0.12, -radius * 0.16);
+      ctx.globalAlpha = 0.35;
+      traceLobes(lobes, radius * 0.42);
+      ctx.fillStyle = "#fff";
+      ctx.fill();
+      ctx.restore();
+      ctx.restore();
+      ctx.fillStyle = COLORS[m.color];
+      (m.drops || []).forEach((drop) => {
+        const dx = p.x + drop.ox * radius;
+        const dy = p.y + drop.oy * radius;
+        const rad = Math.max(2, radius * drop.s);
+        ctx.beginPath();
+        ctx.ellipse(dx, dy, rad * 1.15, rad * 0.75, drop.ox, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    } else if (m.type === "sprinkle") {
+      if (m.splash) {
+        const c = fromUV(m.cu, m.cv);
+        ctx.save();
+        ctx.translate(c.x, c.y);
+        ctx.rotate(m.splash.rot || 0);
+        traceLobes(m.splash.lobes, blobR() * 0.85);
+        ctx.fillStyle = "rgba(255, 236, 214, 0.92)";
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = "rgba(210, 160, 110, 0.55)";
+        ctx.stroke();
+        ctx.restore();
+        (m.splash.drops || []).forEach((drop) => {
+          ctx.fillStyle = "rgba(255, 236, 214, 0.9)";
+          ctx.beginPath();
+          ctx.arc(c.x + drop.ox * blobR(), c.y + drop.oy * blobR(), Math.max(2, blobR() * drop.s), 0, Math.PI * 2);
+          ctx.fill();
+        });
+      }
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(m.rot || 0);
+      ctx.fillStyle = m.hue;
+      if (m.shape === "dot") {
+        ctx.beginPath();
+        ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      } else ctx.fillRect(-6 * (m.len || 1), -2, 12 * (m.len || 1), 4);
+      ctx.restore();
+    } else if (m.type === "cherry") {
+      ctx.strokeStyle = "#2f8a3e";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(p.x, p.y);
+      ctx.quadraticCurveTo(p.x + 8, p.y - 16, p.x + 4, p.y - 22);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, blobR() * 0.45, 0, Math.PI * 2);
+      ctx.fillStyle = "#e23b3b";
+      ctx.fill();
+    }
+  }
+
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && now - gazeAt < GAZE_FRESH_MS && eyesOn());
+  }
+  function promptText() {
+    const eyes = eyesOn();
+    if (mode === "start" || treat === "donut") {
+      return eyes
+        ? "Look at the donut until the ring fills, then move to draw."
+        : "Press and move on the donut to ice it.";
+    }
+    if (treat === "cupcake") {
+      return eyes
+        ? "Look at the cupcake until the ring fills, then move to draw."
+        : "Press and move on the cupcake to ice it.";
+    }
+    if (treat === "cake") {
+      return eyes
+        ? "Look at the cake until the ring fills, then move to draw."
+        : "Press and move on the cake to ice it.";
+    }
+    if (treat === "scoops") {
+      return eyes
+        ? "Look at a flavor, then the cone."
+        : "Tap a flavor, then the cone. Drag a scoop off to put it back.";
+    }
+    return eyes
+      ? "Look at the cone until the swirl grows."
+      : "Press the cone and hold for a taller swirl.";
+  }
+  function updateTag() {
+    const next = promptText();
+    if (tag.textContent !== next) tag.textContent = next;
+  }
+  function buttonVisible(btn) {
+    if (!btn || btn.disabled) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const el = document.elementFromPoint(gazePoint.x, gazePoint.y);
+    const btn = el && el.closest("button");
+    if (btn && buttonVisible(btn)) {
+      return { key: btn, ms: MENU_DWELL_MS, kind: "button", fire: () => btn.click() };
+    }
+    if ((mode === "free" || mode === "orders") && inDonut(gazePoint.x, gazePoint.y)) {
+      return {
+        key: "donut",
+        ms: PLAY_DWELL_MS,
+        kind: "donut",
+        fire: () => {
+          ensureAudio();
+          if (treat === "scoops") placeScoop(flavorOf(tool));
+          else if (treat === "soft") startLatch(gazePoint.x, gazePoint.y);
+          else if (tool === "cherry") placeCherry(gazePoint.x, gazePoint.y);
+          else startLatch(gazePoint.x, gazePoint.y);
+        }
+      };
+    }
+    return null;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    updateTag();
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      dwellKey = null;
+      dwellFired = false;
+      dwellProgress = 0;
+      gazeEl.style.setProperty("--p", "0%");
+      if (latch && gazeAt && now - gazeAt >= GAZE_FRESH_MS) releaseLatch();
+      return;
+    }
+    if (pointerActive) {
+      dwellKey = null;
+      dwellFired = false;
+      dwellProgress = 0;
+      gazeEl.hidden = false;
+      gazeEl.style.left = gazePoint.x + "px";
+      gazeEl.style.top = gazePoint.y + "px";
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    const target = gazeTarget();
+    if (latch && target && target.kind === "donut") {
+      leaveAt = 0;
+      extendGesture(gesture, gazePoint.x, gazePoint.y);
+      gazeEl.classList.add("squeezing");
+      gazeEl.style.setProperty("--p", "100%");
+      dwellProgress = 1;
+      return;
+    }
+    if (latch) {
+      if (!leaveAt) leaveAt = now;
+      if (now - leaveAt >= LEAVE_MS) releaseLatch();
+    } else {
+      leaveAt = 0;
+      gazeEl.classList.remove("squeezing");
+    }
+    const key = target ? target.key : null;
+    if (key !== dwellKey) {
+      dwellKey = key;
+      dwellStart = now;
+      dwellFired = false;
+    }
+    let p = 0;
+    if (target && !dwellFired) {
+      p = Math.min(1, (now - dwellStart) / target.ms);
+      if (now - dwellStart >= target.ms) {
+        dwellFired = true;
+        p = 1;
+        target.fire();
+      }
+    } else if (target) p = 1;
+    dwellProgress = target ? p : 0;
+    gazeEl.style.setProperty("--p", Math.round((target ? p : 0) * 100) + "%");
+  }
+  function step(now) {
+    const prev = clock;
+    clock = now;
+    if (mode === "orders" && levelId === "rush" && !timeUp && prev) {
+      const dt = (now - prev) / 1000;
+      if (dt > 0 && dt < 120) {
+        timeLeft -= dt;
+        if (timeLeft <= 0) {
+          timeLeft = 0;
+          timeUp = true;
+          playSound("wait");
+        }
+      }
+    }
+    if (gesture && gesture.kind === "swirl" && gesture.mark && prev) {
+      const dt = Math.min(0.05, Math.max(0, (now - prev) / 1000));
+      gesture.mark.h = Math.min(1, gesture.mark.h + dt * 0.85);
+    }
+    if (gazeHold) {
+      if (!haveSmooth) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed.x += (gazeHold.x - smoothed.x) * 0.45;
+        smoothed.y += (gazeHold.y - smoothed.y) * 0.45;
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(() => { gazeTimer = 0; connectGaze(); }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (e) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = () => {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = (ev) => {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = () => {};
+    sock.onclose = () => {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed.x += (raw.x - smoothed.x) * 0.45;
+      smoothed.y += (raw.y - smoothed.y) * 0.45;
+    }
+    gazePoint = smoothed;
+    gazeAt = clock || performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const h = gazeWarp;
+    if (!h) return { x, y };
+    const w = h[6] * x + h[7] * y + h[8];
+    if (Math.abs(w) < 1e-9) return { x, y };
+    return {
+      x: (h[0] * x + h[1] * y + h[2]) / w,
+      y: (h[3] * x + h[4] * y + h[5]) / w
+    };
+  }
+
+  function boxOf(el) {
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    return { x, y, nx: x / window.innerWidth, ny: y / window.innerHeight, w: r.width, h: r.height };
+  }
+  function centers() {
+    const d = layout().donut;
+    const tools = {};
+    TOOLS.forEach((id) => { tools[id] = boxOf(toolEls[id]); });
+    return {
+      donut: { cx: d.cx, cy: d.cy, rx: d.rx, ry: d.ry, nx: d.cx / window.innerWidth, ny: d.cy / window.innerHeight },
+      tools,
+      done: boxOf(doneBtn),
+      back: boxOf(backBtn)
+    };
+  }
+  function state() {
+    return {
+      mode, tool, treat, level: levelId, latch,
+      timeLeft, timeUp,
+      marks: {
+        globs: { pink: score.globs.pink, chocolate: score.globs.chocolate, white: score.globs.white, blue: score.globs.blue },
+        stripes: { pink: score.stripes.pink, chocolate: score.stripes.chocolate, white: score.stripes.white, blue: score.stripes.blue },
+        sprinkles: score.sprinkles,
+        cherries: score.cherries,
+        scoops: { strawberry: score.scoops.strawberry, chocolate: score.scoops.chocolate, vanilla: score.scoops.vanilla, mint: score.scoops.mint },
+        swirls: { strawberry: score.swirls.strawberry, chocolate: score.swirls.chocolate, vanilla: score.swirls.vanilla, mint: score.swirls.mint }
+      },
+      orderIndex: mode === "orders" ? orderIndex : 0,
+      orderFilled: mode === "orders" && cardFilled(),
+      visuals: {
+        icing: countMarks("blob"),
+        sprinkles: countMarks("sprinkle"),
+        cherries: countMarks("cherry")
+      },
+      path: gesture ? gesture.path : 0
+    };
+  }
+  function order() {
+    if (mode !== "orders") return { index: 0, requirements: [], filled: false, treat: treat };
+    const card = currentCard();
+    const requirements = card.reqs.map((req) => ({
+      kind: req.kind, color: req.color || null, need: req.n, have: haveOf(req)
+    }));
+    return { index: orderIndex, treat: card.treat, requirements, filled: cardFilled() };
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (!haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = true;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+  }
+  function zigzag() {
+    const d = layout().donut;
+    const pts = [];
+    let x = d.cx;
+    const y = d.cy;
+    const left = d.cx - d.rx * 0.65;
+    const right = d.cx + d.rx * 0.65;
+    let dir = 1;
+    let path = 0;
+    const need = stripeLength() + blobR();
+    pts.push({ x: x / window.innerWidth, y: y / window.innerHeight });
+    while (path < need && pts.length < 900) {
+      const nx = x + dir * 8;
+      if (nx > right || nx < left) dir *= -1;
+      else {
+        path += 8;
+        x = nx;
+        pts.push({ x: x / window.innerWidth, y: y / window.innerHeight });
+      }
+    }
+    return pts;
+  }
+  function park(nx, ny, t) {
+    look(nx, ny);
+    for (let i = 0; i < 16; i++) { t += 1; step(t); }
+    return t;
+  }
+  function latchAtCenter(t) {
+    const c = centers();
+    t = park(c.donut.nx, c.donut.ny, t);
+    const started = t;
+    step(t);
+    step(t + PLAY_DWELL_MS);
+    return { t: t + PLAY_DWELL_MS, started };
+  }
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    if (gazeTimer) { clearTimeout(gazeTimer); gazeTimer = 0; }
+    if (gazeSock) {
+      const sock = gazeSock;
+      gazeSock = null;
+      sock.onopen = null;
+      sock.onclose = null;
+      sock.onmessage = null;
+      try { sock.close(); } catch (e) { /* already closing */ }
+    }
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function approxCenter() { return centers().donut; }
+    try {
+      if (window.innerWidth < 320 || window.innerHeight < 320) {
+        fail("Case 0", "window is too small (" + window.innerWidth + "x" + window.innerHeight + ")");
+        return { ok: false, failures };
+      }
+      selectLevel("little");
+      let t = 10000;
+
+      start("free");
+      const c1 = approxCenter();
+      tap(c1.nx, c1.ny);
+      let s = state();
+      if (s.marks.globs.pink !== 1 || s.marks.stripes.pink !== 0) fail("Case 1", "expected one pink glob and no stripe, got " + s.marks.globs.pink + " globs and " + s.marks.stripes.pink + " stripes");
+
+      start("free");
+      drag(zigzag());
+      s = state();
+      if (s.marks.stripes.pink !== 1 || s.marks.globs.pink !== 0) fail("Case 2", "expected one pink stripe and no glob, path " + s.path + ", got " + JSON.stringify(s.marks));
+
+      start("free");
+      t = latchAtCenter(t).t;
+      s = state();
+      if (s.marks.globs.pink !== 1 || !s.latch) fail("Case 3", "expected one pink glob and latch on, got " + JSON.stringify(s.marks) + " latch=" + s.latch);
+
+      start("free");
+      t = latchAtCenter(t).t;
+      const before = state().visuals.icing;
+      const d4 = layout().donut;
+      let x = d4.cx;
+      const y = d4.cy;
+      const left = d4.cx - d4.rx * 0.6;
+      const right = d4.cx + d4.rx * 0.6;
+      let dir = 1;
+      let guard = 0;
+      while (state().path < stripeLength() + 4 && guard < 700) {
+        x += dir * 14;
+        if (x > right || x < left) dir *= -1;
+        else {
+          look(x / window.innerWidth, y / window.innerHeight);
+          t += 30;
+          step(t);
+        }
+        guard++;
+      }
+      s = state();
+      if (s.marks.stripes.pink !== 1 || s.marks.globs.pink !== 0 || !s.latch) fail("Case 4", "expected a latched pink stripe, got " + JSON.stringify(s.marks) + " latch=" + s.latch + " path=" + s.path);
+      if (s.visuals.icing < before) fail("Case 4", "stroke lost icing marks");
+
+      start("free");
+      t = latchAtCenter(t).t;
+      t = park(0.01, 0.01, t);
+      const outsideAt = t;
+      step(outsideAt + LEAVE_MS - 20);
+      if (!state().latch) fail("Case 5", "latch released before 280 ms");
+      step(outsideAt + LEAVE_MS);
+      s = state();
+      if (s.latch || s.marks.globs.pink !== 1) fail("Case 5", "expected latch off and one glob, got latch=" + s.latch + " globs=" + s.marks.globs.pink);
+
+      start("free");
+      t = latchAtCenter(t).t;
+      const blobsAtLatch = state().visuals.icing;
+      refreshHold = false;
+      step(t + 200);
+      s = state();
+      if (!s.latch || s.visuals.icing !== blobsAtLatch) fail("Case 6", "expected latch held and no new marks after 200 ms, latch=" + s.latch + " icing " + blobsAtLatch + " -> " + s.visuals.icing);
+      refreshHold = true;
+
+      start("free");
+      t = latchAtCenter(t).t;
+      refreshHold = false;
+      step(t + GAZE_FRESH_MS);
+      s = state();
+      if (s.latch || s.marks.globs.pink !== 1) fail("Case 7", "expected latch off and one glob after 500 ms, latch=" + s.latch + " globs=" + s.marks.globs.pink);
+      refreshHold = true;
+
+      start("free");
+      t = latchAtCenter(t).t;
+      const c8 = approxCenter();
+      tap(c8.nx, c8.ny);
+      s = state();
+      if (s.latch || s.marks.globs.pink !== 2) fail("Case 8", "expected latch off and two globs, latch=" + s.latch + " globs=" + s.marks.globs.pink);
+
+      start("free");
+      const choc = centers().tools.chocolate;
+      t = park(choc.nx, choc.ny, t);
+      step(t + 600);
+      if (state().tool !== "pink") fail("Case 9", "tool changed after 600 ms to " + state().tool);
+      step(t + MENU_DWELL_MS);
+      if (state().tool !== "chocolate") fail("Case 9", "tool was " + state().tool + " after 1300 ms");
+
+      start("orders");
+      const c10 = approxCenter();
+      tap(c10.nx, c10.ny);
+      tap(c10.nx, c10.ny);
+      tap(c10.nx, c10.ny);
+      if (!state().orderFilled) fail("Case 10", "three pink globs did not fill order 1: " + JSON.stringify(order()));
+      start("orders");
+      drag(zigzag());
+      if (state().orderFilled || state().marks.globs.pink !== 0) fail("Case 10", "a pink stripe filled order 1 or left a glob: " + JSON.stringify(state().marks));
+
+      start("orders");
+      tap(c10.nx, c10.ny); tap(c10.nx, c10.ny); tap(c10.nx, c10.ny);
+      tap(centers().done.nx, centers().done.ny);
+      if (state().orderIndex !== 2) fail("Case 11", "did not reach order 2, index " + state().orderIndex);
+      tap(centers().tools.chocolate.nx, centers().tools.chocolate.ny);
+      drag(zigzag());
+      tap(centers().tools.cherry.nx, centers().tools.cherry.ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      if (!order().filled) fail("Case 11", "chocolate stripe and cherry did not fill order 2: " + JSON.stringify(order()));
+
+      start("orders");
+      tap(approxCenter().nx, approxCenter().ny);
+      tap(centers().done.nx, centers().done.ny);
+      s = state();
+      if (s.orderIndex !== 1 || s.marks.globs.pink !== 1) fail("Case 12", "early Done changed the order or cleared marks: index " + s.orderIndex + " globs " + s.marks.globs.pink);
+
+      start("orders");
+      tap(approxCenter().nx, approxCenter().ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      tap(centers().done.nx, centers().done.ny);
+      s = state();
+      if (s.orderIndex !== 2 || s.marks.globs.pink !== 0 || s.visuals.icing !== 0) fail("Case 13", "finished Done did not advance and clear: " + JSON.stringify(s));
+
+      start("free");
+      tap(centers().tools.sprinkles.nx, centers().tools.sprinkles.ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      if (state().marks.sprinkles !== 1) fail("Case 14", "sprinkle tap counted " + state().marks.sprinkles);
+      tap(centers().tools.cherry.nx, centers().tools.cherry.ny);
+      const cd = layout().donut;
+      drag([
+        { x: cd.cx / window.innerWidth, y: cd.cy / window.innerHeight },
+        { x: (cd.cx + cd.rx * 0.2) / window.innerWidth, y: cd.cy / window.innerHeight }
+      ]);
+      if (state().marks.cherries !== 1) fail("Case 14", "cherry drag on the donut counted " + state().marks.cherries);
+      drag([
+        { x: cd.cx / window.innerWidth, y: cd.cy / window.innerHeight },
+        { x: 0.01, y: 0.01 }
+      ]);
+      if (state().marks.cherries !== 1) fail("Case 14", "cherry released outside changed the count to " + state().marks.cherries);
+
+      start("free");
+      releaseLook();
+      step(clock + 10);
+      if (!gazeEl.hidden) fail("Case 15", "ring was visible without a look");
+      const beforeTap = state().marks.globs.pink;
+      tap(approxCenter().nx, approxCenter().ny);
+      if (state().marks.globs.pink !== beforeTap + 1) fail("Case 15", "tap did not add a glob");
+
+      selectLevel("little");
+      start("free");
+      setTreat("cupcake");
+      tap(approxCenter().nx, approxCenter().ny);
+      if (state().treat !== "cupcake" || state().marks.globs.pink !== 1) fail("Case 16", "cupcake tap counted " + JSON.stringify(state().marks) + " treat " + state().treat);
+      setTreat("cake");
+      tap(approxCenter().nx, approxCenter().ny);
+      if (state().treat !== "cake" || state().marks.globs.pink !== 1) fail("Case 16", "cake tap counted " + JSON.stringify(state().marks));
+
+      selectLevel("shop");
+      start("free");
+      setTreat("scoops");
+      tap(centers().tools.chocolate.nx, centers().tools.chocolate.ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      if (state().marks.scoops.chocolate !== 1) fail("Case 17", "cone tap counted " + state().marks.scoops.chocolate);
+      const cone = layout().donut;
+      drag([
+        { x: cone.cx / window.innerWidth, y: cone.cy / window.innerHeight },
+        { x: 0.01, y: 0.01 }
+      ]);
+      if (state().marks.scoops.chocolate !== 1) fail("Case 17", "a scoop dragged off the cone counted " + state().marks.scoops.chocolate);
+      drag([
+        { x: cone.cx / window.innerWidth, y: cone.cy / window.innerHeight },
+        { x: (cone.cx + cone.rx * 0.15) / window.innerWidth, y: cone.cy / window.innerHeight }
+      ]);
+      if (state().marks.scoops.chocolate !== 2) fail("Case 17", "a scoop dragged on the cone counted " + state().marks.scoops.chocolate);
+
+      setTreat("soft");
+      tap(centers().tools.chocolate.nx, centers().tools.chocolate.ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      if (state().marks.swirls.chocolate !== 1) fail("Case 18", "soft serve counted " + state().marks.swirls.chocolate);
+
+      selectLevel("shop");
+      start("orders");
+      orderIndex = deck().findIndex((c) => c.treat === "scoops") + 1;
+      treat = currentCard().treat;
+      clearDonut();
+      showTools();
+      placeChrome();
+      updateCard();
+      tap(centers().tools.chocolate.nx, centers().tools.chocolate.ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      if (!order().filled || order().treat !== "scoops") fail("Case 19", "one chocolate scoop did not fill the cone order: " + JSON.stringify(order()));
+
+      selectLevel("rush");
+      start("orders");
+      const t0 = (clock || 1000) + 1000;
+      clock = t0;
+      timeLeft = 90;
+      timeUp = false;
+      step(t0 + 1000);
+      if (state().timeLeft < 88.5 || state().timeLeft > 89.2) fail("Case 20", "clock after one second was " + state().timeLeft);
+      tap(approxCenter().nx, approxCenter().ny);
+      step(t0 + 1000 + 100000);
+      s = state();
+      if (s.timeLeft !== 0 || !s.timeUp || s.marks.globs.pink !== 1) fail("Case 20", "time up changed the donut: " + JSON.stringify(s));
+
+      selectLevel("tiny");
+      if (!ordersBtn.hidden) fail("Case 21", "Tiny Tots still showed Orders");
+      start("free");
+      if (!document.querySelector("[data-treat='cake']").hidden) fail("Case 21", "Tiny Tots showed cake");
+      if (!document.querySelector("[data-treat='scoops']").hidden) fail("Case 21", "Tiny Tots showed scoops");
+      setTreat("cake");
+      if (state().treat !== "donut") fail("Case 21", "Tiny Tots switched to " + state().treat);
+      setTreat("cupcake");
+      if (state().treat !== "cupcake") fail("Case 21", "cupcake was " + state().treat);
+
+      selectLevel("shop");
+      start("orders");
+      tap(approxCenter().nx, approxCenter().ny);
+      if (backBtn.hidden || centers().back.w < 60) fail("Case 22", "Back was missing in orders");
+      const back = centers().back;
+      t = park(back.nx, back.ny, t);
+      step(t + 600);
+      if (state().mode !== "orders" || state().marks.globs.pink !== 1) fail("Case 22", "a short look left orders: " + state().mode);
+      step(t + MENU_DWELL_MS);
+      s = state();
+      if (s.mode !== "start" || s.level !== "shop" || s.marks.globs.pink !== 0 || screen.hidden || !backBtn.hidden) {
+        fail("Case 22", "gaze Back did not return to the start screen: " + JSON.stringify(s) + " screenHidden=" + screen.hidden + " backHidden=" + backBtn.hidden);
+      }
+      if (ordersBtn.hidden) fail("Case 22", "Shopkeeper hid Orders after Back");
+      start("free");
+      setTreat("cupcake");
+      tap(centers().back.nx, centers().back.ny);
+      s = state();
+      if (s.mode !== "start" || s.treat !== "donut" || !tray.hidden || !backBtn.hidden) fail("Case 22", "tap Back stayed in " + s.mode + " on " + s.treat);
+    } catch (err) {
+      failures.push("Case error: " + (err && err.stack ? err.stack : err));
+    } finally {
+      releaseLook();
+      selectLevel("tiny");
+      showStart();
+      checking = false;
+      suppressReconnect = false;
+      connectGaze();
+    }
+    return { ok: failures.length === 0, failures };
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    ensureAudio();
+    if (capId !== null) return;
+    const p = tipFrom(e.clientX, e.clientY, e.pointerType);
+    pointerDown(p.x, p.y);
+    if (capId !== null) {
+      capId = e.pointerId;
+      canvas.setPointerCapture(e.pointerId);
+    }
+    e.preventDefault();
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== capId) return;
+    const p = tipFrom(e.clientX, e.clientY, e.pointerType);
+    pointerMove(p.x, p.y);
+  });
+  function endPointer(e) {
+    if (e.pointerId !== capId) return;
+    const p = tipFrom(e.clientX, e.clientY, e.pointerType);
+    const id = capId;
+    pointerUp(p.x, p.y);
+    if (canvas.hasPointerCapture(id)) canvas.releasePointerCapture(id);
+  }
+  canvas.addEventListener("pointerup", endPointer);
+  canvas.addEventListener("pointercancel", endPointer);
+  document.addEventListener("pointerdown", (e) => {
+    ensureAudio();
+    const btn = e.target.closest && e.target.closest("button");
+    if (!btn) return;
+    pointerActive = true;
+    releaseLatch();
+  }, true);
+  document.addEventListener("pointermove", (e) => {
+    if (!trayScoop || e.pointerId !== trayScoop.pid) return;
+    trayScoop.x = e.clientX;
+    trayScoop.y = e.clientY;
+    render();
+  }, true);
+  document.addEventListener("pointerup", (e) => {
+    if (trayScoop && e.pointerId === trayScoop.pid) {
+      if (inDonut(e.clientX, e.clientY)) placeScoop(trayScoop.color);
+      trayScoop = null;
+      render();
+    }
+    if (capId === null) pointerActive = false;
+  }, true);
+  document.addEventListener("pointercancel", () => {
+    if (capId === null) pointerActive = false;
+  }, true);
+
+  TOOLS.forEach((id) => {
+    toolEls[id].addEventListener("click", () => selectTool(id));
+    toolEls[id].addEventListener("pointerdown", (e) => {
+      if (treat !== "scoops" || !flavorOf(id)) return;
+      trayScoop = { color: flavorOf(id), x: e.clientX, y: e.clientY, pid: e.pointerId };
+      pointerActive = true;
+    });
+  });
+  document.querySelectorAll("[data-level]").forEach((btn) => {
+    btn.addEventListener("click", () => selectLevel(btn.dataset.level));
+  });
+  treatsEl.querySelectorAll("button").forEach((btn) => {
+    btn.addEventListener("click", () => setTreat(btn.dataset.treat));
+  });
+  decorateBtn.addEventListener("click", () => start("free"));
+  ordersBtn.addEventListener("click", () => { if (levelId !== "tiny") start("orders"); });
+  doneBtn.addEventListener("click", serve);
+  backBtn.addEventListener("click", showStart);
+  muteBtn.addEventListener("click", () => {
+    mute = !mute;
+    muteBtn.setAttribute("aria-pressed", mute ? "true" : "false");
+    muteBtn.textContent = mute ? "Sound" : "Mute";
+    if (master) master.gain.value = mute ? 0 : 0.6;
+  });
+  fullBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      const req = document.documentElement.requestFullscreen;
+      if (req) req.call(document.documentElement).catch(() => {});
+    } else if (document.exitFullscreen) document.exitFullscreen();
+  });
+
+  window.addEventListener("resize", resize);
+  resize();
+
+  function frame(now) {
+    if (!checking) step(now);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  connectGaze();
+
+  window.sugarCounter = {
+    start, look, releaseLook, dwell: () => dwellProgress,
+    eyes: () => ({ on: eyesOn(), live: eyesLive(clock || performance.now()) }),
+    tap, drag, centers, state, order, step, selfCheck,
+    level: selectLevel, treat: setTreat
+  };
+
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    const result = selfCheck();
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else if (params.has("scoops")) {
+    selectLevel("shop"); start("free"); setTreat("scoops");
+  } else if (params.has("soft")) {
+    selectLevel("shop"); start("free"); setTreat("soft");
+  } else if (params.has("cupcake")) {
+    selectLevel("tiny"); start("free"); setTreat("cupcake");
+  } else if (params.has("cake")) {
+    selectLevel("little"); start("free"); setTreat("cake");
+  } else if (params.has("rush")) {
+    selectLevel("rush"); start("orders");
+  } else if (params.has("orders")) {
+    selectLevel("little"); start("orders");
+  } else if (params.has("play")) {
+    selectLevel("tiny"); start("free");
+  }
+})();
+</script>
+</body>
+</html>

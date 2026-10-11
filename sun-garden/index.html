@@ -1,0 +1,2626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#8ec6ef">
+<title>Sun Garden</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #243024;
+    --paper: #c9e7f8;
+    --card: rgba(255, 250, 240, 0.96);
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border: none; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(255, 250, 240, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(255, 250, 240, 0.95);
+  }
+  #gaze.holding { box-shadow: 0 0 0 3px #fffaf0, inset 0 0 0 12px #3aaa6a; }
+  #gaze[hidden], #eyes[hidden], .panel[hidden], #back[hidden], #card[hidden], #tray[hidden] { display: none !important; }
+  #eyes, #status {
+    position: fixed; z-index: 46;
+    background: var(--card); border-radius: 999px; font-weight: 800;
+  }
+  #eyes { top: calc(18px + env(safe-area-inset-top)); left: 172px; padding: 7px 12px; font-size: 16px; }
+  #status {
+    top: calc(18px + env(safe-area-inset-top));
+    left: 50%; transform: translateX(-50%);
+    padding: 8px 14px; font-size: 18px; max-width: min(420px, 46vw); text-align: center;
+  }
+  .panel {
+    position: fixed; z-index: 50; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(480px, calc(100% - 24px));
+    max-height: calc(100dvh - 16px); overflow: auto;
+    background: var(--card); border-radius: 28px;
+    padding: 22px 16px 16px;
+    box-shadow: 0 18px 50px rgba(20, 40, 20, 0.28);
+  }
+  h1 { font-size: 52px; line-height: 0.9; margin: 6px 0 8px; text-align: center; letter-spacing: -1px; }
+  .tag, .ages { text-align: center; margin: 0 0 8px; }
+  .ages { color: #4d624d; font-size: 15px; }
+  .tag { font-size: 18px; }
+  .stack { display: flex; gap: 10px; }
+  .big, .mid {
+    flex: 1; border: none; border-radius: 18px; min-height: 76px;
+    font-size: 28px; font-weight: 800; color: var(--ink);
+  }
+  .big { background: var(--sun); box-shadow: 0 5px 0 var(--sun-d); }
+  .mid { background: #b7e4c7; box-shadow: 0 5px 0 #6eae80; }
+  .big:active, .mid:active { transform: translateY(3px); box-shadow: 0 2px 0 rgba(0,0,0,0.15); }
+  .big:disabled, .mid:disabled { opacity: 0.45; }
+  #mute, #full, #back, #tray > button {
+    position: fixed; z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1;
+  }
+  #mute, #full, #back { top: calc(10px + env(safe-area-inset-top)); width: 72px; height: 72px; font-size: 15px; }
+  #mute { left: 10px; }
+  #full { left: 90px; }
+  #back { right: 10px; }
+  #tray > button {
+    bottom: calc(16px + env(safe-area-inset-bottom));
+    width: 92px; height: 92px; font-size: 18px;
+  }
+  #tray > button[aria-pressed="true"] { outline: 4px solid var(--ink); outline-offset: 3px; }
+  #tool-water { left: 16px; background: #7ec8e3; }
+  #tool-sun { left: 50%; margin-left: -46px; background: var(--sun); }
+  #tool-shade { right: 16px; background: #6b8f71; color: #fffaf0; }
+  #card {
+    position: fixed; z-index: 40; top: calc(78px + env(safe-area-inset-top));
+    left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px;
+    max-width: min(640px, calc(100% - 24px));
+    background: var(--card); border-radius: 18px; padding: 8px 14px;
+    font-weight: 800;
+  }
+  #swatches { display: flex; gap: 6px; flex: none; }
+  #card .swatch { width: 28px; height: 28px; border-radius: 50%; flex: none; }
+  #ask { line-height: 1.25; }
+  #mood { flex-basis: 100%; font-size: 15px; color: #3d4a32; }
+  #face {
+    width: 40px; height: 40px; border-radius: 50%; flex: none; position: relative;
+    background: #ffd7a1; box-shadow: inset 0 -3px 0 rgba(90, 50, 20, 0.12);
+  }
+  #face i {
+    position: absolute; top: 13px; width: 5px; height: 5px;
+    border-radius: 50%; background: #3d3428;
+  }
+  #face i.l { left: 10px; }
+  #face i.r { right: 10px; }
+  #face b {
+    position: absolute; left: 11px; top: 22px; width: 18px; height: 8px;
+    border: 3px solid #3d3428; border-top: 0; border-radius: 0 0 12px 12px;
+    background: transparent; box-sizing: border-box;
+  }
+  #face.happy { background: #ffe08a; }
+  #face.happy b { height: 11px; top: 20px; }
+  #face.content b { height: 6px; }
+  #face.unsure b {
+    height: 0; top: 26px; border: 0; border-bottom: 3px solid #3d3428; border-radius: 0;
+  }
+  #face.tired { background: #f0c4a0; }
+  #face.tired b {
+    top: 24px; height: 8px; border-radius: 12px 12px 0 0;
+    border: 3px solid #3d3428; border-bottom: 0;
+  }
+  #live {
+    position: absolute; width: 1px; height: 1px; overflow: hidden;
+    clip: rect(0 0 0 0); clip-path: inset(50%);
+  }
+  .levels { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .choice {
+    text-align: left; border-radius: 16px; border: 3px solid transparent;
+    background: #fff; padding: 8px 12px; color: var(--ink);
+  }
+  .choice b { display: block; font-size: 18px; }
+  .choice small { display: block; margin-top: 2px; color: #4d624d; font-size: 13px; }
+  .choice[aria-pressed="true"] { border-color: #e2a62e; background: #fff6df; }
+  @media (max-width: 700px) {
+    h1 { font-size: 40px; }
+    #status { left: 168px; right: 90px; transform: none; font-size: 14px; max-width: none; }
+    #tray > button { width: 76px; height: 76px; font-size: 16px; }
+    #tool-sun { margin-left: -38px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .big, .mid, .choice { transition: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="view" aria-hidden="true"></canvas>
+<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">Mute</button>
+<button id="full" type="button" aria-label="Fullscreen">Full</button>
+<button id="back" type="button" hidden aria-label="Back to the start screen">Back</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="status" hidden></div>
+<div id="card" hidden><span id="face" class="content" aria-hidden="true"><i class="l"></i><i class="r"></i><b></b></span><span id="swatches"></span><span id="ask"></span><span id="mood">The town is content.</span></div>
+<div id="tray" hidden>
+  <button id="tool-water" type="button" aria-pressed="true">Water</button>
+  <button id="tool-sun" type="button" aria-pressed="false" hidden>Sun</button>
+  <button id="tool-shade" type="button" aria-pressed="false" hidden>Shade</button>
+</div>
+<div id="gaze" hidden></div>
+<p id="live" aria-live="polite"></p>
+<div class="panel" id="screen-start">
+  <p class="tag" id="tag">A garden for a sunny day</p>
+  <h1>Sun Garden</h1>
+  <p class="ages">Ages 2 and up. Tap, drag, or look.</p>
+  <div class="stack">
+    <button id="flowers" class="big" type="button">Flowers</button>
+    <button id="market" class="mid" type="button">Market</button>
+  </div>
+  <div class="levels" id="level-choices">
+    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Two big flowers. Water them while the sun moves.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. A flower garden, or a small food market. Move the sun.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. Flowers, or food with trees. Shade lasts half a day.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. The sun's trip is the clock. The town may ask for two foods, or more when they all grow quickly.</small></button>
+  </div>
+</div>
+<script>
+(function () {
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const GARDENS = {
+    tiny: {
+      flowers: [
+        { kind: "sunflower", name: "Sunflower", likes: "sun", bed: 0, x: 0.34, hue: "#f2c14e" },
+        { kind: "daisy", name: "Daisy", likes: "sun", bed: 0, x: 0.68, hue: "#fff6ea" }
+      ]
+    },
+    little: {
+      flowers: [
+        { kind: "sunflower", name: "Sunflower", likes: "sun", bed: 0, x: 0.24, hue: "#f2c14e" },
+        { kind: "daisy", name: "Daisy", likes: "sun", bed: 0, x: 0.78, hue: "#fff6ea" },
+        { kind: "rose", name: "Rose", likes: "sun", bed: 0, x: 0.5, hue: "#d6457a" },
+        { kind: "violet", name: "Violet", likes: "shade", bed: 0, x: 0.08, hue: "#7a4ea3" },
+        { kind: "fern", name: "Fern", likes: "shade", bed: 0, x: 0.62, hue: "#2f8a3e" }
+      ],
+      market: [
+        { kind: "wheat", name: "Wheat", likes: "sun", bed: 0, x: 0.14, hue: "#e2b84a" },
+        { kind: "tomato", name: "Tomato", likes: "sun", bed: 0, x: 0.42, hue: "#e23b3b" },
+        { kind: "carrot", name: "Carrot", likes: "sun", bed: 0, x: 0.68, hue: "#e07a2f" },
+        { kind: "lettuce", name: "Lettuce", likes: "shade", bed: 0, x: 0.88, hue: "#7dcea0" }
+      ]
+    },
+    shop: {
+      flowers: [
+        { kind: "sunflower", name: "Sunflower", likes: "sun", bed: 0, x: 0.16, hue: "#f2c14e" },
+        { kind: "rose", name: "Rose", likes: "sun", bed: 0, x: 0.38, hue: "#d6457a" },
+        { kind: "fern", name: "Fern", likes: "shade", bed: 1, x: 0.64, hue: "#2f8a3e" },
+        { kind: "daisy", name: "Daisy", likes: "sun", bed: 1, x: 0.86, hue: "#fff6ea" },
+        { kind: "violet", name: "Violet", likes: "shade", bed: 1, x: 0.5, hue: "#7a4ea3" }
+      ],
+      market: [
+        { kind: "coconut", name: "Coconut", likes: "sun", bed: 0, x: 0.08, hue: "#8d6a45" },
+        { kind: "banana", name: "Banana", likes: "sun", bed: 0, x: 0.28, hue: "#efe07a" },
+        { kind: "wheat", name: "Wheat", likes: "sun", bed: 0, x: 0.48, hue: "#e2b84a" },
+        { kind: "tomato", name: "Tomato", likes: "sun", bed: 1, x: 0.68, hue: "#e23b3b" },
+        { kind: "lettuce", name: "Lettuce", likes: "shade", bed: 1, x: 0.84, hue: "#7dcea0" },
+        { kind: "carrot", name: "Carrot", likes: "sun", bed: 1, x: 0.94, hue: "#e07a2f" },
+        { kind: "potato", name: "Potato", likes: "sun", bed: 0, x: 0.58, hue: "#c4a574" }
+      ]
+    }
+  };
+  GARDENS.rush = GARDENS.shop;
+
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d");
+  const gazeEl = document.getElementById("gaze");
+  const eyesEl = document.getElementById("eyes");
+  const statusEl = document.getElementById("status");
+  const cardEl = document.getElementById("card");
+  const askEl = document.getElementById("ask");
+  const moodEl = document.getElementById("mood");
+  const faceEl = document.getElementById("face");
+  const swatchesEl = document.getElementById("swatches");
+  const liveEl = document.getElementById("live");
+  const screen = document.getElementById("screen-start");
+  const tray = document.getElementById("tray");
+  const tag = document.getElementById("tag");
+  const flowersBtn = document.getElementById("flowers");
+  const marketBtn = document.getElementById("market");
+  const backBtn = document.getElementById("back");
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const waterBtn = document.getElementById("tool-water");
+  const sunBtn = document.getElementById("tool-sun");
+  const shadeBtn = document.getElementById("tool-shade");
+
+  let levelId = "tiny";
+  let mode = "flowers";
+  let playing = false;
+  let tool = "water";
+  let plants = [];
+  let requests = [];
+  let requestIndex = 0;
+  let cardSig = "";
+  let townMood = 0.52;
+  let fatigue = {};
+  let sunU = 0.15;
+  let sunParked = false;
+  let cart = null;
+  let sunsets = 0;
+  let bloomed = false;
+  let watering = -1;
+  let aimX = 0;
+  let aimY = 0;
+  let sprays = [];
+  let lastSquirt = 0;
+  let sunDrag = false;
+  let shadeArm = -1;
+  let pointerActive = false;
+  let capId = null;
+  let clock = 0;
+  let checking = false;
+  let suppressReconnect = false;
+  let ac = null;
+  let master = null;
+  let mute = false;
+  let said = "";
+
+  let gazeSock = null;
+  let gazeBuf = new Uint8Array(0);
+  let gazeTimer = 0;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let gazeHold = null;
+  let gazeWarp = null;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let leaveAt = 0;
+  let latch = null;
+
+  function spec() {
+    return {
+      sunTool: levelId !== "tiny",
+      shadeTool: levelId === "shop" || levelId === "rush",
+      sunSeconds: levelId === "rush" ? 16 : levelId === "tiny" ? 48 : 36
+    };
+  }
+  const KINDS = {
+    sunflower: { n: 3, days: 2.6, sky: 0.86, spread: 0.16, sip: 0.032, shade: 0.016, wilt: 0.55 },
+    daisy: { n: 5, days: 2.2, sky: 0.46, spread: 0.14, sip: 0.022, shade: 0.012, wilt: 0.58 },
+    rose: { n: 3, days: 2.8, sky: 0.58, spread: 0.13, sip: 0.024, shade: 0.013, wilt: 0.55 },
+    violet: { n: 6, days: 2.3, sky: 0.15, spread: 0.14, sip: 0.020, shade: 0.007, wilt: 0.68 },
+    fern: { n: 3, days: 3.0, sky: 0.52, spread: 0.15, sip: 0.026, shade: 0.008, wilt: 0.72 },
+    tomato: { n: 3, days: 3.4, sky: 0.18, spread: 0.16, scorch: 0.9, habit: "vine", sip: 0.035, shade: 0.017, wilt: 0.60 },
+    lettuce: { n: 3, days: 2.0, sky: 0.22, spread: 0.13, sip: 0.030, shade: 0.014, wilt: 0.70 },
+    wheat: { n: 7, days: 2.7, sky: 0.62, spread: 0.14, sip: 0.023, shade: 0.013, wilt: 0.45 },
+    carrot: { n: 5, days: 2.5, sky: 0.32, spread: 0.1, scorch: 0.9, sip: 0.032, shade: 0.016, wilt: 0.65 },
+    potato: { n: 3, days: 3.0, sky: 0.34, spread: 0.13, scorch: 0.84, sip: 0.035, shade: 0.017, wilt: 0.65 },
+    banana: { n: 1, days: 4.5, sky: 0.74, spread: 0.02, sip: 0.042, shade: 0.018, wilt: 0.65 },
+    coconut: { n: 1, days: 5.5, sky: 0.94, spread: 0.02, sip: 0.028, shade: 0.015, wilt: 0.50 }
+  };
+  function unitRand(n) {
+    const x = Math.sin(n * 127.1 + 311.7) * 43758.5453;
+    return x - Math.floor(x);
+  }
+  function seedStems(p) {
+    const kind = KINDS[p.kind] || KINDS.daisy;
+    const n = kind.n;
+    p.stems = [];
+    for (let i = 0; i < n; i++) {
+      const slot = n === 1 ? 0 : (i / (n - 1)) * 2 - 1;
+      p.stems.push({
+        slot,
+        age: 0.17 + unitRand(p.i * 20 + i + 3) * 0.08,
+        vigor: 0.84 + unitRand(p.i * 20 + i + 9) * 0.32,
+        thirst: 0.5 + unitRand(p.i + i * 4 + 2) * 0.8,
+        water: 0.35,
+        heading: (unitRand(i * 13 + p.i + 5) - 0.5) * 0.55,
+        lean: (unitRand(i + p.i + 8) - 0.5) * 0.25,
+        sunPull: 0.55 + unitRand(i + 40 + p.i) * 0.9,
+        ripeShift: (unitRand(i * 3 + 70 + p.i) - 0.4) * 0.18,
+        mirror: unitRand(p.i * 9 + i + 17) < 0.5 ? -1 : 1,
+        stress: 0
+      });
+    }
+    p.growth = p.stems.reduce((sum, stem) => sum + stem.age, 0) / n;
+  }
+  function gardenRows() {
+    const book = GARDENS[levelId];
+    if (mode === "market" && levelId !== "tiny" && book.market) return book.market;
+    return book.flowers;
+  }
+  function shuffle(list) {
+    for (let i = list.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const swap = list[i];
+      list[i] = list[j];
+      list[j] = swap;
+    }
+    return list;
+  }
+  function freshPlants() {
+    const rows = gardenRows();
+    const kinds = rows.map((row) => ({
+      kind: row.kind, name: row.name, likes: row.likes, hue: row.hue
+    }));
+    if (!checking) shuffle(kinds);
+    return rows.map((row, i) => {
+      const pick = kinds[i];
+      const plant = {
+        i, kind: pick.kind, name: pick.name, likes: pick.likes, bed: row.bed, x: row.x,
+        hue: pick.hue, growth: 0.22, water: 0.35, cloth: false, shade: 0
+      };
+      seedStems(plant);
+      armTree(plant);
+      return plant;
+    });
+  }
+  function armTree(p) {
+    p.bear = (p.kind === "banana" || p.kind === "coconut") ? 2 + (Math.random() < 0.5 ? 0 : 1) : 0;
+  }
+  function harvestsFruit(p) {
+    if (p.kind !== "banana" && p.kind !== "coconut") return false;
+    return (p.bear || 2) > 1;
+  }
+  function pickFruit(p) {
+    p.growth = 0.66;
+    (p.stems || []).forEach((stem) => { stem.age = 0.66; });
+    p.bear = Math.max(1, (p.bear || 2) - 1);
+  }
+  function replant(p) {
+    const rows = gardenRows();
+    const others = new Set(plants.filter((q) => q.i !== p.i).map((q) => q.kind));
+    let choices = rows.filter((row) => row.kind !== p.kind && !others.has(row.kind));
+    if (!choices.length) choices = rows.filter((row) => row.kind !== p.kind);
+    if (!choices.length) choices = rows;
+    const row = choices[Math.floor(Math.random() * choices.length)];
+    p.kind = row.kind;
+    p.name = row.name;
+    p.likes = row.likes;
+    p.hue = row.hue;
+    p.growth = 0.22;
+    p.water = Math.max(p.water, 0.35);
+    p.cloth = false;
+    p.shade = 0;
+    seedStems(p);
+    armTree(p);
+    return p.name;
+  }
+  function buildRequests() {
+    const order = (levelId === "shop" || levelId === "rush")
+      ? [plants[0], plants[2], plants[1], plants[3]]
+      : plants.slice();
+    plants.forEach((p) => { if (order.indexOf(p) < 0) order.push(p); });
+    return order.filter(Boolean).map((p) => p.kind);
+  }
+  function plotForKind(kind, claimed) {
+    let best = null;
+    plants.forEach((p) => {
+      if (p.kind !== kind || claimed.has(p.i)) return;
+      if (!best || p.growth > best.growth) best = p;
+    });
+    return best;
+  }
+  function repairRequests() {
+    if (mode !== "market" || !plants.length) return;
+    const have = [];
+    const seen = new Set();
+    plants.forEach((p) => {
+      if (seen.has(p.kind)) return;
+      seen.add(p.kind);
+      have.push(p.kind);
+    });
+    const current = requests.length ? requests[((requestIndex % requests.length) + requests.length) % requests.length] : have[0];
+    const kept = [];
+    const keptSet = new Set();
+    requests.forEach((kind) => {
+      if (!seen.has(kind) || keptSet.has(kind)) return;
+      kept.push(kind);
+      keptSet.add(kind);
+    });
+    have.forEach((kind) => {
+      if (!keptSet.has(kind)) kept.push(kind);
+    });
+    requests = kept.length ? kept : have.slice();
+    const at = requests.indexOf(current);
+    requestIndex = at >= 0 ? at : 0;
+  }
+  function wishSpan(daysList, rush) {
+    const base = rush ? 2 : 1;
+    const cap = 4;
+    const fast = (d) => d <= 3;
+    const chosen = [];
+    for (let i = 0; i < daysList.length && chosen.length < cap; i++) {
+      const days = daysList[i];
+      if (chosen.length >= base && (!rush || !chosen.every(fast) || !fast(days))) break;
+      chosen.push(days);
+    }
+    return chosen.length;
+  }
+  function wantedPlots() {
+    if (mode !== "market") return [];
+    repairRequests();
+    if (!requests.length) return [];
+    const claimed = new Set();
+    const candidates = [];
+    for (let n = 0; n < requests.length; n++) {
+      const p = plotForKind(requests[(requestIndex + n) % requests.length], claimed);
+      if (!p) continue;
+      claimed.add(p.i);
+      candidates.push(p);
+    }
+    const span = wishSpan(candidates.map((p) => (KINDS[p.kind] || KINDS.daisy).days), levelId === "rush");
+    return candidates.slice(0, span);
+  }
+  function currentRequest() {
+    const wants = wantedPlots();
+    return wants.length ? wants[0] : null;
+  }
+  function requestPlant() {
+    const req = currentRequest();
+    if (!req) return null;
+    return plants[req.i] || null;
+  }
+  function listNames(items) {
+    const names = items.map((p) => p.name);
+    if (names.length <= 1) return names[0] || "";
+    if (names.length === 2) return names[0] + " and " + names[1];
+    return names.slice(0, -1).join(", ") + ", and " + names[names.length - 1];
+  }
+  function moodBand() {
+    if (townMood >= 0.78) return "happy";
+    if (townMood >= 0.45) return "content";
+    if (townMood >= 0.28) return "unsure";
+    return "tired";
+  }
+  function tiredNames() {
+    const rows = gardenRows();
+    return Object.keys(fatigue).filter((kind) => fatigue[kind] >= 0.5).map((kind) => {
+      const row = rows.find((r) => r.kind === kind);
+      return row ? row.name.toLowerCase() : kind;
+    });
+  }
+  function moodLine() {
+    const band = moodBand();
+    const label = {
+      happy: "The town is happy",
+      content: "The town is content",
+      unsure: "The town is unsure",
+      tired: "The town is tired"
+    }[band];
+    const names = tiredNames();
+    return names.length ? label + ". They are tired of " + listNames(names.map((name) => ({ name }))) + "." : label + ".";
+  }
+  function noteDelivery(p, wanted) {
+    if (wanted) {
+      townMood = Math.min(1, townMood + 0.14);
+      fatigue[p.kind] = Math.max(0, (fatigue[p.kind] || 0) - 0.4);
+    } else {
+      townMood = Math.max(0, townMood - 0.14);
+      fatigue[p.kind] = Math.min(1, (fatigue[p.kind] || 0) + 0.26);
+    }
+  }
+  function settleRequests(delivered) {
+    if (!requests.length || !delivered.size) return;
+    const start = requestIndex % requests.length;
+    const rotated = requests.slice(start).concat(requests.slice(0, start));
+    const later = [];
+    const next = [];
+    rotated.forEach((id) => {
+      if (delivered.has(id)) later.push(id);
+      else next.push(id);
+    });
+    requests = next.concat(later);
+    requestIndex = 0;
+  }
+  function lightOf(p) {
+    if (p.cloth) return 0;
+    return Math.max(0, 1 - Math.abs(p.x - sunU) / 0.34);
+  }
+  function happy(p) {
+    const light = lightOf(p);
+    return p.likes === "sun" ? light >= 0.55 : light <= 0.42;
+  }
+
+  function layout() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const trayH = Math.min(130, Math.max(100, h * 0.16));
+    return {
+      w, h, trayH,
+      ground: h - trayH - 18,
+      left: 70,
+      right: w - 70
+    };
+  }
+  function arcPoint(u) {
+    const L = layout();
+    const x = L.left + u * (L.right - L.left);
+    const y = 118 - Math.sin(Math.PI * u) * Math.min(78, L.h * 0.12);
+    return { x, y };
+  }
+  function plantXY(p) {
+    const L = layout();
+    return { x: L.left + p.x * (L.right - L.left), y: L.ground - 4 };
+  }
+  function skyHeight() {
+    const L = layout();
+    return Math.max(220, L.ground - 132);
+  }
+  function adultSize(p) {
+    const kind = KINDS[p.kind] || KINDS.daisy;
+    const boost = levelId === "tiny" ? 1.12 : 1;
+    return skyHeight() * kind.sky * boost;
+  }
+  function bedWidth(p) {
+    const L = layout();
+    const kind = KINDS[p.kind] || KINDS.daisy;
+    return (L.right - L.left) * kind.spread;
+  }
+  function plantR(p) {
+    const L = layout();
+    return levelId === "tiny" ? Math.min(100, L.w * 0.13) : Math.min(78, L.w * 0.09);
+  }
+  function sunFromX(x) {
+    const L = layout();
+    return Math.min(1, Math.max(0, (x - L.left) / (L.right - L.left)));
+  }
+  function plantAt(x, y) {
+    let best = -1;
+    let bestD = Infinity;
+    plants.forEach((p) => {
+      const pos = plantXY(p);
+      const d = Math.hypot(x - pos.x, y - pos.y);
+      if (d <= plantR(p) * 1.12 && d < bestD) { best = p.i; bestD = d; }
+    });
+    return best;
+  }
+  function sunHit(x, y) {
+    if (!playing || !spec().sunTool) return false;
+    const orb = arcPoint(sunU);
+    if (Math.hypot(x - orb.x, y - orb.y) < 54) return true;
+    for (let i = 0; i <= 20; i++) {
+      const p = arcPoint(i / 20);
+      if (Math.hypot(x - p.x, y - p.y) < 34) return true;
+    }
+    return false;
+  }
+
+  function say(text) {
+    if (text === said) return;
+    said = text;
+    liveEl.textContent = text;
+  }
+  function selectLevel(id) {
+    if (!GARDENS[id]) return;
+    levelId = id;
+    document.querySelectorAll("[data-level]").forEach((btn) => {
+      btn.setAttribute("aria-pressed", btn.dataset.level === id ? "true" : "false");
+    });
+    marketBtn.disabled = id === "tiny";
+    marketBtn.setAttribute("aria-disabled", id === "tiny" ? "true" : "false");
+  }
+  function selectTool(id) {
+    if (id === "sun" && !spec().sunTool) id = "water";
+    if (id === "shade" && !spec().shadeTool) id = "water";
+    tool = id;
+    waterBtn.setAttribute("aria-pressed", id === "water" ? "true" : "false");
+    sunBtn.setAttribute("aria-pressed", id === "sun" ? "true" : "false");
+    shadeBtn.setAttribute("aria-pressed", id === "shade" ? "true" : "false");
+    playSound("tool");
+  }
+  function syncChrome() {
+    const on = playing;
+    screen.hidden = on;
+    tray.hidden = !on;
+    backBtn.hidden = !on;
+    statusEl.hidden = !on;
+    sunBtn.hidden = !spec().sunTool;
+    shadeBtn.hidden = !spec().shadeTool;
+    const wants = wantedPlots();
+    const hidden = !on || !wants.length;
+    const sig = moodBand() + "|" + moodLine() + "|" + wants.map((p) => p.i + ":" + p.kind).join(",");
+    if (sig === cardSig && cardEl.hidden === hidden) return;
+    cardSig = sig;
+    cardEl.hidden = hidden;
+    if (!wants.length) return;
+    faceEl.className = moodBand();
+    swatchesEl.replaceChildren();
+    wants.forEach((p) => {
+      const dot = document.createElement("i");
+      dot.className = "swatch";
+      dot.style.background = p.hue;
+      swatchesEl.appendChild(dot);
+    });
+    askEl.textContent = wants.length > 1
+      ? listNames(wants)
+      : wants[0].name + (wants[0].bed ? ", right bed" : ", left bed");
+    moodEl.textContent = moodLine();
+  }
+  function start(next) {
+    mode = next === "market" && levelId !== "tiny" ? "market" : "flowers";
+    plants = freshPlants();
+    requests = buildRequests();
+    requestIndex = 0;
+    cardSig = "";
+    townMood = 0.52;
+    fatigue = {};
+    sunU = 0.18;
+    sunParked = false;
+    sunsets = 0;
+    cart = null;
+    bloomed = false;
+    watering = -1;
+    sunDrag = false;
+    shadeArm = -1;
+    sprays = [];
+    latch = null;
+    playing = true;
+    tool = "water";
+    selectTool("water");
+    syncChrome();
+    say(mode === "market" ? "The town is hungry." : "Grow the flowers.");
+    render();
+  }
+  function showStart() {
+    playing = false;
+    watering = -1;
+    sunDrag = false;
+    releaseLatch();
+    syncChrome();
+    render();
+  }
+  function toggleCloth(index) {
+    const p = plants[index];
+    if (!p || !spec().shadeTool) return;
+    if (p.cloth) {
+      p.cloth = false;
+      p.shade = 0;
+      say("Shade off the " + p.name + ".");
+    } else {
+      p.cloth = true;
+      p.shade = spec().sunSeconds * 0.5;
+      say("Shade on the " + p.name + " for half a day.");
+    }
+    playSound("tool");
+  }
+  function beginCart(bed) {
+    if (cart || mode !== "market") return;
+    cart = { phase: reduceMotion ? "load" : "in", t: 0, bed, loaded: false, took: [] };
+    playSound("cart");
+  }
+  function loadCart() {
+    if (!cart || cart.loaded) return;
+    cart.loaded = true;
+    const wantKinds = new Set(wantedPlots().map((p) => p.kind));
+    const sprouts = [];
+    const standing = [];
+    const took = [];
+    const delivered = new Set();
+    plants.forEach((p) => {
+      if (p.growth < 1) return;
+      const wanted = wantKinds.has(p.kind);
+      noteDelivery(p, wanted);
+      if (wanted) delivered.add(p.kind);
+      if (harvestsFruit(p)) {
+        took.push(p.kind === "banana" ? "the bananas" : "the coconuts");
+        standing.push(p.kind);
+        pickFruit(p);
+      } else {
+        const whole = p.kind === "banana" || p.kind === "coconut";
+        took.push(whole ? "the whole " + p.name.toLowerCase() + " tree" : p.name);
+        sprouts.push(replant(p));
+      }
+    });
+    if (delivered.size) settleRequests(delivered);
+    repairRequests();
+    cart.took = took;
+    let line = "The cart took " + listNames(took.map((name) => ({ name }))) + ".";
+    if (standing.length === 1) line += " The " + standing[0] + " tree is still growing.";
+    else if (standing.length) line += " The " + listNames(standing.map((name) => ({ name }))) + " trees are still growing.";
+    if (sprouts.length) {
+      line += " " + listNames(sprouts.map((name) => ({ name }))) + (sprouts.length > 1 ? " sprouted in their places." : " sprouted in its place.");
+    }
+    say(cart.took.length
+      ? line + " " + moodLine()
+      : "The cart waved and left.");
+    syncChrome();
+  }
+  const ENOUGH_WATER = 0.45;
+  function growPlot(p, dt) {
+    if (!p.stems || !p.stems.length) seedStems(p);
+    const mean = p.stems.reduce((sum, stem) => sum + stem.age, 0) / p.stems.length;
+    if (Math.abs(p.growth - mean) > 0.03) p.stems.forEach((stem) => { stem.age = p.growth; });
+    const kind = KINDS[p.kind] || KINDS.daisy;
+    const light = lightOf(p);
+    const day = spec().sunSeconds;
+    const pull = (sunU - p.x) * 0.65;
+    p.stems.forEach((stem) => {
+      stem.water += (p.water - stem.water) * Math.min(1, dt * stem.thirst);
+      const tended = happy(p) && stem.water >= ENOUGH_WATER;
+      const moist = stem.water >= 0.22;
+      const perDay = tended ? 1 / kind.days : moist ? 0.14 / kind.days : 0.045 / kind.days;
+      const pace = kind.sky >= 0.7 ? 1.1 : 0.95;
+      const rate = (perDay / day) * stem.vigor * (1 - stem.stress * 0.7) * pace;
+      if (stem.age < 1) stem.age = Math.min(1, stem.age + rate * dt);
+      let target = 0;
+      if (p.likes === "shade" && light > 0.5) target = Math.min(1, (light - 0.5) / 0.4);
+      else if (kind.scorch && light > kind.scorch) target = Math.min(1, (light - kind.scorch) / 0.12);
+      const wiltAt = kind.wilt || 0.5;
+      if (stem.water < wiltAt) {
+        const dry = (wiltAt - stem.water) / wiltAt;
+        target = Math.max(target, Math.min(1, dry * (0.62 + 0.38 * light)));
+      }
+      stem.stress += (target - stem.stress) * Math.min(1, dt * 0.7);
+      const want = stem.heading + pull * stem.sunPull;
+      stem.lean += (want - stem.lean) * Math.min(1, dt * 0.45);
+    });
+    p.growth = p.stems.reduce((sum, stem) => sum + stem.age, 0) / p.stems.length;
+  }
+  function simulate(dt) {
+    const s = spec();
+    if (watering >= 0 && plants[watering]) {
+      plants[watering].water = Math.min(1, plants[watering].water + dt * 1.15);
+    }
+    let sprayHit = pointerActive ? watering : -1;
+    if (latch && latch.kind === "water" && gazePoint) {
+      aimX = gazePoint.x;
+      aimY = gazePoint.y;
+      const hit = plantAt(gazePoint.x, gazePoint.y);
+      if (hit >= 0) {
+        sprayHit = hit;
+        plants[hit].water = Math.min(1, plants[hit].water + dt * 1.15);
+      }
+    }
+    if (sprayHit >= 0) squirt(dt, plants[sprayHit]);
+    else sprays.forEach((drop) => { drop.life -= dt; });
+    sprays = sprays.filter((drop) => drop.life > 0);
+    plants.forEach((p) => {
+      const kind = KINDS[p.kind] || KINDS.daisy;
+      const light = lightOf(p);
+      const cover = 0.4 + 0.6 * Math.max(0, Math.min(1, p.growth));
+      const tiny = levelId === "tiny" ? 0.34 : 1;
+      const sip = ((kind.shade || 0.012) + ((kind.sip || 0.03) - (kind.shade || 0.012)) * light) * cover * tiny;
+      p.water = Math.max(0, p.water - dt * sip);
+      if (p.shade > 0) {
+        p.shade = Math.max(0, p.shade - dt);
+        p.cloth = p.shade > 0;
+      }
+      growPlot(p, dt);
+    });
+    if (!sunParked && !(latch && latch.kind === "sun")) {
+      sunU += dt / s.sunSeconds;
+      if (sunU >= 1) {
+        sunU = 0;
+        if (levelId === "rush" && mode === "market") {
+          sunsets++;
+          if (plants.some((p) => p.growth >= 1)) beginCart(-1);
+          else say("Sunset. Nothing was ready, so the cart stayed home.");
+        }
+      }
+    }
+    if (plants.some((p) => p.growth >= 1) && !cart) beginCart(0);
+    if (cart) {
+      cart.t += dt;
+      if (cart.phase === "in" && cart.t >= 1.05) { cart.phase = "load"; cart.t = 0; }
+      if (cart.phase === "load") {
+        loadCart();
+        if (cart.t >= 0.55) { cart.phase = "out"; cart.t = 0; }
+      }
+      if (cart.phase === "out" && cart.t >= 1.05) cart = null;
+    }
+    if (mode === "flowers" && plants.every((p) => p.growth >= 1)) {
+      if (!bloomed) { bloomed = true; say("The garden is in bloom."); playSound("bloom"); }
+    } else bloomed = false;
+    const wants = wantedPlots();
+    if (mode === "market") syncChrome();
+    const hint = mode === "market" && wants.length
+      ? "Grow the " + listNames(wants) + "."
+      : levelId === "tiny"
+        ? "Water the flowers."
+        : spec().shadeTool
+          ? "Water what you want. Shade lasts half a day."
+          : "Water the plants. Park the sun where they like it.";
+    statusEl.textContent = hint;
+  }
+
+  function render() {
+    const L = layout();
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.round(L.w * dpr);
+    canvas.height = Math.round(L.h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const noon = 1 - Math.abs(sunU - 0.5) * 2;
+    const top = mix("#ffb36b", "#8ec6ef", noon);
+    const mid = mix("#ffe1a8", "#dff3c8", noon);
+    const g = ctx.createLinearGradient(0, 0, 0, L.ground);
+    g.addColorStop(0, top);
+    g.addColorStop(1, mid);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, L.w, L.h);
+    ctx.fillStyle = "#7fbf6a";
+    ctx.fillRect(0, L.ground, L.w, L.h - L.ground);
+    ctx.fillStyle = "#6aa356";
+    ctx.fillRect(0, L.ground + 18, L.w, 10);
+    drawArc(L);
+    const wantIds = new Set(wantedPlots().map((p) => p.i));
+    const drawOrder = plants.slice().sort((a, b) => (KINDS[b.kind].sky || 0) - (KINDS[a.kind].sky || 0));
+    drawOrder.forEach((p) => {
+      const pos = plantXY(p);
+      drawMound(pos.x, pos.y + 6, moundWidth(p), wantIds.has(p.i));
+    });
+    drawOrder.forEach((p) => drawPlot(p));
+    const focus = waterFocus();
+    if (focus >= 0 && plants[focus]) drawGrowth(plants[focus]);
+    drawSprays();
+    drawCan();
+    drawCart(L);
+    const orb = arcPoint(sunU);
+    ctx.fillStyle = "#ffd45a";
+    ctx.beginPath();
+    ctx.arc(orb.x, orb.y, 28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#e2a62e";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+  }
+  function drawArc(L) {
+    ctx.strokeStyle = "rgba(255, 248, 230, 0.85)";
+    ctx.lineWidth = 8;
+    ctx.beginPath();
+    for (let i = 0; i <= 24; i++) {
+      const p = arcPoint(i / 24);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    }
+    ctx.stroke();
+  }
+  function moundWidth(p) {
+    const kind = KINDS[p.kind] || KINDS.daisy;
+    const bed = bedWidth(p);
+    if (kind.sky >= 0.7) return Math.max(168, adultSize(p) * 0.3);
+    return Math.max(84, bed + 42);
+  }
+  function stageT(age, a0, a1) {
+    return Math.max(0, Math.min(1, (age - a0) / (a1 - a0)));
+  }
+  function sproutH(h) {
+    return Math.min(28, Math.max(14, h * 0.09));
+  }
+  function bez2(t, p0, p1, p2) {
+    const u = 1 - t;
+    return {
+      x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x,
+      y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y
+    };
+  }
+  function drawPlot(p) {
+    const pos = plantXY(p);
+    const h = adultSize(p);
+    const bed = bedWidth(p);
+    const kind = KINDS[p.kind] || KINDS.daisy;
+    const passes = (p.kind === "sunflower" || p.kind === "daisy") ? ["body", "face"] : ["all"];
+    passes.forEach((part) => {
+      (p.stems || []).forEach((stem, si) => {
+        const x = pos.x + stem.slot * bed * (kind.habit === "vine" ? 0.16 : 0.46);
+        ctx.save();
+        ctx.translate(x, pos.y);
+        if (kind.habit === "vine") {
+          if (part === "all") {
+            ctx.scale(stem.mirror === -1 ? -1 : 1, 1);
+            drawTomatoStage(h, bed, stem.age, stem.stress || 0, stem.ripeShift || 0, stem.slot, stem.lean || 0);
+          }
+        } else {
+          const tree = kind.sky >= 0.7;
+          ctx.rotate((stem.lean || 0) * (tree ? 0.1 : 0.32) + (stem.stress || 0) * (tree ? 0.16 : 0.42));
+          ctx.scale(stem.mirror === -1 ? -1 : 1, 1);
+          drawKind(p.kind, h, stem.age, p.hue, stem.stress || 0, stem.ripeShift || 0, p.i * 17 + si, part);
+        }
+        ctx.restore();
+      });
+    });
+    if (p.cloth) {
+      const w = Math.max(bed * 1.15, Math.min(h * 1.15, 340), 96);
+      const top = Math.min(Math.max(h * 0.62, 84), 250);
+      const lip = top * 0.38;
+      ctx.fillStyle = "rgba(214, 228, 196, 0.78)";
+      ctx.beginPath();
+      ctx.moveTo(pos.x - w * 0.5, pos.y - top);
+      ctx.lineTo(pos.x + w * 0.5, pos.y - top);
+      ctx.lineTo(pos.x + w * 0.36, pos.y - lip);
+      ctx.lineTo(pos.x - w * 0.36, pos.y - lip);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(120, 140, 100, 0.9)";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.strokeStyle = "rgba(92, 58, 28, 0.85)";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(pos.x - w * 0.36, pos.y - lip);
+      ctx.lineTo(pos.x - w * 0.36, pos.y + 2);
+      ctx.moveTo(pos.x + w * 0.36, pos.y - lip);
+      ctx.lineTo(pos.x + w * 0.36, pos.y + 2);
+      ctx.stroke();
+    }
+  }
+  function waterFocus() {
+    if (pointerActive && watering >= 0) return watering;
+    if (latch && latch.kind === "water" && gazePoint) return plantAt(gazePoint.x, gazePoint.y);
+    return -1;
+  }
+  function soilWater(p) {
+    if (!p.stems || !p.stems.length) return Math.max(0, Math.min(1, p.water || 0));
+    let driest = 1;
+    p.stems.forEach((stem) => { driest = Math.min(driest, stem.water); });
+    return Math.max(0, Math.min(1, driest));
+  }
+  function drawGrowth(p) {
+    const pos = plantXY(p);
+    const g = Math.max(0, Math.min(1, p.growth || 0));
+    const full = g >= 0.999;
+    const wet = soilWater(p);
+    const L = layout();
+    const cardW = 156;
+    const barW = 124;
+    let x = pos.x + 98;
+    const half = cardW / 2;
+    if (x + half > L.w - 8) x = L.w - 8 - half;
+    if (x - half < 8) x = 8 + half;
+    const y = pos.y - 78;
+    ctx.fillStyle = "rgba(255, 250, 240, 0.96)";
+    roundRect(x, y, cardW, 66, 12);
+    ctx.fillStyle = "#243024";
+    ctx.font = '800 14px "Trebuchet MS", sans-serif';
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(full ? "Full grown" : Math.round(g * 100) + "% grown", x, y + 13);
+    const left = x - barW / 2;
+    ctx.fillStyle = "rgba(36, 48, 36, 0.16)";
+    roundRect(x, y + 26, barW, 8, 4);
+    ctx.fillStyle = full ? "#1f9a45" : "#67b85a";
+    const grown = barW * g;
+    if (grown > 1) ctx.fillRect(left, y + 26, Math.max(6, grown), 8);
+    ctx.font = '800 13px "Trebuchet MS", sans-serif';
+    ctx.fillStyle = "#1a4e78";
+    ctx.fillText("Water", x, y + 44);
+    ctx.fillStyle = "rgba(36, 70, 110, 0.16)";
+    roundRect(x, y + 54, barW, 8, 4);
+    const waterW = barW * wet;
+    if (waterW > 1) {
+      ctx.fillStyle = wet >= ENOUGH_WATER ? "#2f93c9" : "#7ec8e3";
+      ctx.fillRect(left, y + 54, Math.max(6, waterW), 8);
+    }
+    ctx.fillStyle = "#243024";
+    ctx.fillRect(left + barW * ENOUGH_WATER, y + 52, 2, 12);
+  }
+  function drawMound(x, ground, wide, hot) {
+    ctx.fillStyle = hot ? "rgba(196, 132, 48, 0.45)" : "rgba(74, 48, 28, 0.4)";
+    ctx.beginPath();
+    ctx.ellipse(x, ground + 20, wide / 2, 20, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = hot ? "rgba(255, 214, 120, 0.9)" : "rgba(122, 78, 42, 0.95)";
+    ctx.beginPath();
+    ctx.ellipse(x, ground + 16, wide * 0.36, 8, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(36, 92, 42, 0.7)";
+    ctx.lineWidth = 2;
+    [-0.42, 0.42].forEach((side) => {
+      const gx = x + side * wide * 0.5;
+      ctx.beginPath();
+      ctx.moveTo(gx, ground + 12);
+      ctx.quadraticCurveTo(gx + side * 6, ground - 4, gx + side * 2, ground - 16);
+      ctx.moveTo(gx + 5, ground + 10);
+      ctx.quadraticCurveTo(gx + side * 4 + 5, ground - 2, gx + 3, ground - 12);
+      ctx.stroke();
+    });
+  }
+  function fillLeaf(x, y, len, rot, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(len * 0.42, -len * 0.46, len, 0);
+    ctx.quadraticCurveTo(len * 0.42, len * 0.46, 0, 0);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(18, 70, 28, 0.45)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(1, 0);
+    ctx.lineTo(len * 0.86, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+  function drawFiddle(x, y, rot, size) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.strokeStyle = "#1d6b38";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let i = 0; i <= 16; i++) {
+      const t = i / 16;
+      const a = t * Math.PI * 2.4 - Math.PI / 2;
+      const rad = size * (1 - t * 0.72);
+      const px = Math.cos(a) * rad;
+      const py = -size * 0.8 + Math.sin(a) * rad;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  function tomatoLeaflet(x, y, len, rot, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.bezierCurveTo(len * 0.2, -len * 0.55, len * 0.72, -len * 0.48, len, -len * 0.02);
+    ctx.bezierCurveTo(len * 0.7, len * 0.42, len * 0.22, len * 0.5, 0, 0);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(16, 70, 28, 0.45)";
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(1, 0);
+    ctx.quadraticCurveTo(len * 0.5, -len * 0.06, len * 0.88, 0);
+    ctx.stroke();
+    ctx.restore();
+  }
+  function drawPetal(x, y, len, rot, color) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rot);
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.quadraticCurveTo(len * 0.45, -len * 0.28, len, 0);
+    ctx.quadraticCurveTo(len * 0.45, len * 0.28, 0, 0);
+    ctx.fill();
+    ctx.restore();
+  }
+  function wilt(color, stress) {
+    return stress < 0.12 ? color : mix(color, "#d2c07a", Math.min(0.8, stress));
+  }
+  function shoot(h, color, width) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width || 2;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(0, -h);
+    ctx.stroke();
+  }
+  function drawCotyledon(h, color) {
+    shoot(h, color, 2);
+    fillLeaf(0, -h, h * 0.7, -0.75, color);
+    fillLeaf(0, -h, h * 0.7, 0.75, color);
+  }
+  function drawKind(kind, h, age, hue, stress, ripeShift, salt, part) {
+    if (part === "face" && kind !== "sunflower" && kind !== "daisy") return;
+    if (kind === "tomato") drawTomatoStage(h, h * 2.2, age, stress, ripeShift, 1, 0);
+    else if (kind === "fern") drawFernStage(h, age, hue, stress);
+    else if (kind === "lettuce") drawLettuceStage(h, age, hue, stress);
+    else if (kind === "wheat") drawWheatStage(h, age, stress);
+    else if (kind === "rose") drawRoseStage(h, age, hue, stress, salt || 0);
+    else if (kind === "violet") drawVioletStage(h, age, hue, stress, salt || 0);
+    else if (kind === "carrot") drawCarrotStage(h, age, stress);
+    else if (kind === "potato") drawPotatoStage(h, age, stress, salt || 0);
+    else if (kind === "banana") drawBananaStage(h, age, stress);
+    else if (kind === "coconut") drawCoconutStage(h, age, stress);
+    else drawBloomStage(h, age, hue, stress, kind === "sunflower", salt || 0, part || "all");
+  }
+  function drawBloomStage(h, age, hue, stress, sunflower, salt, part) {
+    const leaf = wilt(sunflower ? "#2fae4e" : "#3cbf62", stress);
+    const sprout = sproutH(h);
+    if (age < 0.2) {
+      if (part !== "face") drawCotyledon(sprout * (0.45 + age * 2.2), leaf);
+      return;
+    }
+    const grow = stageT(age, 0.18, 0.74);
+    const stemH = sprout + grow * ((sunflower ? 0.8 : 0.78) * h - sprout);
+    const stemC = wilt(sunflower ? "#237238" : "#2a8a42", stress);
+    if (part !== "face") shoot(stemH, stemC, (sunflower ? 4 : 2) + grow * (sunflower ? 7 : 2.2));
+    const leafN = Math.min(sunflower ? 8 : 4, 1 + Math.floor(grow * (sunflower ? 8 : 4)));
+    if (part !== "face") for (let i = 0; i < leafN; i++) {
+      const y = -stemH * (0.18 + (i / leafN) * 0.62);
+      const dir = i % 2 ? 1 : -1;
+      const len = h * (sunflower ? 0.22 : 0.16) * (0.35 + grow * 0.75) * (i === leafN - 1 ? 0.7 : 1);
+      fillLeaf(0, y, len, dir * (0.55 + stress * 0.35), i % 3 === 0 ? wilt("#7ddea0", stress) : leaf);
+    }
+    if (age < 0.46) return;
+    const open = stageT(age, 0.46, 0.84);
+    const headR = h * (sunflower ? 0.045 + open * 0.2 : 0.03 + open * 0.11);
+    const hy = -stemH - (sunflower ? headR * 0.15 : 0);
+    if (open < 0.22) {
+      if (part === "face") return;
+      ctx.fillStyle = wilt(sunflower ? "#6a8f32" : "#8fbf55", stress);
+      ctx.beginPath();
+      ctx.ellipse(0, hy, headR * 0.55, headR * 1.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    const petals = Math.round((sunflower ? 16 : 8) + open * (sunflower ? 8 : 2));
+    const petalHue = wilt(hue, stress * 0.35);
+    const wobble = unitRand((salt || 0) + 4);
+    const disk = headR * (sunflower ? 0.46 : 0.55);
+    if (part !== "face") for (let layer = 0; layer < (sunflower ? 2 : 1); layer++) {
+      const count = layer ? Math.round(petals * 0.7) : petals;
+      for (let i = 0; i < count; i++) {
+        const a = (Math.PI * 2 * i) / count + layer * 0.2 + wobble;
+        const shade = sunflower && i % 2 ? mix(petalHue, "#fff1b0", 0.35) : petalHue;
+        const inset = disk * 0.72;
+        drawPetal(Math.cos(a) * inset, hy + Math.sin(a) * inset, headR * (layer ? 0.62 : 0.85), a, shade);
+      }
+    }
+    if (part === "body") return;
+    ctx.fillStyle = sunflower ? "#5a2c0c" : "#f6c431";
+    ctx.beginPath();
+    ctx.arc(0, hy, disk, 0, Math.PI * 2);
+    ctx.fill();
+    if (sunflower) {
+      const seeds = Math.round(12 + open * 36);
+      for (let i = 0; i < seeds; i++) {
+        const a = i * 2.399;
+        const rad = disk * 0.82 * Math.sqrt((i + 0.5) / seeds);
+        ctx.fillStyle = i % 2 ? "#f0b429" : "#2a1608";
+        ctx.beginPath();
+        ctx.arc(Math.cos(a) * rad, hy + Math.sin(a) * rad, Math.max(1.4, disk * 0.085), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    } else {
+      ctx.fillStyle = "#e8941a";
+      ctx.beginPath();
+      ctx.arc(0, hy, disk * 0.62, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  function drawTomatoStage(h, bed, age, stress, ripeShift, slot, lean) {
+    const leaf = wilt("#24a84a", stress);
+    const sprout = sproutH(h);
+    if (age < 0.2) {
+      drawCotyledon(sprout * (0.5 + age * 2), leaf);
+      return;
+    }
+    const vineT = stageT(age, 0.2, 0.9);
+    const dir = slot < -0.05 ? -1 : slot > 0.05 ? 1 : (lean >= 0 ? 1 : -1);
+    const span = layout().right - layout().left;
+    const run = Math.min(span * 0.08, 120) * (0.18 + vineT * 0.82);
+    const lift = h * (0.7 * (1 - vineT) + 0.22);
+    const p0 = { x: 0, y: 0 };
+    const p1 = { x: dir * run * 0.48, y: -lift };
+    const p2 = { x: dir * run, y: -Math.max(6, h * 0.08) };
+    ctx.strokeStyle = wilt("#1b6b34", stress);
+    ctx.lineCap = "round";
+    ctx.lineWidth = 2.4 + vineT * 4.2;
+    ctx.beginPath();
+    ctx.moveTo(p0.x, p0.y);
+    ctx.quadraticCurveTo(p1.x, p1.y, p2.x, p2.y);
+    ctx.stroke();
+    if (vineT > 0.45) {
+      const branch = run * 0.38;
+      ctx.lineWidth = 2 + vineT * 1.6;
+      ctx.beginPath();
+      ctx.moveTo(dir * run * 0.28, bez2(0.28, p0, p1, p2).y);
+      ctx.quadraticCurveTo(dir * run * 0.28 - dir * branch * 0.5, -h * 0.28, dir * run * 0.22 - dir * branch, -h * 0.02);
+      ctx.stroke();
+    }
+    const nodes = Math.min(5, 2 + Math.floor(vineT * 3));
+    for (let i = 0; i < nodes; i++) {
+      const t = (i + 1) / (nodes + 0.8);
+      const pt = bez2(t, p0, p1, p2);
+      const sprig = h * (0.28 + vineT * 0.32) * (1 - t * 0.15);
+      ctx.strokeStyle = leaf;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pt.x, pt.y);
+      ctx.lineTo(pt.x + dir * sprig * 0.08, pt.y - sprig);
+      ctx.stroke();
+      tomatoLeaflet(pt.x, pt.y - sprig * 0.42, sprig * 0.4, -Math.PI / 2 + dir * 0.5, leaf);
+      tomatoLeaflet(pt.x, pt.y - sprig * 0.7, sprig * 0.32, -Math.PI / 2 - dir * 0.25, wilt("#178a38", stress));
+      if (age > 0.42 && age < 0.72 && i % 2 === 0) {
+        ctx.fillStyle = "#ffe56a";
+        ctx.beginPath();
+        ctx.arc(pt.x + dir * 4, pt.y - h * 0.12, Math.max(2.5, h * 0.06), 0, Math.PI * 2);
+        ctx.fill();
+      }
+      const local = age + ripeShift - i * 0.055;
+      if (local < 0.6) continue;
+      const swell = Math.min(1, (local - 0.6) / 0.28);
+      const fruitR = Math.max(5, h * (0.08 + swell * 0.14));
+      const fx = pt.x;
+      const fy = 3;
+      ctx.strokeStyle = wilt("#1b6b34", stress);
+      ctx.lineWidth = 1.6;
+      ctx.beginPath();
+      ctx.moveTo(pt.x, pt.y);
+      ctx.lineTo(fx, fy - fruitR * 0.7);
+      ctx.stroke();
+      const ripe = local > 0.86 ? "#e31b24" : local > 0.74 ? "#e36a32" : "#3cae4a";
+      ctx.fillStyle = ripe;
+      ctx.beginPath();
+      ctx.arc(fx, fy, fruitR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.35)";
+      ctx.beginPath();
+      ctx.arc(fx - fruitR * 0.28, fy - fruitR * 0.32, fruitR * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#146b32";
+      ctx.beginPath();
+      ctx.ellipse(fx, fy - fruitR * 0.82, fruitR * 0.38, fruitR * 0.16, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  function drawFernStage(h, age, hue, stress) {
+    const color = wilt(hue || "#2f9a4a", stress);
+    const sprout = sproutH(h);
+    if (age < 0.24) {
+      drawFiddle(-sprout * 0.2, 0, -0.4, sprout * (0.45 + age * 1.6));
+      if (age > 0.12) drawFiddle(sprout * 0.35, 0, 0.5, sprout * 0.7);
+      return;
+    }
+    if (age < 0.4) {
+      drawFiddle(-h * 0.06, 0, -0.7, h * 0.08);
+      drawFiddle(h * 0.08, 0, 0.55, h * 0.06);
+      const n = 2;
+      for (let f = 0; f < n; f++) {
+        ctx.save();
+        ctx.rotate(-0.5 + f);
+        shoot(h * 0.28, wilt("#1d6b38", stress), 2);
+        ctx.restore();
+      }
+      return;
+    }
+    const grow = stageT(age, 0.36, 0.88);
+    const fronds = Math.min(8, 3 + Math.floor(grow * 6));
+    const reach = h * (0.45 + grow * 0.85);
+    for (let f = 0; f < fronds; f++) {
+      const u = fronds === 1 ? 0.5 : f / (fronds - 1);
+      const rot = -1.35 + u * 2.7;
+      const len = reach * (0.72 + Math.sin(u * Math.PI) * 0.28);
+      ctx.save();
+      ctx.rotate(rot + stress * 0.12 * (rot > 0 ? 1 : -1));
+      ctx.strokeStyle = wilt("#145c30", stress);
+      ctx.lineWidth = 2 + grow * 1.6;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(len * 0.15, -len * 0.72, 0, -len);
+      ctx.stroke();
+      const pairs = 4 + Math.floor(grow * 7);
+      for (let i = 1; i <= pairs; i++) {
+        const t = i / (pairs + 1);
+        const py = -len * (t * 0.92);
+        const px = len * 0.15 * 4 * t * (1 - t) * 0.35;
+        const plen = len * 0.2 * (1.15 - t);
+        const pin = i % 2 ? color : wilt("#1f8a44", stress);
+        fillLeaf(px, py, plen, -1.15, pin);
+        fillLeaf(px, py, plen, 1.15, wilt("#146b32", stress));
+      }
+      if (f === fronds - 1 && grow < 0.85) drawFiddle(0, -len * 0.92, 0.2, h * 0.045);
+      ctx.restore();
+    }
+  }
+  function drawLettuceStage(h, age, hue, stress) {
+    const color = wilt(hue || "#7dcea0", stress);
+    const sprout = sproutH(h);
+    if (age < 0.24) {
+      drawCotyledon(sprout * (0.45 + age * 1.6), color);
+      return;
+    }
+    const grow = stageT(age, 0.22, 0.86);
+    const leaves = Math.min(11, 5 + Math.floor(grow * 7));
+    for (let i = 0; i < leaves; i++) {
+      const u = leaves === 1 ? 0.5 : i / (leaves - 1);
+      const ang = -Math.PI + u * Math.PI;
+      const edge = Math.abs(u - 0.5) * 2;
+      const len = h * (0.28 + grow * 0.95) * (0.7 + edge * 0.55);
+      ctx.save();
+      ctx.rotate(ang + stress * 0.2 * (u < 0.5 ? -1 : 1));
+      ctx.fillStyle = edge > 0.55 ? color : (i % 2 ? wilt("#e7ffe4", stress) : wilt("#b7ebc4", stress));
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(len * 0.25, -len * 0.42, len * 0.7, -len * 0.38, len, 0);
+      ctx.bezierCurveTo(len * 0.72, len * 0.28, len * 0.22, len * 0.34, 0, 0);
+      ctx.fill();
+      ctx.strokeStyle = "rgba(18, 92, 40, 0.35)";
+      ctx.lineWidth = 1.3;
+      ctx.beginPath();
+      ctx.moveTo(2, 0);
+      ctx.quadraticCurveTo(len * 0.55, -len * 0.06, len * 0.9, 0);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  function drawWheatStage(h, age, stress) {
+    const sprout = sproutH(h);
+    const young = wilt("#8bc34a", stress);
+    if (age < 0.22) {
+      shoot(sprout * (0.55 + age * 2), young, 2);
+      if (age > 0.12) fillLeaf(0, -sprout * 0.6, sprout * 0.7, 0.8, young);
+      return;
+    }
+    const grow = stageT(age, 0.2, 0.76);
+    const stemH = sprout + grow * (h * 0.8 - sprout);
+    const straw = wilt(age > 0.75 ? "#e6c15a" : "#c6a15a", stress);
+    shoot(stemH, straw, 1.5 + grow * 2);
+    if (age > 0.3) fillLeaf(0, -stemH * 0.38, h * (0.1 + grow * 0.12), 1.05 + stress * 0.3, wilt("#9ccc65", stress));
+    if (age > 0.42) fillLeaf(0, -stemH * 0.58, h * 0.14, -0.95, wilt("#7cb342", stress));
+    if (age < 0.56) {
+      ctx.fillStyle = wilt("#9aaa55", stress);
+      ctx.beginPath();
+      ctx.ellipse(0, -stemH, Math.max(3, h * 0.018), Math.max(6, h * 0.045), 0, 0, Math.PI * 2);
+      ctx.fill();
+      return;
+    }
+    const ear = stageT(age, 0.56, 0.9);
+    const grains = 6 + Math.round(ear * 7);
+    const gold = age > 0.82;
+    const eh = Math.max(4, h * 0.032);
+    for (let i = 0; i < grains; i++) {
+      const gy = -stemH - i * eh * 0.65;
+      const dir = i % 2 ? 1 : -1;
+      ctx.fillStyle = gold ? (i % 3 ? "#ffe082" : "#f6c945") : "#c5d36e";
+      ctx.beginPath();
+      ctx.ellipse(dir * eh * 0.55, gy, eh * 0.46, eh * 0.72, dir * 0.4, 0, Math.PI * 2);
+      ctx.fill();
+      if (ear > 0.3) {
+        ctx.strokeStyle = gold ? "#fff4c2" : "#dce7a2";
+        ctx.lineWidth = 1.15;
+        ctx.beginPath();
+        ctx.moveTo(dir * eh * 0.75, gy - eh * 0.2);
+        ctx.lineTo(dir * eh * 1.45, gy - eh * 1.55);
+        ctx.stroke();
+      }
+    }
+  }
+  function drawRoseStage(h, age, hue, stress, salt) {
+    const leaf = wilt("#218a3c", stress);
+    const sprout = sproutH(h);
+    if (age < 0.2) {
+      shoot(sprout * (0.5 + age * 2), leaf, 2);
+      fillLeaf(0, -sprout * 0.55, sprout * 0.8, 0.7, leaf);
+      return;
+    }
+    const grow = stageT(age, 0.18, 0.72);
+    const canes = 1 + Math.min(4, Math.floor(grow * 5));
+    for (let c = 0; c < canes; c++) {
+      const side = (c - (canes - 1) / 2) * h * 0.16;
+      const caneH = h * (0.16 + grow * 0.72) * (0.78 + unitRand(salt + c * 3) * 0.28);
+      const tipX = side * 1.4;
+      ctx.strokeStyle = wilt("#3e6b32", stress);
+      ctx.lineWidth = 2.2 + grow * 2.4;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(side * 0.3, 0);
+      ctx.quadraticCurveTo(side, -caneH * 0.55, tipX, -caneH);
+      ctx.stroke();
+      const thorns = 2 + Math.floor(grow * 3);
+      ctx.strokeStyle = "#6a4a32";
+      ctx.lineWidth = 1.3;
+      for (let t = 1; t <= thorns; t++) {
+        const u = t / (thorns + 1);
+        const pt = bez2(u, { x: side * 0.3, y: 0 }, { x: side, y: -caneH * 0.55 }, { x: tipX, y: -caneH });
+        const dir = t % 2 ? 1 : -1;
+        ctx.beginPath();
+        ctx.moveTo(pt.x, pt.y);
+        ctx.lineTo(pt.x + dir * h * 0.035, pt.y + h * 0.02);
+        ctx.stroke();
+      }
+      const sets = 1 + Math.floor(grow * 3);
+      for (let s = 0; s < sets; s++) {
+        const u = 0.28 + s * 0.18;
+        const pt = bez2(Math.min(0.9, u), { x: side * 0.3, y: 0 }, { x: side, y: -caneH * 0.55 }, { x: tipX, y: -caneH });
+        for (let k = 0; k < 3; k++) fillLeaf(pt.x, pt.y, h * 0.1 * (0.7 + grow), (k - 1) * 0.7 + (c % 2 ? 0.2 : -0.2), k === 1 ? wilt("#8ee07a", stress) : leaf);
+      }
+      if (age < 0.55) continue;
+      const open = stageT(age, 0.55, 0.88);
+      const rad = h * (0.06 + open * 0.16) * (c === Math.floor(canes / 2) ? 1.15 : 0.82);
+      drawRoseHead(tipX, -caneH, rad, wilt(hue, stress * 0.25), open);
+    }
+  }
+  function drawRoseHead(x, y, rad, hue, open) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = "#1e6b32";
+    ctx.beginPath();
+    ctx.ellipse(0, rad * 0.15, rad * 0.45, rad * 0.22, 0, 0, Math.PI * 2);
+    ctx.fill();
+    const petals = Math.round(6 + open * 8);
+    for (let i = 0; i < petals; i++) {
+      const a = (i / petals) * Math.PI * 2 + open * 0.6;
+      const len = rad * (0.62 + (i % 3) * 0.16);
+      ctx.fillStyle = i % 2 ? hue : mix(hue, "#fff0f3", 0.28);
+      ctx.beginPath();
+      ctx.ellipse(Math.cos(a) * rad * 0.32, Math.sin(a) * rad * 0.32, len * 0.48, len * 0.3, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.fillStyle = mix(hue, "#4a1024", 0.4);
+    ctx.beginPath();
+    ctx.arc(0, 0, rad * 0.28, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+  function drawVioletStage(h, age, hue, stress, salt) {
+    const leaf = wilt("#2f9a48", stress);
+    const sprout = sproutH(h);
+    if (age < 0.36) {
+      drawCotyledon(sprout * (0.45 + age), leaf);
+      return;
+    }
+    const grow = stageT(age, 0.34, 0.82);
+    const leaves = Math.min(6, 3 + Math.floor(grow * 4));
+    for (let i = 0; i < leaves; i++) {
+      const u = leaves === 1 ? 0.5 : i / (leaves - 1);
+      const a = -Math.PI + 0.35 + u * (Math.PI - 0.7) + (unitRand(salt + i) - 0.5) * 0.15;
+      const len = h * (0.25 + grow * 0.9);
+      ctx.save();
+      ctx.rotate(a + stress * 0.15);
+      ctx.fillStyle = i % 2 ? wilt("#8ddea4", stress) : leaf;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.bezierCurveTo(len * 0.45, -len * 0.7, len * 1.05, -len * 0.45, len * 0.72, 0);
+      ctx.bezierCurveTo(len * 1.05, len * 0.5, len * 0.4, len * 0.72, 0, 0);
+      ctx.fill();
+      ctx.restore();
+    }
+    if (age < 0.58) return;
+    const open = stageT(age, 0.58, 0.9);
+    const blooms = 1 + Math.floor(open * 2);
+    for (let i = 0; i < blooms; i++) {
+      const x = (i - (blooms - 1) / 2) * h * 0.55;
+      const stalk = h * (0.2 + open * 0.45);
+      const pr = h * (0.14 + open * 0.2);
+      ctx.save();
+      ctx.translate(x, 0);
+      shoot(stalk, leaf, 1.6);
+      ctx.restore();
+      const y = -stalk;
+      ctx.fillStyle = wilt(hue, stress * 0.3);
+      for (let k = 0; k < 5; k++) {
+        const a = -Math.PI / 2 + (k / 5) * Math.PI * 2;
+        const len = pr * (k === 0 ? 1.25 : 0.85);
+        ctx.beginPath();
+        ctx.ellipse(x + Math.cos(a) * pr * 0.45, y + Math.sin(a) * pr * 0.45, len * 0.55, len * 0.34, a, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.fillStyle = "#f4e27a";
+      ctx.beginPath();
+      ctx.arc(x, y, pr * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  function drawCarrotStage(h, age, stress) {
+    const top = wilt("#6fbf3a", stress);
+    const sprout = sproutH(h);
+    if (age < 0.18) {
+      drawCotyledon(sprout * 0.65, top);
+      return;
+    }
+    const grow = stageT(age, 0.16, 0.75);
+    const fronds = Math.min(7, 3 + Math.floor(grow * 5));
+    const reach = h * (0.35 + grow * 0.7);
+    for (let i = 0; i < fronds; i++) {
+      const a = -1.05 + (i / Math.max(1, fronds - 1)) * 2.1;
+      ctx.save();
+      ctx.rotate(a);
+      ctx.strokeStyle = i % 2 ? wilt("#d4f08a", stress) : top;
+      ctx.lineWidth = 1.4 + grow;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(reach * 0.1, -reach * 0.7, 0, -reach * (0.85 + (i % 2) * 0.15));
+      ctx.stroke();
+      ctx.restore();
+    }
+    if (age < 0.48) return;
+    const swell = stageT(age, 0.48, 0.9);
+    const rw = h * (0.1 + swell * 0.14);
+    const rh = h * (0.16 + swell * 0.32);
+    ctx.fillStyle = swell > 0.65 ? "#f07a22" : "#e8923a";
+    ctx.beginPath();
+    ctx.moveTo(-rw, 2);
+    ctx.quadraticCurveTo(-rw * 0.45, rh * 0.45, 0, rh);
+    ctx.quadraticCurveTo(rw * 0.45, rh * 0.45, rw, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(140, 60, 10, 0.35)";
+    ctx.lineWidth = 1.2;
+    for (let k = 1; k <= 3; k++) {
+      const y = 2 + rh * k * 0.22;
+      const w = rw * (1 - k * 0.22);
+      ctx.beginPath();
+      ctx.moveTo(-w, y);
+      ctx.lineTo(w, y);
+      ctx.stroke();
+    }
+    ctx.fillStyle = "rgba(255,255,255,0.28)";
+    ctx.beginPath();
+    ctx.ellipse(-rw * 0.25, rh * 0.28, rw * 0.18, rh * 0.12, 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  function drawPotatoStage(h, age, stress, salt) {
+    const leaf = wilt("#4caf50", stress);
+    const sprout = sproutH(h);
+    if (age < 0.2) {
+      shoot(sprout * (0.6 + age), wilt("#6b8f45", stress), 3);
+      return;
+    }
+    const grow = stageT(age, 0.18, 0.78);
+    const bushH = h * (0.35 + grow * 0.62);
+    const canes = 3;
+    for (let c = 0; c < canes; c++) {
+      const side = (c - 1) * h * 0.22;
+      ctx.strokeStyle = wilt("#33691e", stress);
+      ctx.lineWidth = 2.4 + grow * 2;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(side * 0.2, 0);
+      ctx.quadraticCurveTo(side, -bushH * 0.6, side * 1.1, -bushH);
+      ctx.stroke();
+      const leaves = 2 + Math.floor(grow * 3);
+      for (let i = 0; i < leaves; i++) {
+        const y = -bushH * (0.3 + i * 0.16);
+        fillLeaf(side, y, h * (0.16 + grow * 0.16), (i % 2 ? 0.7 : -0.75) + stress * 0.2, i % 2 ? wilt("#b2f0a0", stress) : leaf);
+      }
+    }
+    if (age > 0.62) {
+      const blooms = 2 + Math.floor(stageT(age, 0.62, 1) * 2);
+      for (let i = 0; i < blooms; i++) {
+        const x = (i - 1) * h * 0.2;
+        ctx.fillStyle = "#f7f3ff";
+        ctx.beginPath();
+        ctx.arc(x, -bushH * 0.92, Math.max(3, h * 0.045), 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#f6d34a";
+        ctx.beginPath();
+        ctx.arc(x, -bushH * 0.92, Math.max(1.5, h * 0.016), 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (age < 0.58) return;
+    const n = age > 0.84 ? 4 : 3;
+    for (let i = 0; i < n; i++) {
+      const x = (i - (n - 1) / 2) * h * 0.28;
+      const rw = h * (0.1 + unitRand(salt + i) * 0.04);
+      const rh = rw * 0.72;
+      ctx.fillStyle = i % 2 ? "#d7b48a" : "#c49a62";
+      ctx.beginPath();
+      ctx.ellipse(x, rh * 0.15, rw, rh, (i - 1) * 0.2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.2)";
+      ctx.beginPath();
+      ctx.ellipse(x - rw * 0.25, -rh * 0.1, rw * 0.2, rh * 0.15, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  function drawBananaStage(h, age, stress) {
+    const sprout = sproutH(h);
+    const stemC = wilt("#7cb342", stress);
+    const leafC = wilt("#2eae4a", stress);
+    if (age < 0.4) {
+      const g = stageT(age, 0.12, 0.4);
+      const spear = sprout * (0.8 + g * 3.2);
+      shoot(spear, leafC, 3 + g * 3);
+      fillLeaf(0, -spear * 0.45, spear * (0.7 + g * 0.6), -0.25, leafC);
+      return;
+    }
+    const grow = stageT(age, 0.38, 0.88);
+    const stemH = sprout * 1.4 + grow * (h * 0.78 - sprout);
+    const baseW = 6 + grow * 16;
+    const topW = 4 + grow * 9;
+    ctx.fillStyle = stemC;
+    ctx.beginPath();
+    ctx.moveTo(-baseW, 2);
+    ctx.lineTo(-topW, -stemH);
+    ctx.quadraticCurveTo(0, -stemH - topW * 0.4, topW, -stemH);
+    ctx.lineTo(baseW, 2);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,240,0.28)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(-baseW * 0.25, -4);
+    ctx.lineTo(-topW * 0.2, -stemH + 8);
+    ctx.stroke();
+    const scars = 3 + Math.floor(grow * 6);
+    ctx.strokeStyle = "rgba(46, 90, 30, 0.45)";
+    ctx.lineWidth = 1.4;
+    for (let i = 1; i <= scars; i++) {
+      const t = i / (scars + 1);
+      const y = -stemH * t;
+      const w = baseW + (topW - baseW) * t;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.8, y);
+      ctx.quadraticCurveTo(0, y - 4, w * 0.8, y);
+      ctx.stroke();
+    }
+    const leaves = Math.min(7, 3 + Math.floor(grow * 5));
+    for (let i = 0; i < leaves; i++) {
+      const dir = i % 2 ? 1 : -1;
+      const y0 = -stemH * (0.48 + i * 0.06);
+      const len = h * (0.36 + grow * 0.46);
+      const lift = -h * 0.1;
+      const droop = h * (0.18 + (stress || 0) * 0.22);
+      const p0 = { x: 0, y: y0 };
+      const p1 = { x: dir * len * 0.48, y: y0 + lift };
+      const p2 = { x: dir * len, y: y0 + droop };
+      const blade = h * 0.07;
+      ctx.fillStyle = i % 2 ? wilt("#b6ef7a", stress) : leafC;
+      ctx.beginPath();
+      ctx.moveTo(0, y0);
+      ctx.quadraticCurveTo(dir * len * 0.45, y0 + lift - blade, dir * len * 0.92, y0 + droop * 0.35);
+      ctx.quadraticCurveTo(dir * len * 0.5, y0 + lift + blade * 0.2, 0, y0 + 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = wilt("#145c30", stress);
+      ctx.lineWidth = Math.max(2, h * 0.008);
+      ctx.beginPath();
+      ctx.moveTo(p0.x, p0.y);
+      ctx.quadraticCurveTo(p1.x, p1.y, p2.x, p2.y);
+      ctx.stroke();
+      if (age > 0.62 && i % 2 === 0) {
+        ctx.strokeStyle = "rgba(230, 245, 210, 0.8)";
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(dir * len * 0.55, y0 + lift * 0.4);
+        ctx.lineTo(dir * len * 0.95, y0 + droop * 0.2);
+        ctx.stroke();
+      }
+    }
+    if (age < 0.7) return;
+    const ripe = stageT(age, 0.7, 0.95);
+    ctx.strokeStyle = wilt("#2f6b28", stress);
+    ctx.lineWidth = Math.max(3, h * 0.012);
+    ctx.beginPath();
+    ctx.moveTo(topW * 0.3, -stemH * 0.7);
+    ctx.quadraticCurveTo(h * 0.1, -stemH * 0.5, h * 0.02, -stemH * 0.36);
+    ctx.stroke();
+    for (let i = 0; i < 8; i++) {
+      const y = -stemH * 0.66 + i * h * 0.055;
+      ctx.save();
+      ctx.translate(h * 0.045, y);
+      ctx.rotate(0.55 + (i % 2) * 0.25);
+      ctx.strokeStyle = ripe > 0.35 + i * 0.06 ? "#ffe14a" : "#7cb342";
+      ctx.lineWidth = Math.max(5, h * 0.026);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.arc(0, 0, h * 0.05, 0.35, Math.PI - 0.2);
+      ctx.stroke();
+      ctx.restore();
+    }
+  }
+  function drawCoconutStage(h, age, stress) {
+    const sprout = sproutH(h);
+    const trunkC = wilt("#a56b3c", stress);
+    const frondC = wilt("#1fa64a", stress);
+    if (age < 0.42) {
+      const g = stageT(age, 0.1, 0.42);
+      const spear = sprout * (0.7 + g * 4.2);
+      shoot(spear, frondC, 3 + g * 2);
+      fillLeaf(0, -spear * 0.55, spear * (0.55 + g * 0.5), -0.3, frondC);
+      if (g > 0.45) fillLeaf(0, -spear * 0.55, spear * 0.7, 0.45, wilt("#8ee07a", stress));
+      return;
+    }
+    const grow = stageT(age, 0.4, 0.9);
+    const trunkH = h * (0.18 + grow * 0.56);
+    const baseW = 7 + grow * 18;
+    const topW = 4 + grow * 10;
+    ctx.fillStyle = trunkC;
+    ctx.beginPath();
+    ctx.moveTo(-baseW * 1.15, 4);
+    ctx.quadraticCurveTo(-baseW, -trunkH * 0.15, -topW, -trunkH);
+    ctx.lineTo(topW, -trunkH);
+    ctx.quadraticCurveTo(baseW, -trunkH * 0.15, baseW * 1.15, 4);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255, 226, 190, 0.33)";
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(-baseW * 0.35, -6);
+    ctx.lineTo(-topW * 0.25, -trunkH + 10);
+    ctx.stroke();
+    const rings = 5 + Math.floor(grow * 12);
+    ctx.strokeStyle = "rgba(74, 42, 18, 0.4)";
+    ctx.lineWidth = 1.5;
+    for (let i = 1; i <= rings; i++) {
+      const t = i / (rings + 1);
+      const y = -trunkH * t;
+      const w = baseW + (topW - baseW) * t;
+      ctx.beginPath();
+      ctx.moveTo(-w * 0.9, y);
+      ctx.quadraticCurveTo(0, y + 3, w * 0.9, y);
+      ctx.stroke();
+    }
+    const fronds = Math.min(12, 4 + Math.floor(grow * 9));
+    const reach = h * (0.16 + grow * 0.4);
+    for (let i = 0; i < fronds; i++) {
+      const u = fronds === 1 ? 0.5 : i / (fronds - 1);
+      const ang = -2.75 + u * 5.5;
+      const upness = Math.max(0, -Math.sin(ang));
+      const len = reach * (1 - upness * 0.48);
+      const p0 = { x: 0, y: 0 };
+      const p1 = { x: len * 0.48, y: len * (0.02 + upness * 0.08) };
+      const p2 = { x: len, y: len * (0.18 + (1 - upness) * 0.12) };
+      ctx.save();
+      ctx.translate(0, -trunkH);
+      ctx.rotate(ang);
+      ctx.strokeStyle = frondC;
+      ctx.lineWidth = upness > 0.65 ? 2.2 : 3.4;
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.quadraticCurveTo(p1.x, p1.y, p2.x, p2.y);
+      ctx.stroke();
+      const pairs = 3 + Math.floor(grow * 6);
+      for (let k = 1; k <= pairs; k++) {
+        const t = k / (pairs + 1);
+        const pt = bez2(t, p0, p1, p2);
+        const plen = len * 0.16 * (1.2 - t * 0.45);
+        fillLeaf(pt.x, pt.y, plen, 0.35, k % 2 ? wilt("#b6f28a", stress) : frondC);
+        fillLeaf(pt.x, pt.y, plen, -0.35, wilt("#146b32", stress));
+      }
+      ctx.restore();
+    }
+    if (age < 0.74) return;
+    const nuts = 3 + (age > 0.9 ? 2 : 0);
+    const nutR = h * 0.042;
+    for (let i = 0; i < nuts; i++) {
+      const a = -0.6 + i * 0.55;
+      const nx = Math.cos(a) * nutR * 1.7;
+      const ny = -trunkH + nutR * 0.9 + Math.sin(a) * nutR * 0.4;
+      ctx.fillStyle = i % 2 ? "#6d4c2e" : "#8d6844";
+      ctx.beginPath();
+      ctx.arc(nx, ny, nutR, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,236,210,0.35)";
+      ctx.beginPath();
+      ctx.arc(nx - nutR * 0.3, ny - nutR * 0.3, nutR * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  const CAN_SCALE = 1.8;
+  function spoutPos() {
+    return { x: aimX - 92, y: aimY - 48 };
+  }
+  function roseTip() {
+    const s = spoutPos();
+    return { x: s.x + 44 * CAN_SCALE, y: s.y - 10 * CAN_SCALE };
+  }
+  function squirt(dt, plant) {
+    sprays.forEach((drop) => {
+      drop.x += drop.vx * dt;
+      drop.y += drop.vy * dt;
+      drop.vy += 520 * dt;
+      drop.life -= dt;
+    });
+    sprays = sprays.filter((drop) => drop.life > 0);
+    if (clock - lastSquirt < 70) return;
+    lastSquirt = clock;
+    playSound("squirt");
+    const from = roseTip();
+    const pos = plantXY(plant);
+    for (let i = 0; i < 7; i++) {
+      const jx = (Math.random() - 0.5) * 70;
+      const jy = (Math.random() - 0.5) * 30;
+      sprays.push({
+        x: from.x, y: from.y,
+        vx: (pos.x + jx - from.x) * (1.1 + Math.random() * 0.6),
+        vy: (pos.y - rOffset(plant) - from.y) * 0.55 - 40 - Math.random() * 90,
+        life: 0.28 + Math.random() * 0.22,
+        r: 3 + Math.random() * 3.2
+      });
+    }
+  }
+  function rOffset(plant) {
+    const kind = KINDS[plant.kind] || KINDS.daisy;
+    const h = adultSize(plant);
+    if (kind.habit === "vine") return Math.min(42, h * 0.45);
+    return Math.min(110, h * 0.32);
+  }
+  function drawSprays() {
+    sprays.forEach((drop) => {
+      const ang = Math.atan2(drop.vy, drop.vx);
+      ctx.save();
+      ctx.translate(drop.x, drop.y);
+      ctx.rotate(ang);
+      ctx.fillStyle = "rgba(90, 176, 230, 0.88)";
+      ctx.beginPath();
+      ctx.ellipse(0, 0, drop.r * 2.1, drop.r * 0.85, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "rgba(220, 244, 255, 0.8)";
+      ctx.beginPath();
+      ctx.ellipse(-drop.r * 0.4, 0, drop.r * 0.7, drop.r * 0.35, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+  function drawCan() {
+    const on = (pointerActive && watering >= 0) || (latch && latch.kind === "water");
+    if (!on) return;
+    const from = roseTip();
+    const ang = Math.atan2(aimY + 16 - from.y, aimX + 8 - from.x);
+    for (let i = 0; i < 12; i++) {
+      const t = (i + 0.4) / 12;
+      const wobble = Math.sin(t * 8 + clock / 70) * 7;
+      const x = from.x + (aimX + 8 - from.x) * t + Math.cos(ang + Math.PI / 2) * wobble;
+      const y = from.y + (aimY + 16 - from.y) * t - Math.sin(t * Math.PI) * 16 + Math.sin(ang + Math.PI / 2) * wobble;
+      ctx.fillStyle = i % 2 ? "rgba(96, 186, 236, 0.92)" : "rgba(214, 240, 255, 0.95)";
+      ctx.beginPath();
+      ctx.ellipse(x, y, 4 + t * 4, 2.4 + t * 1.2, ang, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const s = spoutPos();
+    ctx.save();
+    ctx.translate(s.x, s.y);
+    ctx.scale(CAN_SCALE, CAN_SCALE);
+    ctx.strokeStyle = "#9a3a28";
+    ctx.lineWidth = 4;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.arc(-16, 8, 13, Math.PI * 0.15, Math.PI * 1.15, true);
+    ctx.stroke();
+    ctx.fillStyle = "#e15a3c";
+    ctx.beginPath();
+    ctx.ellipse(0, 14, 20, 14, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f08a6a";
+    ctx.beginPath();
+    ctx.ellipse(-6, 10, 7, 4, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#c44730";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(12, 8);
+    ctx.quadraticCurveTo(28, 2, 42, -8);
+    ctx.stroke();
+    ctx.fillStyle = "#f3d7cc";
+    ctx.beginPath();
+    ctx.ellipse(44, -10, 8, 5.5, -0.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#6aa4c4";
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.arc(41 + (i % 3) * 3.2, -12 + Math.floor(i / 3) * 3.2, 1.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+  function drawCart(L) {
+    if (!cart) return;
+    let u = cart.phase === "load" ? 1 : cart.phase === "in" ? cart.t / 1.05 : 1 - cart.t / 1.05;
+    u = Math.min(1, Math.max(0, u));
+    const anchor = cart.bed < 0 ? L.w * 0.5 : plantXY(plants.find((p) => p.bed === cart.bed) || plants[0]).x;
+    const x = -90 + u * (anchor + 30);
+    const y = L.ground - 28;
+    ctx.fillStyle = "#c47a3a";
+    roundRect(x, y, 86, 36, 8);
+    ctx.fillStyle = "#5b4636";
+    ctx.fillRect(x + 64, y - 28, 8, 32);
+    ctx.beginPath();
+    ctx.arc(x + 78, y - 34, 12, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#243024";
+    ctx.beginPath();
+    ctx.arc(x + 18, y + 40, 8, 0, Math.PI * 2);
+    ctx.arc(x + 64, y + 40, 8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  function roundRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x - w / 2 + r, y);
+    ctx.arcTo(x + w / 2, y, x + w / 2, y + h, r);
+    ctx.arcTo(x + w / 2, y + h, x - w / 2, y + h, r);
+    ctx.arcTo(x - w / 2, y + h, x - w / 2, y, r);
+    ctx.arcTo(x - w / 2, y, x + w / 2, y, r);
+    ctx.closePath();
+    ctx.fill();
+  }
+  function mix(a, b, t) {
+    const pa = hex(a);
+    const pb = hex(b);
+    const ch = pa.map((v, i) => Math.round(v + (pb[i] - v) * t));
+    return "rgb(" + ch.join(",") + ")";
+  }
+  function hex(s) {
+    return [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+  }
+
+  function playSound(name) {
+    if (!ac || mute || checking) return;
+    const t = ac.currentTime + 0.01;
+    if (name === "tool") tone(t, 0.07, 520, 680);
+    else if (name === "water") tone(t, 0.1, 280, 180);
+    else if (name === "squirt") {
+      const roll = Math.random();
+      noise(t, 0.1, 0.05, roll < 0.5 ? 500 : 900);
+      tone(t, 0.07, roll < 0.34 ? 380 : roll < 0.67 ? 260 : 160, 110);
+    }
+    else if (name === "bloom") { tone(t, 0.12, 520, 780); tone(t + 0.1, 0.14, 780, 980); }
+    else if (name === "cart") { tone(t, 0.1, 200, 160); tone(t + 0.12, 0.12, 260, 220); }
+  }
+  function ensureAudio() {
+    if (checking) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!ac) {
+      ac = new AC();
+      master = ac.createGain();
+      master.gain.value = mute ? 0 : 0.5;
+      master.connect(ac.destination);
+    }
+    if (ac.state === "suspended") ac.resume();
+  }
+  function noise(t, dur, peak, freq) {
+    const len = Math.max(1, Math.floor(ac.sampleRate * dur));
+    const buf = ac.createBuffer(1, len, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    const filter = ac.createBiquadFilter();
+    filter.type = "bandpass";
+    filter.frequency.value = freq;
+    src.connect(filter);
+    const g = ac.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    filter.connect(g);
+    g.connect(master);
+    src.start(t);
+    src.stop(t + dur + 0.02);
+  }
+  function tone(t, dur, f0, f1) {
+    const o = ac.createOscillator();
+    const g = ac.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.06, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g);
+    g.connect(master);
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+
+  function pointerDown(x, y) {
+    if (!playing) return;
+    aimX = x;
+    aimY = y;
+    pointerActive = true;
+    releaseLatch();
+    if (tool === "sun" && sunHit(x, y)) {
+      sunDrag = true;
+      sunParked = true;
+      sunU = sunFromX(x);
+      return;
+    }
+    const hit = plantAt(x, y);
+    if (hit < 0) return;
+    if (tool === "water") watering = hit;
+    else if (tool === "shade") shadeArm = hit;
+  }
+  function pointerMove(x, y) {
+    aimX = x;
+    aimY = y;
+    if (sunDrag) sunU = sunFromX(x);
+    else if (watering >= 0) {
+      const hit = plantAt(x, y);
+      if (hit >= 0) watering = hit;
+    }
+  }
+  function pointerUp(x, y) {
+    if (sunDrag) {
+      sunDrag = false;
+      sunParked = false;
+    }
+    if (shadeArm >= 0) {
+      const hit = plantAt(x, y);
+      if (hit === shadeArm) toggleCloth(hit);
+      shadeArm = -1;
+    }
+    watering = -1;
+    pointerActive = false;
+  }
+
+  function boxOf(el) {
+    const r = el.getBoundingClientRect();
+    return {
+      x: r.left + r.width / 2, y: r.top + r.height / 2,
+      nx: (r.left + r.width / 2) / window.innerWidth,
+      ny: (r.top + r.height / 2) / window.innerHeight,
+      w: r.width, h: r.height
+    };
+  }
+  function centers() {
+    const L = layout();
+    return {
+      plants: plants.map((p) => {
+        const pos = plantXY(p);
+        return { i: p.i, x: pos.x, y: pos.y - plantR(p) * 0.4, nx: pos.x / L.w, ny: (pos.y - plantR(p) * 0.4) / L.h, r: plantR(p) };
+      }),
+      sun: { u: sunU, nx: arcPoint(sunU).x / L.w, ny: arcPoint(sunU).y / L.h },
+      water: boxOf(waterBtn),
+      sunButton: boxOf(sunBtn),
+      shade: boxOf(shadeBtn)
+    };
+  }
+  function state() {
+    const req = currentRequest();
+    return {
+      level: levelId, mode, tool, sunU, sunParked, sunsets, bloomed,
+      latch: latch ? latch.kind : null,
+      cart: cart ? { phase: cart.phase, bed: cart.bed, took: cart.took.slice() } : null,
+      request: req ? { i: req.i, name: req.name, kind: req.kind, bed: req.bed, index: requestIndex } : null,
+      wants: wantedPlots().map((p) => ({ i: p.i, kind: p.kind, name: p.name })),
+      mood: townMood,
+      face: moodBand(),
+      fatigue: Object.assign({}, fatigue),
+      plants: plants.map((p) => ({
+        kind: p.kind, bed: p.bed, growth: p.growth, water: p.water, cloth: p.cloth, happy: happy(p), light: lightOf(p)
+      }))
+    };
+  }
+
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const buttons = playing
+      ? [[backBtn, showStart, "back"], [waterBtn, () => selectTool("water"), "water"], [sunBtn, () => selectTool("sun"), "sun"], [shadeBtn, () => selectTool("shade"), "shade"], [muteBtn, toggleMute, "mute"], [fullBtn, toggleFull, "full"]]
+      : [[flowersBtn, () => start("flowers"), "flowers"], [marketBtn, () => start("market"), "market"]]
+        .concat(Array.from(document.querySelectorAll("[data-level]")).map((btn) => [btn, () => selectLevel(btn.dataset.level), "level-" + btn.dataset.level]));
+    for (const row of buttons) {
+      if (hitButton(row[0])) return { key: row[2], ms: MENU_DWELL_MS, fire: row[1] };
+    }
+    if (!playing) return null;
+    if (sunHit(gazePoint.x, gazePoint.y)) {
+      return { key: "sun", ms: PLAY_DWELL_MS, fire: () => { latch = { kind: "sun" }; sunParked = true; } };
+    }
+    const hit = plantAt(gazePoint.x, gazePoint.y);
+    if (hit >= 0) {
+      return {
+        key: "plant-" + hit,
+        ms: PLAY_DWELL_MS,
+        fire: () => {
+          if (tool === "shade") toggleCloth(hit);
+          else if (tool === "sun") { sunParked = true; sunU = plants[hit].x; }
+          else latch = { kind: "water" };
+        }
+      };
+    }
+    return null;
+  }
+  function hitButton(el) {
+    if (!el || el.hidden || el.disabled) return false;
+    const r = el.getBoundingClientRect();
+    const x = gazePoint.x;
+    const y = gazePoint.y;
+    return x >= r.left - 8 && x <= r.right + 8 && y >= r.top - 8 && y <= r.bottom + 8;
+  }
+  function releaseLatch() {
+    if (latch && latch.kind === "sun") sunParked = false;
+    latch = null;
+    leaveAt = 0;
+    gazeEl.classList.remove("holding");
+  }
+  function stepGaze(now) {
+    const on = gazeSock && gazeSock.readyState === 1;
+    eyesEl.hidden = !on;
+    if (on) tag.textContent = "Eyes are on. Look to water, or to move the sun.";
+    else if (!playing) tag.textContent = "A garden for a sunny day";
+    const live = gazePoint && gazeAt && now - gazeAt <= GAZE_FRESH_MS;
+    if (!live) {
+      gazeEl.hidden = true;
+      dwellKey = null;
+      dwellFired = false;
+      dwellProgress = 0;
+      if (latch && gazeAt && now - gazeAt >= GAZE_FRESH_MS) releaseLatch();
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerActive) {
+      dwellKey = null;
+      dwellFired = false;
+      dwellProgress = 0;
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    if (latch && latch.kind === "sun") {
+      sunParked = true;
+      sunU = sunFromX(gazePoint.x);
+      gazeEl.classList.add("holding");
+      gazeEl.style.setProperty("--p", "100%");
+      if (!sunHit(gazePoint.x, gazePoint.y)) {
+        if (!leaveAt) leaveAt = now;
+        if (now - leaveAt >= LEAVE_MS) releaseLatch();
+      } else leaveAt = 0;
+      return;
+    }
+    if (latch && latch.kind === "water") {
+      const hit = plantAt(gazePoint.x, gazePoint.y);
+      gazeEl.classList.add("holding");
+      gazeEl.style.setProperty("--p", "100%");
+      if (hit < 0) {
+        if (!leaveAt) leaveAt = now;
+        if (now - leaveAt >= LEAVE_MS) releaseLatch();
+      } else leaveAt = 0;
+      return;
+    }
+    leaveAt = 0;
+    gazeEl.classList.remove("holding");
+    const target = gazeTarget();
+    const key = target ? target.key : null;
+    if (key !== dwellKey) {
+      dwellKey = key;
+      dwellStart = now;
+      dwellFired = false;
+    }
+    let p = 0;
+    if (target && !dwellFired) {
+      p = Math.min(1, (now - dwellStart) / target.ms);
+      if (now - dwellStart >= target.ms) {
+        dwellFired = true;
+        p = 1;
+        target.fire();
+      }
+    } else if (target) p = 1;
+    dwellProgress = target ? p : 0;
+    gazeEl.style.setProperty("--p", Math.round(p * 100) + "%");
+  }
+  function step(now) {
+    const prev = clock;
+    clock = now;
+    let dt = prev ? (now - prev) / 1000 : 0;
+    if (dt < 0) dt = 0;
+    if (dt > 1) dt = 1;
+    if (gazeHold) {
+      gazePoint = { x: gazeHold.x, y: gazeHold.y };
+      gazeAt = now;
+    }
+    if (playing) simulate(dt);
+    stepGaze(now);
+    if (!checking) render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(() => { gazeTimer = 0; connectGaze(); }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (e) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = () => {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = (ev) => {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = () => {};
+    sock.onclose = () => {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    gazePoint = { x: point.x * window.innerWidth, y: point.y * window.innerHeight };
+    gazeAt = clock || performance.now();
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const h = gazeWarp;
+    if (!h) return { x, y };
+    const w = h[6] * x + h[7] * y + h[8];
+    if (Math.abs(w) < 1e-9) return { x, y };
+    return { x: (h[0] * x + h[1] * y + h[2]) / w, y: (h[3] * x + h[4] * y + h[5]) / w };
+  }
+
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    gazePoint = { x: gazeHold.x, y: gazeHold.y };
+    gazeAt = clock || 1;
+  }
+  function releaseLook() {
+    gazeHold = null;
+    gazePoint = null;
+    gazeAt = 0;
+    releaseLatch();
+  }
+  function placeSun(u) {
+    sunU = Math.min(1, Math.max(0, u));
+    sunParked = true;
+  }
+  function tap(nx, ny) {
+    const x = nx * window.innerWidth;
+    const y = ny * window.innerHeight;
+    pointerDown(x, y);
+    pointerUp(x, y);
+  }
+  function hold(nx, ny) {
+    pointerDown(nx * window.innerWidth, ny * window.innerHeight);
+  }
+  function move(nx, ny) {
+    pointerMove(nx * window.innerWidth, ny * window.innerHeight);
+  }
+  function release() { pointerUp(0, 0); }
+
+  function toggleMute() {
+    mute = !mute;
+    muteBtn.setAttribute("aria-pressed", mute ? "true" : "false");
+    muteBtn.textContent = mute ? "Sound" : "Mute";
+    if (master) master.gain.value = mute ? 0 : 0.5;
+  }
+  function toggleFull() {
+    if (!document.fullscreenElement) {
+      const req = document.documentElement.requestFullscreen;
+      if (req) req.call(document.documentElement).catch(() => {});
+    } else if (document.exitFullscreen) document.exitFullscreen();
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    if (gazeTimer) { clearTimeout(gazeTimer); gazeTimer = 0; }
+    if (gazeSock) {
+      const sock = gazeSock;
+      gazeSock = null;
+      sock.onopen = null;
+      sock.onclose = null;
+      sock.onmessage = null;
+      try { sock.close(); } catch (e) { /* already closing */ }
+    }
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    try {
+      if (window.innerWidth < 320 || window.innerHeight < 320) {
+        fail("size", window.innerWidth + "x" + window.innerHeight);
+        return { ok: false, failures };
+      }
+      selectLevel("tiny");
+      start("market");
+      let s = state();
+      if (s.mode !== "flowers" || s.plants.length !== 2) fail("tiny", "market became " + s.mode + " with " + s.plants.length + " plants");
+      if (!cardEl.hidden) fail("tiny", "town card showed in flowers");
+
+      selectLevel("little");
+      start("flowers");
+      placeSun(0.24);
+      hold(centers().plants[0].nx, centers().plants[0].ny);
+      let t = 5000;
+      for (let i = 0; i < 20; i++) { t += 100; step(t); }
+      release();
+      s = state();
+      if (!(s.plants[0].water > 0.7)) fail("water", "sunflower water " + s.plants[0].water);
+      const before = s.plants[0].growth;
+      const tomatoBefore = s.plants[1].growth;
+      hold(centers().plants[0].nx, centers().plants[0].ny);
+      for (let i = 0; i < 45; i++) {
+        plants[1].water = 1;
+        t += 1000;
+        step(t);
+      }
+      release();
+      s = state();
+      if (!(s.plants[0].growth > before + 0.18)) fail("grow", "sunflower " + before + " to " + s.plants[0].growth);
+      if (!(s.plants[0].growth - before > s.plants[1].growth - tomatoBefore + 0.08)) fail("sun", "neighbor grew " + (s.plants[1].growth - tomatoBefore) + " and sunflower grew " + (s.plants[0].growth - before));
+
+      start("flowers");
+      selectTool("water");
+      const c = centers().plants[1];
+      look(c.nx, c.ny);
+      t = 8000;
+      step(t);
+      step(t + 640);
+      s = state();
+      if (s.latch) fail("dwell", "latched before 650ms");
+      step(t + 660);
+      s = state();
+      if (s.latch !== "water") fail("dwell", "latch " + s.latch);
+      step(t + 1200);
+      s = state();
+      if (!(s.plants[1].water > 0.35)) fail("dwell-water", "water " + s.plants[1].water);
+      releaseLook();
+      step(t + 1600);
+      s = state();
+      if (s.latch) fail("away", "latch still " + s.latch);
+
+      start("market");
+      plants[0].growth = 1;
+      plants[0].water = 1;
+      plants[1].growth = 0.55;
+      t = 20000;
+      step(t);
+      s = state();
+      if (!s.cart) fail("cart", "no cart for a ready sunflower");
+      step(t + 1100);
+      step(t + 1700);
+      s = state();
+      if (s.plants[0].growth >= 1) fail("cart", "sunflower stayed ripe " + s.plants[0].growth);
+      if (s.plants[1].growth < 0.45) fail("cart", "unready tomato was taken, growth " + s.plants[1].growth);
+      if (!s.request || s.request.kind !== "tomato") fail("next", "request is " + (s.request && s.request.kind));
+      if (!requestPlant() || requestPlant().i !== s.request.i) fail("next", "town wants a missing plant");
+      if (plants[0].kind === "wheat") fail("replant", "harvested plot stayed wheat");
+      if (s.face !== "content" || !(s.mood > 0.6 && s.mood < 0.78)) fail("mood", s.face + " " + s.mood);
+      if (moodEl.textContent.indexOf("content") < 0) fail("mood", moodEl.textContent);
+      if (s.wants.length !== 1 || s.wants[0].kind !== "tomato") fail("wants", "little " + s.wants.map((w) => w.kind).join(","));
+      plants[1].growth = 1;
+      for (let i = 0; i < 8; i++) { t = 21700 + (i + 1) * 1000; step(t); }
+      s = state();
+      if (s.face !== "happy" || s.mood < 0.78) fail("mood", "two gifts " + s.face + " " + s.mood);
+      if (moodEl.textContent.indexOf("happy") < 0) fail("mood", moodEl.textContent);
+      if (!s.request || s.request.kind !== "carrot") fail("next", "after two gifts " + (s.request && s.request.kind));
+      if (plants[1].growth >= 1) fail("cart", "second gift stayed " + plants[1].growth);
+
+      start("market");
+      plants[0].kind = "tomato";
+      plants[0].name = "Tomato";
+      plants[0].hue = "#e23b3b";
+      plants[0].likes = "sun";
+      plants[0].growth = 0.4;
+      plants[2].growth = 1;
+      repairRequests();
+      if (wantedPlots().some((p) => p.kind === "wheat" || !plants.some((q) => q.i === p.i && q.kind === p.kind))) fail("missing", "want is not growing");
+      t = 40000;
+      step(t);
+      step(t + 1100);
+      step(t + 1700);
+      s = state();
+      if (plants[2].kind === "carrot" && plants[2].growth >= 1) fail("extra", "ripe carrot stayed");
+      if (!s.request || !plants.some((p) => p.i === s.request.i && p.kind === s.request.kind)) fail("missing", "request " + (s.request && s.request.kind));
+      if (s.request.kind === "wheat" || askEl.textContent.indexOf("Wheat") >= 0) fail("missing", askEl.textContent);
+
+      start("flowers");
+      selectLevel("shop");
+      start("flowers");
+      selectTool("shade");
+      placeSun(0.64);
+      const fern = centers().plants[2];
+      tap(fern.nx, fern.ny);
+      s = state();
+      if (!s.plants[2].cloth || !s.plants[2].happy) fail("shade", JSON.stringify(s.plants[2]));
+      if (s.plants[0].happy) fail("shade", "sunflower was happy in the shade");
+      t = 60000;
+      const hops = Math.ceil(spec().sunSeconds * 0.5) + 2;
+      for (let i = 0; i < hops; i++) { t += 1000; step(t); }
+      s = state();
+      if (s.plants[2].cloth) fail("shade", "cloth lasted past half a day");
+
+      selectLevel("rush");
+      start("market");
+      s = state();
+      if (cardEl.hidden) fail("face", "market card hidden");
+      if (s.wants.length !== 2 || s.wants[0].kind !== "coconut" || s.wants[1].kind !== "wheat") fail("wants", s.wants.map((w) => w.kind).join(" "));
+      if (s.wants.some((w) => !plants[w.i] || plants[w.i].kind !== w.kind)) fail("wants", "town wants a missing plant");
+      if (askEl.textContent.indexOf("Coconut") < 0 || askEl.textContent.indexOf("Wheat") < 0) fail("face", askEl.textContent);
+      if (wishSpan([5.5, 2.7, 4.5, 3.4], true) !== 2) fail("wants", "slow cap");
+      if (wishSpan([2, 2.5, 2.7, 3, 3.4], true) !== 4) fail("wants", "fast cap");
+      if (wishSpan([2, 2.5, 3.4], true) !== 2) fail("wants", "slow tail");
+      if (wishSpan([2.7, 3.4, 2], false) !== 1) fail("wants", "single");
+      if (wishSpan([2, 2.5, 2.7, 3], false) !== 1) fail("wants", "little fast");
+      plants[0].growth = 1;
+      plants[1].growth = 0.4;
+      placeSun(0.99);
+      sunParked = false;
+      t = 30000;
+      step(t);
+      step(t + 400);
+      s = state();
+      if (s.sunsets < 1) fail("sunset", "sunsets " + s.sunsets + " sun " + s.sunU);
+      step(t + 1600);
+      s = state();
+      if (s.plants[0].growth >= 1) fail("sunset", "ready plant stayed");
+      if (s.plants[1].growth < 0.35) fail("sunset", "unready plant was taken " + s.plants[1].growth);
+      if (plants[0].kind !== "coconut") fail("fruit", "first crop felled the tree, now " + plants[0].kind);
+      if (!(plants[0].growth > 0.55 && plants[0].growth < 0.74)) fail("fruit", "coconut growth " + plants[0].growth);
+      if (!plants[0].stems || plants[0].stems.some((stem) => stem.age >= 0.74)) fail("fruit", "nuts still on the tree");
+      if (liveEl.textContent.indexOf("coconuts") < 0 || liveEl.textContent.indexOf("still growing") < 0) fail("fruit", liveEl.textContent);
+
+      start("market");
+      plants[0].bear = 1;
+      plants[0].growth = 1;
+      plants[0].water = 1;
+      plants.forEach((p, i) => { if (i) p.growth = 0.2; });
+      const youngBanana = plants[1];
+      if (!harvestsFruit(youngBanana)) fail("fruit", "a new banana tree would be felled");
+      youngBanana.bear = 1;
+      if (harvestsFruit(youngBanana)) fail("fruit", "a spent banana tree kept its crown");
+      youngBanana.growth = 0.2;
+      t = 500000;
+      step(t);
+      step(t + 1100);
+      step(t + 1700);
+      s = state();
+      if (plants[0].kind === "coconut") fail("fell", "coconut tree stayed");
+      if (plants[0].growth > 0.45) fail("fell", "growth " + plants[0].growth);
+      if (liveEl.textContent.indexOf("whole") < 0) fail("fell", liveEl.textContent);
+
+      start("market");
+      function sendCarrot(from) {
+        plants.forEach((p) => { p.growth = 0.3; });
+        plants[5].kind = "carrot";
+        plants[5].name = "Carrot";
+        plants[5].likes = "sun";
+        plants[5].hue = "#e07a2f";
+        plants[5].growth = 1;
+        placeSun(0.99);
+        sunParked = false;
+        let at = from;
+        for (let i = 0; i < 6; i++) { at += 1000; step(at); }
+        return at;
+      }
+      t = sendCarrot(100000);
+      s = state();
+      if (s.plants[5].growth >= 1) fail("tired", "carrot stayed " + s.plants[5].growth);
+      if (!(s.mood < 0.45)) fail("tired", "mood stayed " + s.mood);
+      t = sendCarrot(t);
+      s = state();
+      if (s.face !== "tired" || s.mood >= 0.28) fail("tired", s.face + " " + s.mood);
+      if ((s.fatigue.carrot || 0) < 0.5) fail("tired", "fatigue " + s.fatigue.carrot);
+      if (moodEl.textContent.toLowerCase().indexOf("carrot") < 0) fail("tired", moodEl.textContent);
+      if (!s.wants.length || s.wants.some((w) => !plants[w.i] || plants[w.i].kind !== w.kind)) fail("tired", "missing want");
+    } catch (err) {
+      fail("throw", String(err && err.stack || err));
+    }
+    return { ok: failures.length === 0, failures };
+  }
+
+  canvas.addEventListener("pointerdown", (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    ensureAudio();
+    const x = e.clientX;
+    const y = e.clientY;
+    pointerDown(x, y);
+    if (sunDrag || watering >= 0 || shadeArm >= 0) {
+      capId = e.pointerId;
+      canvas.setPointerCapture(e.pointerId);
+    }
+    e.preventDefault();
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    if (e.pointerId !== capId) return;
+    pointerMove(e.clientX, e.clientY);
+  });
+  function endPointer(e) {
+    if (e.pointerId !== capId) return;
+    pointerUp(e.clientX, e.clientY);
+    if (canvas.hasPointerCapture(capId)) canvas.releasePointerCapture(capId);
+    capId = null;
+  }
+  canvas.addEventListener("pointerup", endPointer);
+  canvas.addEventListener("pointercancel", endPointer);
+  document.addEventListener("pointerdown", (e) => {
+    ensureAudio();
+    if (e.target.closest && e.target.closest("button")) {
+      pointerActive = true;
+      releaseLatch();
+    }
+  }, true);
+  document.addEventListener("pointerup", () => {
+    if (capId === null) pointerActive = false;
+  }, true);
+  document.addEventListener("pointercancel", () => {
+    if (capId === null) pointerActive = false;
+  }, true);
+
+  waterBtn.addEventListener("click", () => selectTool("water"));
+  sunBtn.addEventListener("click", () => selectTool("sun"));
+  shadeBtn.addEventListener("click", () => selectTool("shade"));
+  document.querySelectorAll("[data-level]").forEach((btn) => {
+    btn.addEventListener("click", () => selectLevel(btn.dataset.level));
+  });
+  flowersBtn.addEventListener("click", () => start("flowers"));
+  marketBtn.addEventListener("click", () => { if (levelId !== "tiny") start("market"); });
+  backBtn.addEventListener("click", showStart);
+  muteBtn.addEventListener("click", toggleMute);
+  fullBtn.addEventListener("click", toggleFull);
+  window.addEventListener("resize", () => { if (!checking) render(); });
+
+  function frame(now) {
+    if (!checking) step(now);
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+  connectGaze();
+  selectLevel("tiny");
+  render();
+
+  window.sunGarden = {
+    start, look, releaseLook, dwell: () => dwellProgress,
+    eyes: () => ({ on: !!(gazeSock && gazeSock.readyState === 1) }),
+    tap, hold, move, release, placeSun, centers, state, step, selfCheck,
+    level: selectLevel, tool: selectTool
+  };
+
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    const result = selfCheck();
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else if (params.has("market")) {
+    selectLevel(params.get("level") || "little");
+    start("market");
+  } else if (params.has("play")) {
+    selectLevel(params.get("level") || "tiny");
+    start("flowers");
+  }
+})();
+</script>
+</body>
+</html>
