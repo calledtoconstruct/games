@@ -895,7 +895,7 @@
     const color = flavorOf(tool);
     if (!color) return null;
     if (countMarks("swirl") >= PLATE_CAPS.swirls) { plateFull(); return null; }
-    const mark = { type: "swirl", color, h: 0.35 };
+    const mark = { type: "swirl", color, h: 0.35, spin: 0 };
     marks.push(mark);
     score.swirls[color]++;
     acceptPlate();
@@ -992,9 +992,11 @@
         label.textContent = req.n + (req.n === 1 ? " shake of sprinkles" : " shakes of sprinkles");
       } else if (req.kind === "scoop") {
         sw.style.background = FLAVOR_COLOR[req.color];
+        if (req.color === "vanilla") sw.style.boxShadow = "inset 0 0 0 3px #8a6844, 0 3px 0 rgba(70,42,24,0.2)";
         label.textContent = req.n + " " + req.color + (req.n === 1 ? " scoop" : " scoops");
       } else if (req.kind === "swirl") {
         sw.style.background = FLAVOR_COLOR[req.color];
+        if (req.color === "vanilla") sw.style.boxShadow = "inset 0 0 0 3px #8a6844, 0 3px 0 rgba(70,42,24,0.2)";
         label.textContent = req.n + " " + req.color + (req.n === 1 ? " swirl" : " swirls");
       } else {
         sw.classList.add("cherry");
@@ -1331,12 +1333,7 @@
     drawOrderBox(d, L);
     for (let i = 0; i < marks.length; i++) if (marks[i].type !== "cherry" && marks[i].type !== "scoop" && marks[i].type !== "swirl") drawMark(marks[i]);
     for (let i = 0; i < marks.length; i++) if (marks[i].type === "cherry") drawMark(marks[i]);
-    if (trayScoop) {
-      ctx.beginPath();
-      ctx.arc(trayScoop.x, trayScoop.y, blobR() * 0.7, 0, Math.PI * 2);
-      ctx.fillStyle = FLAVOR_COLOR[trayScoop.color];
-      ctx.fill();
-    }
+    if (trayScoop) drawScoopBall(trayScoop.x, trayScoop.y, blobR() * 0.7, trayScoop.color);
     if (noteUntil && clock >= noteUntil) clearNote();
     if (clock < flashUntil) {
       ctx.save();
@@ -1503,24 +1500,180 @@
       ctx.fill();
     }
   }
+  function flavorInk(color) {
+    const ink = {
+      strawberry: { light: "#ffe4ee", mid: "#e86a9a", deep: "#9a3058", line: "#7a2444", groove: "#c4527c" },
+      chocolate: { light: "#c48a6a", mid: "#6b3a2a", deep: "#2a140e", line: "#1a0c08", groove: "#3d2218" },
+      vanilla: { light: "#ffffff", mid: "#fff6ea", deep: "#f0ddc4", line: "#b08968", groove: "#e7d0ae" },
+      mint: { light: "#e5fff0", mid: "#3aaa6a", deep: "#14663a", line: "#0d4a28", groove: "#1c7a44" }
+    };
+    return ink[color] || ink.vanilla;
+  }
+  function drawScoopBall(x, y, r, color) {
+    const ink = flavorInk(color);
+    ctx.save();
+    ctx.fillStyle = "rgba(70, 42, 24, 0.35)";
+    ctx.beginPath();
+    ctx.ellipse(x + r * 0.28, y + r * 0.42, r * 1.05, r * 0.38, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+    const globe = ctx.createRadialGradient(x - r * 0.38, y - r * 0.42, r * 0.08, x + r * 0.1, y + r * 0.05, r);
+    globe.addColorStop(0, ink.light);
+    globe.addColorStop(0.42, ink.mid);
+    globe.addColorStop(0.84, ink.deep);
+    globe.addColorStop(1, ink.deep);
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = globe;
+    ctx.fill();
+    ctx.lineWidth = Math.max(2.5, r * 0.07);
+    ctx.strokeStyle = ink.line;
+    ctx.stroke();
+    ctx.restore();
+  }
+  function drawDispenser(d) {
+    const boxTop = d.cy - d.ry * 0.95;
+    const boxW = d.rx * 1.1;
+    const boxH = d.ry * 0.42;
+    const x = d.cx - boxW / 2;
+    const metal = ctx.createLinearGradient(x, 0, x + boxW, 0);
+    metal.addColorStop(0, "#9eacb8");
+    metal.addColorStop(0.38, "#f7fafc");
+    metal.addColorStop(1, "#7f8d9c");
+    ctx.fillStyle = metal;
+    ctx.beginPath();
+    ctx.roundRect(x, boxTop, boxW, boxH, 10);
+    ctx.fill();
+    ctx.strokeStyle = "#5c6b78";
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    const nw = d.rx * 0.28;
+    const nh = d.ry * 0.22;
+    const nx = d.cx - nw / 2;
+    const ny = boxTop + boxH - 2;
+    ctx.fillStyle = "#f7f4ef";
+    ctx.beginPath();
+    ctx.roundRect(nx, ny, nw, nh, 4);
+    ctx.fill();
+    ctx.strokeStyle = "#8a6844";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    return { x: d.cx, y: ny + nh };
+  }
+  function strokeTube(samples, ox, oy, color, scale) {
+    ctx.strokeStyle = color;
+    for (let i = 0; i < samples.length - 1; i++) {
+      const a = samples[i];
+      const b = samples[i + 1];
+      ctx.lineWidth = ((a.width + b.width) / 2) * scale;
+      ctx.beginPath();
+      ctx.moveTo(a.x + a.width * ox, a.y + a.width * oy);
+      ctx.lineTo(b.x + b.width * ox, b.y + b.width * oy);
+      ctx.stroke();
+    }
+  }
+  function drawSoftSwirl(d, baseY, mark, nozzle) {
+    const ink = flavorInk(mark.color);
+    const h = Math.max(0.15, Math.min(1, mark.h || 0.35));
+    const spin = mark.spin || 0;
+    const turns = 0.9 + h * 2.1;
+    const reach = Math.min(d.rx, d.ry);
+    const limit = nozzle ? nozzle.y + 36 : d.cy - d.ry * 0.22;
+    const room = baseY - limit;
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    if (room < 22) {
+      const r = Math.min(reach * 0.2, 26);
+      ctx.fillStyle = "rgba(70, 42, 24, 0.32)";
+      ctx.beginPath();
+      ctx.ellipse(d.cx + r * 0.25, baseY + 4, r * 1.1, r * 0.3, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ink.groove;
+      ctx.beginPath();
+      ctx.arc(d.cx + r * 0.08, baseY - r * 0.45, r, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ink.mid;
+      ctx.beginPath();
+      ctx.arc(d.cx - r * 0.06, baseY - r * 0.62, r * 0.82, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = ink.light;
+      ctx.beginPath();
+      ctx.arc(d.cx - r * 0.28, baseY - r * 0.88, r * 0.28, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+      return { tip: { x: d.cx, y: baseY - r * 1.15 }, height: r * 1.4 };
+    }
+    const height = room * (0.5 + h * 0.5);
+    const maxR = Math.min(reach * 0.5, room * 0.62);
+    const steps = Math.max(40, Math.round(turns * 42));
+    const samples = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      const curl = t > 0.9 ? (t - 0.9) / 0.1 : 0;
+      const ang = spin + (t * turns + curl * 0.55) * Math.PI * 2;
+      const rad = maxR * (1 - t * 0.62) * (1 + curl * 0.4);
+      const width = Math.max(16, maxR * (0.78 - t * 0.42));
+      samples.push({
+        x: d.cx + Math.cos(ang) * rad * 0.42,
+        y: baseY - width * 0.42 - t * Math.max(12, height - width * 0.42) + Math.sin(ang) * rad * 0.16,
+        width: width
+      });
+    }
+    const foot = samples[0];
+    ctx.fillStyle = "rgba(70, 42, 24, 0.34)";
+    ctx.beginPath();
+    ctx.ellipse(foot.x + foot.width * 0.28, baseY + foot.width * 0.06, foot.width * 0.95, foot.width * 0.26, -0.18, 0, Math.PI * 2);
+    ctx.fill();
+    strokeTube(samples, 0.08, 0.14, ink.groove, 1);
+    strokeTube(samples, 0, 0, ink.mid, 0.84);
+    strokeTube(samples, -0.08, -0.12, ink.light, 0.28);
+    ctx.restore();
+    const last = samples[samples.length - 1];
+    return { tip: { x: last.x, y: last.y }, height: height };
+  }
+  function drawSquirt(from, to, color) {
+    const ink = flavorInk(color);
+    const dx = to.x - from.x;
+    const dy = to.y - from.y;
+    if (Math.hypot(dx, dy) < 6) return;
+    const ang = Math.atan2(dy, dx);
+    const nx = Math.cos(ang + Math.PI / 2);
+    const ny = Math.sin(ang + Math.PI / 2);
+    const pts = [];
+    const n = 16;
+    for (let i = 0; i <= n; i++) {
+      const t = i / n;
+      const wob = reduceMotion ? 0 : Math.sin(clock / 70 + t * 8) * (1 - t) * 8;
+      pts.push({
+        x: from.x + dx * t + nx * wob,
+        y: from.y + dy * t + ny * wob,
+        width: Math.max(8, 22 * (1 - t * 0.55))
+      });
+    }
+    ctx.save();
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    strokeTube(pts, 0.08, 0.12, ink.groove, 1);
+    strokeTube(pts, 0, 0, ink.mid, 0.82);
+    strokeTube(pts, -0.1, -0.14, ink.light, 0.3);
+    ctx.restore();
+  }
   function drawCone(d) {
     const rim = d.cy + d.ry * 0.35;
     const tip = d.cy + d.ry * 1.45;
-    if (treat === "soft") {
-      const boxTop = d.cy - d.ry * 0.95;
-      ctx.fillStyle = "#d7dee6";
-      ctx.fillRect(d.cx - d.rx * 0.55, boxTop, d.rx * 1.1, d.ry * 0.42);
-      ctx.fillStyle = "#f7f4ef";
-      ctx.fillRect(d.cx - d.rx * 0.16, boxTop + d.ry * 0.42, d.rx * 0.32, d.ry * 0.22);
-    }
+    const nozzle = treat === "soft" ? drawDispenser(d) : null;
     ctx.beginPath();
     ctx.moveTo(d.cx - d.rx * 0.42, rim);
     ctx.lineTo(d.cx + d.rx * 0.42, rim);
     ctx.lineTo(d.cx, tip);
     ctx.closePath();
-    ctx.fillStyle = "#e7b15a";
+    const wafer = ctx.createLinearGradient(d.cx - d.rx * 0.42, 0, d.cx + d.rx * 0.42, 0);
+    wafer.addColorStop(0, "#f3c98a");
+    wafer.addColorStop(0.48, "#e7b15a");
+    wafer.addColorStop(1, "#b8742e");
+    ctx.fillStyle = wafer;
     ctx.fill();
-    ctx.strokeStyle = "#c4843a";
+    ctx.strokeStyle = "#a86428";
     ctx.lineWidth = 3;
     for (let i = 1; i <= 4; i++) {
       const t = i / 5;
@@ -1532,16 +1685,15 @@
       ctx.stroke();
     }
     if (treat === "soft") {
-      let y = rim;
+      let base = rim + 4;
+      let activeTip = null;
       marks.forEach((m) => {
         if (m.type !== "swirl") return;
-        const rh = Math.min(d.rx, d.ry) * (0.28 + m.h * 0.45);
-        y -= rh * 0.55;
-        ctx.beginPath();
-        ctx.ellipse(d.cx, y, d.rx * 0.34, rh * 0.45, 0, 0, Math.PI * 2);
-        ctx.fillStyle = FLAVOR_COLOR[m.color];
-        ctx.fill();
+        const drawn = drawSoftSwirl(d, base, m, nozzle);
+        if (gesture && gesture.mark === m) activeTip = drawn.tip;
+        base -= drawn.height * 0.58;
       });
+      if (activeTip && nozzle) drawSquirt(nozzle, activeTip, gesture.mark.color);
     } else {
       const r = Math.min(d.rx, d.ry) * 0.34;
       let i = 0;
@@ -1549,16 +1701,11 @@
         if (m.type !== "scoop") return;
         if (!m.placed) {
           const p = fromUV(m.u, m.v);
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-          ctx.fillStyle = FLAVOR_COLOR[m.color];
-          ctx.fill();
+          drawScoopBall(p.x, p.y, r, m.color);
           return;
         }
-        ctx.beginPath();
-        ctx.arc(d.cx, rim - r * 0.55 - i * r * 0.72, r, 0, Math.PI * 2);
-        ctx.fillStyle = FLAVOR_COLOR[m.color];
-        ctx.fill();
+        const x = d.cx + (i === 0 ? 0 : (i % 2 ? r * 0.1 : -r * 0.08));
+        drawScoopBall(x, rim - r * 0.55 - i * r * 0.72, r, m.color);
         i++;
       });
     }
@@ -1706,7 +1853,7 @@
     }
     return eyes
       ? "Look at the cone until the swirl grows."
-      : "Press the cone and hold for a taller swirl.";
+      : "Press the cone and hold. Soft serve swirls out on top.";
   }
   function updateTag() {
     const next = promptText();
@@ -1823,6 +1970,7 @@
     if (gesture && gesture.kind === "swirl" && gesture.mark && prev) {
       const dt = Math.min(0.05, Math.max(0, (now - prev) / 1000));
       gesture.mark.h = Math.min(1, gesture.mark.h + dt * 0.85);
+      if (!reduceMotion) gesture.mark.spin = (gesture.mark.spin || 0) + dt * 2.4;
     }
     if (gazeHold) {
       if (!haveSmooth) {
@@ -1970,7 +2118,8 @@
         sprinkles: countMarks("sprinkle"),
         cherries: countMarks("cherry")
       },
-      path: gesture ? gesture.path : 0
+      path: gesture ? gesture.path : 0,
+      swirlPose: marks.filter((m) => m.type === "swirl").map((m) => ({ h: m.h, spin: m.spin || 0 }))
     };
   }
   function order() {
@@ -2432,6 +2581,68 @@
       s = state();
       if (s.marks.globs.pink !== 800 || s.visuals.icing !== 800 || s.note !== "The plate's full!") {
         fail("Case 25", "splat 801 was added: " + s.marks.globs.pink + " marks " + s.visuals.icing + " note " + s.note);
+      }
+
+      selectLevel("shop");
+      start("free");
+      setTreat("scoops");
+      tap(centers().tools.white.nx, centers().tools.white.ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      flashUntil = 0;
+      render();
+      const ball = (function () {
+        const d = layout().donut;
+        const r = Math.min(d.rx, d.ry) * 0.34;
+        const rim = d.cy + d.ry * 0.35;
+        return { x: d.cx, y: rim - r * 0.55, r: r };
+      })();
+      function lum(x, y) {
+        const dpr = Math.min(2, window.devicePixelRatio || 1);
+        const px = Math.max(0, Math.min(canvas.width - 1, Math.round(x * dpr)));
+        const py = Math.max(0, Math.min(canvas.height - 1, Math.round(y * dpr)));
+        const pxData = ctx.getImageData(px, py, 1, 1).data;
+        return pxData[0] * 0.2126 + pxData[1] * 0.7152 + pxData[2] * 0.0722;
+      }
+      const highlight = lum(ball.x - ball.r * 0.32, ball.y - ball.r * 0.36);
+      const shade = lum(ball.x + ball.r * 0.62, ball.y + ball.r * 0.55);
+      const shadow = lum(ball.x + ball.r * 1.15, ball.y + ball.r * 0.35);
+      const wall = lum(24, ball.y);
+      const seen = state();
+      if (highlight < shade + 20) {
+        fail("Case 26", "vanilla scoop is flat: highlight " + highlight.toFixed(1) + " shade " + shade.toFixed(1) + " treat " + seen.treat + " vanilla " + seen.marks.scoops.vanilla + " at " + Math.round(ball.x) + "," + Math.round(ball.y) + " r " + Math.round(ball.r) + " window " + window.innerWidth + "x" + window.innerHeight);
+      }
+      if (shadow > wall - 25) {
+        fail("Case 26", "vanilla scoop has no shadow: shadow " + shadow.toFixed(1) + " wall " + wall.toFixed(1) + " treat " + seen.treat + " vanilla " + seen.marks.scoops.vanilla);
+      }
+
+      selectLevel("shop");
+      start("free");
+      setTreat("soft");
+      tap(centers().tools.white.nx, centers().tools.white.ny);
+      const held = latchAtCenter(t);
+      let pose = state().swirlPose;
+      if (!pose || pose.length !== 1) fail("Case 27", "hold did not start a swirl " + JSON.stringify(pose));
+      else {
+        const h0 = pose[0].h;
+        const spin0 = pose[0].spin;
+        t = held.t;
+        let guard = 0;
+        while (state().swirlPose[0].h < h0 + 0.25 && guard < 30) {
+          t += 80;
+          step(t);
+          guard++;
+        }
+        pose = state().swirlPose[0];
+        if (pose.h < h0 + 0.25) fail("Case 27", "swirl did not grow " + h0.toFixed(2) + " -> " + pose.h.toFixed(2));
+        const motion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (!motion && pose.spin < spin0 + 0.4) fail("Case 27", "swirl did not turn " + spin0.toFixed(2) + " -> " + pose.spin.toFixed(2));
+        t = park(0.01, 0.01, t);
+        step(t + LEAVE_MS);
+        const frozen = state().swirlPose[0].spin;
+        step(t + LEAVE_MS + 600);
+        const after = state();
+        if (after.latch) fail("Case 27", "latch stayed on");
+        if (Math.abs(after.swirlPose[0].spin - frozen) > 0.001) fail("Case 27", "swirl kept turning after release");
       }
     } catch (err) {
       failures.push("Case error: " + (err && err.stack ? err.stack : err));
