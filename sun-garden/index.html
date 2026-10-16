@@ -76,7 +76,9 @@
     box-shadow: 0 4px 0 #d5c4a1;
   }
   #mute, #full, #back { top: calc(10px + env(safe-area-inset-top)); width: 72px; height: 72px; font-size: 15px; }
-  #mute { left: 10px; }
+  #mute { left: 10px; display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; }
+  #mute svg[hidden] { display: none !important; }
   #full { left: 90px; }
   #back { right: 10px; }
   #tray > button {
@@ -150,7 +152,16 @@
 </head>
 <body>
 <canvas id="view" aria-hidden="true"></canvas>
-<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">Mute</button>
+<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 9l5 6M21 9l-5 6"/>
+  </svg>
+</button>
 <button id="full" type="button" aria-label="Fullscreen">Full</button>
 <button id="back" type="button" hidden aria-label="Back to the start screen">Back</button>
 <div id="eyes" hidden>Eyes</div>
@@ -412,7 +423,9 @@
       ? [plants[0], plants[2], plants[1], plants[3]]
       : plants.slice();
     plants.forEach((p) => { if (order.indexOf(p) < 0) order.push(p); });
-    return order.filter(Boolean).map((p) => p.kind);
+    const kinds = order.filter(Boolean).map((p) => p.kind);
+    if (!checking) shuffle(kinds);
+    return kinds;
   }
   function plotForKind(kind, claimed) {
     let best = null;
@@ -2321,7 +2334,9 @@
   function toggleMute() {
     mute = !mute;
     muteBtn.setAttribute("aria-pressed", mute ? "true" : "false");
-    muteBtn.textContent = mute ? "Sound" : "Mute";
+    muteBtn.setAttribute("aria-label", mute ? "Turn sound on" : "Mute sound");
+    document.getElementById("sound-on").hidden = mute;
+    document.getElementById("sound-off").hidden = !mute;
     if (master) master.gain.value = mute ? 0 : 0.5;
   }
   function toggleFull() {

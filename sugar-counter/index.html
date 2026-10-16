@@ -72,13 +72,16 @@
     background: var(--card); color: var(--ink); font-weight: 800;
     box-shadow: 0 4px 0 #e2d0b4;
   }
-  #mute, #full, #back { top: calc(10px + env(safe-area-inset-top)); width: 72px; height: 72px; font-size: 15px; }
-  #mute { left: 10px; }
-  #full { left: 90px; }
-  #back { right: 114px; }
+  #mute, #full, #back { top: calc(10px + env(safe-area-inset-top)); height: 64px; font-size: 16px; }
+  #mute, #full { width: 64px; }
+  #mute { left: 10px; display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; }
+  #mute svg[hidden] { display: none !important; }
+  #full { left: 82px; }
+  #back { right: 10px; width: auto; min-width: 148px; padding: 0 16px; }
   #done {
-    top: calc(10px + env(safe-area-inset-top)); right: 10px;
-    width: 96px; height: 96px; font-size: 22px; background: var(--sun);
+    width: 156px; height: 58px; font-size: 20px; background: var(--sun);
+    box-shadow: 0 6px 0 #e2a62e, 0 10px 18px rgba(80, 40, 10, 0.18);
   }
   #done[hidden], #back[hidden], #tray[hidden], #card[hidden] { display: none !important; }
   #tray { position: fixed; z-index: 44; left: 0; right: 0; bottom: 0; pointer-events: none; }
@@ -99,10 +102,13 @@
       radial-gradient(circle at 68% 68%, #6eb5e8 0 5px, transparent 6px),
       #fff6ea;
   }
-  #tool-cherry { background: radial-gradient(circle at 50% 58%, #e23b3b 0 42%, #2f8a3e 43% 52%, transparent 53%), #fff6ea; }
+  #tool-cherry { background: #fff6ea; display: grid; place-items: center; }
+  #tool-cherry svg { width: 74%; height: 74%; pointer-events: none; }
   #card {
-    position: fixed; z-index: 40; display: flex; align-items: center; gap: 10px;
-    background: var(--card); border-radius: 18px; padding: 8px 10px; overflow: auto;
+    position: fixed; z-index: 40; display: flex; align-items: center; gap: 14px;
+    background: var(--card); border-radius: 22px; padding: 14px 16px; overflow: auto;
+    border: 3px solid #fff;
+    box-shadow: 0 10px 0 rgba(90, 50, 20, 0.06), 0 16px 36px rgba(50, 30, 10, 0.14);
   }
   #card.wiggle { animation: wiggle 0.4s ease; }
   @keyframes wiggle {
@@ -110,23 +116,26 @@
     25% { translate: -8px 0; }
     75% { translate: 8px 0; }
   }
-  #face { width: 54px; height: 54px; border-radius: 50%; background: #ffd7a8; position: relative; flex: none; }
-  #face i, #face b { position: absolute; display: block; }
-  #face i { width: 8px; height: 8px; border-radius: 50%; background: var(--ink); top: 18px; }
-  #face i:first-child { left: 14px; }
-  #face i:nth-child(2) { right: 14px; }
-  #face b {
-    left: 16px; right: 16px; bottom: 16px; height: 0;
-    border-bottom: 3px solid var(--ink);
+  #face { width: 112px; height: 112px; flex: none; filter: drop-shadow(0 8px 0 rgba(80, 40, 20, 0.08)); }
+  #face svg { width: 100%; height: 100%; display: block; }
+  #box-line { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  #box-line[hidden] { display: none !important; }
+  #box-line b { font-size: 13px; }
+  #box-line .slot {
+    width: 22px; height: 22px; border-radius: 6px; display: inline-block;
+    border: 2px dashed #e2c7a4; background: #fff;
   }
-  #face.happy b {
-    height: 12px; border: 3px solid var(--ink); border-top: none;
-    border-radius: 0 0 12px 12px;
-  }
+  #box-line .slot.now { border-style: solid; border-color: #e2a62e; background: #fff6df; }
+  #box-line .slot.packed { border-style: solid; border-color: #2f8a3e; }
+  #box-line .slot.packed.donut { background: radial-gradient(circle at 50% 50%, #f6d7b0 0 4px, #e7b15a 5px 9px, #f2c07a 10px); }
+  #box-line .slot.packed.cupcake { background: linear-gradient(#f6d2e4 0 55%, #f4a3c2 55% 100%); }
+  #box-line .slot.packed.cake { background: linear-gradient(#fff6ea 0 40%, #f7d7e2 40% 100%); }
+  #box-line .slot.packed.scoops { background: linear-gradient(#6b3a2a 0 45%, #e7b15a 45% 100%); }
+  #box-line .slot.packed.soft { background: linear-gradient(#fff6ea 0 50%, #d7dee6 50% 100%); }
   #reqs { display: flex; gap: 8px; align-items: center; }
   .req { display: flex; flex-direction: column; gap: 4px; min-width: 54px; }
-  .req b { font-size: 13px; }
-  .swatch { width: 28px; height: 28px; border-radius: 50%; }
+  .req b { font-size: 16px; line-height: 1.2; }
+  .swatch { width: 36px; height: 36px; border-radius: 50%; box-shadow: inset 0 -6px 0 rgba(0,0,0,0.08), 0 3px 0 rgba(80,40,20,0.08); }
   .swatch.stripe { width: 36px; height: 14px; border-radius: 8px; margin-top: 7px; }
   .swatch.sprinkle {
     background:
@@ -134,7 +143,14 @@
       radial-gradient(circle at 50% 50%, #2f8a3e 0 3px, transparent 4px),
       radial-gradient(circle at 80% 50%, #ffc857 0 3px, transparent 4px);
   }
-  .swatch.cherry { background: #e23b3b; }
+  .swatch.cherry {
+    border-radius: 10px;
+    background:
+      radial-gradient(circle at 42% 68%, #ff8a8a 0 3px, transparent 4px),
+      radial-gradient(circle at 50% 70%, #e23b3b 0 11px, transparent 12px),
+      linear-gradient(#2f8a3e, #2f8a3e) 50% 6px / 3px 12px no-repeat,
+      #fff;
+  }
   .pips { display: flex; gap: 4px; }
   .pips i { width: 12px; height: 12px; border-radius: 50%; background: #e6d3bf; display: block; }
   .pips i.on { background: #2f8a3e; }
@@ -147,7 +163,7 @@
   .choice b { display: block; font-size: 18px; }
   .choice small { display: block; margin-top: 2px; color: #6d5a48; font-size: 13px; }
   .choice[aria-pressed="true"] { border-color: #e2a62e; background: #fff6df; }
-  #order-treat { font-size: 14px; }
+  #order-treat { font-size: 20px; line-height: 1.25; display: block; }
   #treats {
     position: absolute; left: 8px; right: 8px; top: 6px; height: 48px;
     display: flex; gap: 6px; justify-content: center; pointer-events: auto;
@@ -168,11 +184,14 @@
     font-weight: 800; font-size: 22px;
   }
   #clock.up { background: #ffd0c8; }
+  #clock.easy { background: #fff6df; }
   #clock[hidden] { display: none !important; }
   @media (max-width: 799px) {
-    #done { width: 64px; height: 64px; font-size: 16px; }
-    #back { right: 82px; width: 64px; height: 64px; font-size: 14px; }
-    #clock { left: 168px; right: 154px; transform: none; text-align: center; font-size: 16px; line-height: 1.05; padding: 6px 6px; }
+    #face { width: 84px; height: 84px; }
+    #back { min-width: 0; height: 56px; padding: 0 10px; font-size: 14px; }
+    #order-treat { font-size: 16px; }
+    .req b { font-size: 14px; }
+    #clock { left: 136px; right: 156px; transform: none; text-align: center; font-size: 16px; line-height: 1.05; padding: 6px 4px; }
     #treats button { font-size: 13px; padding: 0 4px; }
   }
   @media (prefers-reduced-motion: reduce) {
@@ -182,10 +201,19 @@
 </head>
 <body>
 <canvas id="view"></canvas>
-<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">Mute</button>
+<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 9l5 6M21 9l-5 6"/>
+  </svg>
+</button>
 <button id="full" type="button" aria-label="Fullscreen">Full</button>
-<button id="back" type="button" hidden aria-label="Back to the start screen">Back</button>
-<button id="done" type="button" hidden>Done</button>
+<button id="back" type="button" hidden aria-label="Back to the menu">Back to Menu</button>
+<button id="done" type="button" hidden>Item ready</button>
 <div id="eyes" hidden>Eyes</div>
 <div id="gaze" hidden></div>
 <div id="clock" hidden>1:30</div>
@@ -202,12 +230,40 @@
   <button id="tool-white" type="button" data-tool="white" aria-label="White icing" aria-pressed="false"></button>
   <button id="tool-blue" type="button" data-tool="blue" aria-label="Blue icing" aria-pressed="false"></button>
   <button id="tool-sprinkles" type="button" data-tool="sprinkles" aria-label="Sprinkles" aria-pressed="false"></button>
-  <button id="tool-cherry" type="button" data-tool="cherry" aria-label="Cherry" aria-pressed="false"></button>
+  <button id="tool-cherry" type="button" data-tool="cherry" aria-label="Cherry" aria-pressed="false">
+    <svg viewBox="0 0 64 64" aria-hidden="true">
+      <path d="M30 28 C32 16 42 12 50 8" fill="none" stroke="#2f8a3e" stroke-width="3" stroke-linecap="round"/>
+      <ellipse cx="48" cy="10" rx="8" ry="4" fill="#3aaa6a" transform="rotate(-28 48 10)"/>
+      <circle cx="24" cy="40" r="13" fill="#e23b3b"/>
+      <circle cx="19" cy="35" r="4" fill="#ffb0b0"/>
+      <circle cx="40" cy="36" r="12" fill="#d42828"/>
+      <circle cx="36" cy="31" r="3.5" fill="#ffb0b0"/>
+    </svg>
+  </button>
 </div>
 <aside id="card" hidden>
-  <div id="face" aria-hidden="true"><i></i><i></i><b></b></div>
+  <div id="face" aria-hidden="true">
+    <svg viewBox="0 0 120 120">
+      <defs>
+        <radialGradient id="skin" cx="38%" cy="32%" r="70%">
+          <stop offset="0" stop-color="#ffe7cc"/>
+          <stop offset="1" stop-color="#f0b48a"/>
+        </radialGradient>
+      </defs>
+      <circle cx="60" cy="62" r="50" fill="rgba(120,70,30,0.15)"/>
+      <circle cx="60" cy="58" r="52" fill="url(#skin)"/>
+      <ellipse cx="28" cy="74" rx="10" ry="6" fill="#f0a0a0" opacity="0.75"/>
+      <ellipse cx="92" cy="74" rx="10" ry="6" fill="#f0a0a0" opacity="0.75"/>
+      <path id="brow-l" d="M26 44 Q40 30 52 42" fill="none" stroke="#3a2a22" stroke-width="4" stroke-linecap="round"/>
+      <path id="brow-r" d="M68 42 Q80 30 94 44" fill="none" stroke="#3a2a22" stroke-width="4" stroke-linecap="round"/>
+      <ellipse id="eye-l" cx="42" cy="54" rx="6" ry="6.2" fill="#3a2a22"/>
+      <ellipse id="eye-r" cx="78" cy="54" rx="6" ry="6.2" fill="#3a2a22"/>
+      <path id="mouth" d="M34 72 Q60 98 86 72" fill="none" stroke="#3a2a22" stroke-width="5" stroke-linecap="round"/>
+    </svg>
+  </div>
   <div>
     <b id="order-treat"></b>
+    <div id="box-line" hidden></div>
     <div id="reqs"></div>
   </div>
 </aside>
@@ -217,9 +273,9 @@
   <p class="ages">Ages 2 and up</p>
   <div class="levels" id="level-choices">
     <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Donuts and cupcakes to decorate.</small></button>
-    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. Cakes too, and picture orders.</small></button>
-    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. Scoops and soft serve.</small></button>
-    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Fill the card before the clock ends.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. Cakes and picture orders. No clock.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. Scoops and soft serve. A long wait, and they stay.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Pack a box before the customer leaves.</small></button>
   </div>
   <div class="stack">
     <button id="decorate" class="big" type="button">Decorate</button>
@@ -301,6 +357,7 @@
   let tool = "pink";
   let orderIndex = 1;
   let timeLeft = 90;
+  let patienceTotal = 90;
   let timeUp = false;
   let marks = [];
   let score = emptyScore();
@@ -356,16 +413,133 @@
     if (levelId === "little") return ["donut", "cupcake", "cake"];
     return ["donut", "cupcake", "cake", "scoops", "soft"];
   }
-  function deck() {
+  let playDeck = null;
+  function catalog() {
     const donutCards = ORDERS.map((reqs) => ({ treat: "donut", reqs }));
     const bakery = donutCards.concat(CUPCAKE_ORDERS, CAKE_ORDERS);
     if (levelId === "shop" || levelId === "rush") return bakery.concat(SCOOP_ORDERS, SOFT_ORDERS);
     if (levelId === "little") return bakery;
     return donutCards;
   }
+  function shuffleCards(cards) {
+    const next = cards.slice();
+    for (let i = next.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const swap = next[i];
+      next[i] = next[j];
+      next[j] = swap;
+    }
+    return next;
+  }
+  function sameCard(a, b) {
+    if (!a || !b || a.treat !== b.treat || a.reqs.length !== b.reqs.length) return false;
+    for (let i = 0; i < a.reqs.length; i++) {
+      const left = a.reqs[i];
+      const right = b.reqs[i];
+      if (left.kind !== right.kind || left.n !== right.n || left.color !== right.color) return false;
+    }
+    return true;
+  }
+  function dealOrders(avoid) {
+    const cards = catalog();
+    if (checking) {
+      playDeck = cards;
+      return;
+    }
+    const next = shuffleCards(cards);
+    if (avoid && next.length > 1 && sameCard(next[0], avoid)) {
+      const swap = next[0];
+      next[0] = next[1];
+      next[1] = swap;
+    }
+    playDeck = next;
+  }
+  function deck() {
+    return playDeck && playDeck.length ? playDeck : catalog();
+  }
   function currentCard() {
     const cards = deck();
     return cards[(orderIndex - 1) % cards.length];
+  }
+  function boxesOf(cards) {
+    const sizes = [2, 2, 3];
+    const out = [];
+    let i = 0;
+    let s = 0;
+    while (i < cards.length) {
+      const n = Math.min(sizes[s % sizes.length], cards.length - i);
+      out.push(cards.slice(i, i + n));
+      i += n;
+      s++;
+    }
+    return out;
+  }
+  function locateBox(index) {
+    const all = boxesOf(deck());
+    let seen = 0;
+    for (let b = 0; b < all.length; b++) {
+      const slots = all[b];
+      if (index <= seen + slots.length) {
+        const slot = index - seen - 1;
+        return { number: b + 1, count: all.length, slot, size: slots.length, slots, packed: slot };
+      }
+      seen += slots.length;
+    }
+    return null;
+  }
+  function patienceSeconds() {
+    if (levelId === "shop") return 240;
+    if (levelId === "rush") {
+      const info = locateBox(Math.max(1, orderIndex));
+      return (info ? info.size : 2) * 75;
+    }
+    return 0;
+  }
+  function clockKind() {
+    if (mode !== "orders") return "none";
+    if (levelId === "rush") return "leave";
+    if (levelId === "shop") return "wait";
+    return "none";
+  }
+  function impatience() {
+    if (mode !== "orders" || clockKind() !== "leave") return 0;
+    if (timeUp) return 1;
+    if (patienceTotal <= 0) return 0;
+    return Math.max(0, Math.min(1, 1 - timeLeft / patienceTotal));
+  }
+  function faceLevel() {
+    if (mode !== "orders" || cardFilled()) return 0;
+    if (clockKind() === "leave") return impatience();
+    if (clockKind() === "wait" && timeUp) return 0.35;
+    return 0;
+  }
+  function customerMood() {
+    if (mode !== "orders") return "none";
+    if (cardFilled()) return "happy";
+    if (clockKind() === "leave" && timeUp) return "left";
+    const t = impatience();
+    if (clockKind() === "leave" && t > 0.78) return "worried";
+    if (clockKind() === "leave" && t > 0.45) return "patient";
+    if (clockKind() === "wait" && timeUp) return "patient";
+    return "happy";
+  }
+  function paintFace() {
+    const t = faceLevel();
+    const blink = !reduceMotion && mode !== "start" && Math.floor(clock / 140) % 22 === 0;
+    const eyeRy = blink ? 1 : 6.2 + (2.2 - 6.2) * t;
+    document.getElementById("eye-l").setAttribute("ry", eyeRy);
+    document.getElementById("eye-r").setAttribute("ry", eyeRy);
+    const y = 72 + 6 * t;
+    const smile = 98 + (52 - 98) * t;
+    document.getElementById("mouth").setAttribute("d", "M 34 " + y + " Q 60 " + smile + " 86 " + y);
+    const brow = 30 + 16 * t;
+    document.getElementById("brow-l").setAttribute("d", "M 26 44 Q 40 " + brow + " 52 42");
+    document.getElementById("brow-r").setAttribute("d", "M 68 42 Q 80 " + brow + " 94 44");
+  }
+  function resetPatience() {
+    patienceTotal = patienceSeconds();
+    timeLeft = patienceTotal;
+    timeUp = false;
   }
   function blobR() {
     return Math.max(18, 0.045 * Math.min(window.innerWidth, window.innerHeight));
@@ -379,8 +553,8 @@
     const trayH = trayBase + (mode === "free" ? 56 : 0);
     const wide = w >= 800;
     const ordersOn = mode === "orders";
-    const cardW = ordersOn && wide ? 220 : 0;
-    const cardH = ordersOn && !wide ? 82 + 88 : 0;
+    const cardW = ordersOn && wide ? 360 : 0;
+    const cardH = ordersOn && !wide ? 210 : 0;
     const play = { x: cardW, y: cardH, w: Math.max(0, w - cardW), h: Math.max(0, h - trayH - cardH) };
     const short = Math.min(play.w, play.h);
     let rx = 0.42 * short;
@@ -530,9 +704,7 @@
   }
   function addCluster(x, y, group) {
     if (countMarks("sprinkle") >= 80 * 7) return;
-    const hues = ["#e23b3b", "#2f8a3e", "#ffc857", "#6eb5e8", "#ffffff", "#6b3a2a", "#e86a9a"];
-    const center = toUV(x, y);
-    const splash = makeSplat();
+    const hues = ["#e23b3b", "#2f8a3e", "#ffc857", "#6eb5e8", "#6b3a2a", "#e86a9a", "#f08a3a"];
     for (let i = 0; i < 7; i++) {
       const ang = Math.random() * Math.PI * 2;
       const rad = 0.15 + Math.random() * 1.05;
@@ -543,11 +715,6 @@
         type: "sprinkle", group, u: uv.u, v: uv.v, shape: i < 3 ? "dot" : "rod",
         rot: ang, hue: hues[i % hues.length], ox, oy, len: 0.5 + Math.random()
       };
-      if (i === 0) {
-        mark.splash = splash;
-        mark.cu = center.u;
-        mark.cv = center.v;
-      }
       marks.push(mark);
     }
   }
@@ -561,7 +728,6 @@
         const p = toUV(x + m.ox * blobR(), y + m.oy * blobR());
         m.u = p.u;
         m.v = p.v;
-        if (m.splash) { m.cu = center.u; m.cv = center.v; }
       }
     }
   }
@@ -744,10 +910,40 @@
     for (let i = 0; i < cardReqs.length; i++) if (haveOf(cardReqs[i]) < cardReqs[i].n) return false;
     return true;
   }
+  const boxLine = document.getElementById("box-line");
+  function paintBox(info) {
+    boxLine.replaceChildren();
+    if (!info) { boxLine.hidden = true; return; }
+    boxLine.hidden = false;
+    const title = document.createElement("b");
+    title.textContent = "Box of " + info.size;
+    boxLine.appendChild(title);
+    info.slots.forEach((slot, i) => {
+      const el = document.createElement("i");
+      el.className = "slot " + slot.treat;
+      if (i < info.packed) el.classList.add("packed");
+      else if (i === info.slot) el.classList.add("now");
+      el.title = TREAT_NAME[slot.treat] || "";
+      boxLine.appendChild(el);
+    });
+  }
   function updateCard() {
-    face.classList.toggle("happy", mode === "orders" && cardFilled());
-    if (mode !== "orders") { reqsEl.replaceChildren(); orderTreatEl.textContent = ""; return; }
-    orderTreatEl.textContent = TREAT_NAME[currentCard().treat] || "";
+    const mood = customerMood();
+    face.dataset.mood = mood;
+    face.classList.toggle("happy", mood === "happy");
+    paintFace();
+    if (mode !== "orders") {
+      reqsEl.replaceChildren();
+      orderTreatEl.textContent = "";
+      paintBox(null);
+      return;
+    }
+    const info = levelId === "rush" ? locateBox(orderIndex) : null;
+    paintBox(info);
+    const name = (TREAT_NAME[currentCard().treat] || "treat").toLowerCase();
+    orderTreatEl.textContent = info
+      ? "A box of " + info.size + ". This one, " + (info.slot + 1) + " of " + info.size + ", is a " + name + "."
+      : "I would like a " + name + ".";
     const frag = document.createDocumentFragment();
     const cardReqs = currentCard().reqs;
     cardReqs.forEach((req) => {
@@ -758,14 +954,14 @@
       const label = document.createElement("b");
       if (req.kind === "glob") {
         sw.style.background = COLORS[req.color];
-        label.textContent = req.n + " " + req.color;
+        label.textContent = req.n + (req.n === 1 ? " blob of " : " blobs of ") + req.color + " icing";
       } else if (req.kind === "stripe") {
         sw.classList.add("stripe");
         sw.style.background = COLORS[req.color];
-        label.textContent = req.color + " stripe";
+        label.textContent = "a stripe of " + req.color + " icing";
       } else if (req.kind === "sprinkle") {
         sw.classList.add("sprinkle");
-        label.textContent = req.n + " sprinkles";
+        label.textContent = req.n + (req.n === 1 ? " shake of sprinkles" : " shakes of sprinkles");
       } else if (req.kind === "scoop") {
         sw.style.background = FLAVOR_COLOR[req.color];
         label.textContent = req.n + " " + req.color + (req.n === 1 ? " scoop" : " scoops");
@@ -774,7 +970,7 @@
         label.textContent = req.n + " " + req.color + (req.n === 1 ? " swirl" : " swirls");
       } else {
         sw.classList.add("cherry");
-        label.textContent = req.n + (req.n === 1 ? " cherry" : " cherries");
+        label.textContent = req.n + (req.n === 1 ? " cherry on top" : " cherries on top");
       }
       const pips = document.createElement("div");
       pips.className = "pips";
@@ -808,11 +1004,15 @@
     }
     playSound("serve");
     flashUntil = clock + (reduceMotion ? 40 : 700);
+    const info = levelId === "rush" ? locateBox(orderIndex) : null;
+    const moreInBox = info && info.slot < info.size - 1;
+    const finished = currentCard();
+    const atEnd = orderIndex >= deck().length;
     clearDonut();
-    orderIndex = orderIndex >= deck().length ? 1 : orderIndex + 1;
+    if (atEnd) dealOrders(finished);
+    orderIndex = atEnd ? 1 : orderIndex + 1;
     treat = currentCard().treat;
-    timeLeft = 90;
-    timeUp = false;
+    if (!moreInBox) resetPatience();
     showTools();
     updateCard();
     updateClock();
@@ -860,11 +1060,15 @@
     return levelId;
   }
   function updateClock() {
-    const show = mode === "orders" && levelId === "rush";
-    clockEl.hidden = !show;
-    if (!show) return;
-    clockEl.classList.toggle("up", timeUp);
-    clockEl.textContent = timeUp ? "Time's up" : fmtTime(timeLeft);
+    const kind = clockKind();
+    clockEl.hidden = kind === "none";
+    if (kind === "none") return;
+    clockEl.classList.toggle("up", kind === "leave" && timeUp);
+    clockEl.classList.toggle("easy", kind === "wait" && timeUp);
+    const narrow = window.innerWidth < 800;
+    if (timeUp && kind === "leave") clockEl.textContent = narrow ? "Soon" : "See you soon";
+    else if (timeUp && kind === "wait") clockEl.textContent = narrow ? "No rush" : "Take your time";
+    else clockEl.textContent = fmtTime(timeLeft);
   }
   function fmtTime(s) {
     s = Math.max(0, Math.ceil(s));
@@ -900,11 +1104,12 @@
   }
   function start(which) {
     mode = which === "orders" ? "orders" : "free";
+    if (mode === "orders") dealOrders();
+    else playDeck = null;
     orderIndex = 1;
     treat = mode === "orders" ? currentCard().treat : "donut";
     tool = iceTreat() ? "chocolate" : "pink";
-    timeLeft = 90;
-    timeUp = false;
+    resetPatience();
     latch = false;
     pointerActive = false;
     capId = null;
@@ -1001,13 +1206,14 @@
       x += d + gap;
     });
     syncTreatButtons();
+    placeReady(L);
     if (mode === "orders") {
       card.hidden = false;
       if (L.wide) {
         card.style.left = "8px";
         card.style.right = "auto";
         card.style.top = "88px";
-        card.style.width = "204px";
+        card.style.width = "340px";
         card.style.height = "auto";
         card.style.flexDirection = "column";
         card.style.alignItems = "flex-start";
@@ -1018,13 +1224,32 @@
         card.style.right = "8px";
         card.style.top = "82px";
         card.style.width = "auto";
-        card.style.height = "88px";
+        card.style.height = "auto";
+        card.style.minHeight = "88px";
         card.style.flexDirection = "row";
         card.style.alignItems = "center";
         reqsEl.style.flexDirection = "row";
         reqsEl.style.alignItems = "center";
       }
     }
+  }
+  function placeReady(L) {
+    const d = L.donut;
+    const narrow = window.innerWidth < 800;
+    const bw = narrow ? 132 : 156;
+    const bh = narrow ? 52 : 58;
+    let x = d.cx + d.rx * 0.62;
+    let y = d.cy + d.ry * 0.42;
+    const maxX = window.innerWidth - bw - 10;
+    const maxY = window.innerHeight - L.trayH - bh - 8;
+    x = Math.max(10, Math.min(maxX, x));
+    y = Math.max((L.cardH || 0) + 8, Math.min(maxY, y));
+    doneBtn.style.width = bw + "px";
+    doneBtn.style.height = bh + "px";
+    doneBtn.style.left = x + "px";
+    doneBtn.style.top = y + "px";
+    doneBtn.style.right = "auto";
+    doneBtn.style.fontSize = narrow ? "16px" : "20px";
   }
   function resize() {
     const dpr = Math.min(2, window.devicePixelRatio || 1);
@@ -1040,11 +1265,24 @@
     const L = layout();
     const d = L.donut;
     ctx.clearRect(0, 0, w, h);
-    ctx.fillStyle = "#fff3e4";
+    const wall = ctx.createLinearGradient(0, 0, 0, h);
+    wall.addColorStop(0, "#fff8ee");
+    wall.addColorStop(1, "#f6e2c8");
+    ctx.fillStyle = wall;
     ctx.fillRect(0, 0, w, h);
-    ctx.fillStyle = "#f3d2a8";
+    ctx.fillStyle = "#e86a9a";
+    ctx.fillRect(0, 0, w, 12);
+    ctx.fillStyle = "#fff6ea";
+    for (let x = 0; x < w; x += 28) ctx.fillRect(x, 0, 14, 12);
+    const wood = ctx.createLinearGradient(0, h - L.trayH, 0, h);
+    wood.addColorStop(0, "#f6d7b0");
+    wood.addColorStop(1, "#e2b07a");
+    ctx.fillStyle = wood;
     ctx.fillRect(0, h - L.trayH, w, L.trayH);
+    ctx.fillStyle = "#c4843a";
+    ctx.fillRect(0, h - L.trayH, w, 8);
     drawStage(d);
+    drawOrderBox(d, L);
     for (let i = 0; i < marks.length; i++) if (marks[i].type !== "cherry" && marks[i].type !== "scoop" && marks[i].type !== "swirl") drawMark(marks[i]);
     for (let i = 0; i < marks.length; i++) if (marks[i].type === "cherry") drawMark(marks[i]);
     if (trayScoop) {
@@ -1065,6 +1303,41 @@
     updateCard();
     updateClock();
   }
+  function drawOrderBox(d, L) {
+    if (levelId !== "rush" || mode !== "orders") return;
+    const info = locateBox(orderIndex);
+    if (!info) return;
+    const cell = 34;
+    const w = info.size * cell + 18;
+    const h = 46;
+    const x = d.cx - w / 2;
+    const y = window.innerHeight - L.trayH - h - 12;
+    if (d.cy + d.ry > y - 6) return;
+    ctx.save();
+    ctx.fillStyle = "rgba(120, 70, 30, 0.12)";
+    ctx.fillRect(x + 4, y + 6, w, h);
+    ctx.fillStyle = "#f4a3c2";
+    ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = "#fff8ec";
+    ctx.fillRect(x + 6, y + 8, w - 12, h - 16);
+    ctx.fillStyle = "#e23b3b";
+    ctx.fillRect(x, y + 4, w, 6);
+    info.slots.forEach((slot, i) => {
+      const sx = x + 12 + i * cell;
+      const sy = y + 18;
+      ctx.beginPath();
+      ctx.arc(sx + 10, sy + 10, 10, 0, Math.PI * 2);
+      if (i < info.packed) {
+        ctx.fillStyle = slot.treat === "cupcake" ? "#f6d2e4" : slot.treat === "cake" ? "#fff6ea" : slot.treat === "scoops" || slot.treat === "soft" ? "#e7b15a" : "#f2c07a";
+      } else if (i === info.slot) ctx.fillStyle = "#fff6df";
+      else ctx.fillStyle = "#f3e4d4";
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = i === info.slot ? "#e2a62e" : "#e2c7a4";
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
   function drawStage(d) {
     if (treat === "cupcake") drawCupcake(d);
     else if (treat === "cake") drawCake(d);
@@ -1073,57 +1346,115 @@
   }
   function drawDonut(d) {
     ctx.beginPath();
-    ctx.ellipse(d.cx, d.cy + 6, d.rx * 1.06, d.ry * 1.06, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#e7c49a";
+    ctx.ellipse(d.cx, d.cy + 10, d.rx * 1.02, d.ry * 0.28, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(120, 70, 30, 0.16)";
     ctx.fill();
+    const dough = ctx.createRadialGradient(d.cx - d.rx * 0.2, d.cy - d.ry * 0.25, d.rx * 0.2, d.cx, d.cy, d.rx);
+    dough.addColorStop(0, "#ffe0b0");
+    dough.addColorStop(0.7, "#f2c07a");
+    dough.addColorStop(1, "#d39a55");
     ctx.beginPath();
     ctx.ellipse(d.cx, d.cy, d.rx, d.ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#f2c07a";
+    ctx.fillStyle = dough;
     ctx.fill();
-    ctx.lineWidth = 6;
-    ctx.strokeStyle = "#d39a55";
+    ctx.lineWidth = 7;
+    ctx.strokeStyle = "#c4843a";
     ctx.stroke();
     ctx.beginPath();
     ctx.ellipse(d.cx, d.cy, d.rx * 0.38, d.ry * 0.38, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#f6d7b0";
+    const hole = ctx.createRadialGradient(d.cx, d.cy, d.rx * 0.05, d.cx, d.cy, d.rx * 0.38);
+    hole.addColorStop(0, "#f8e6cf");
+    hole.addColorStop(0.72, "#f0d2ae");
+    hole.addColorStop(1, "#c9844e");
+    ctx.fillStyle = hole;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy, d.rx * 0.38, d.ry * 0.38, 0, 0, Math.PI * 2);
+    ctx.lineWidth = 5;
+    ctx.strokeStyle = "#e7b56a";
+    ctx.stroke();
+    ctx.fillStyle = "rgba(255,255,255,0.55)";
+    for (let i = 0; i < 14; i++) {
+      const a = i * 0.9;
+      const rad = 0.55 + (i % 3) * 0.12;
+      ctx.beginPath();
+      ctx.ellipse(d.cx + Math.cos(a) * d.rx * rad, d.cy + Math.sin(a) * d.ry * rad, 2.2, 1.2, a, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.beginPath();
+    ctx.ellipse(d.cx - d.rx * 0.28, d.cy - d.ry * 0.32, d.rx * 0.22, d.ry * 0.1, -0.6, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(255, 255, 255, 0.45)";
     ctx.fill();
   }
   function drawCupcake(d) {
     const top = d.cy + d.ry * 0.55;
     const bot = d.cy + d.ry * 1.35;
     ctx.beginPath();
+    ctx.ellipse(d.cx, bot + 6, d.rx * 0.42, d.ry * 0.08, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(120, 70, 30, 0.16)";
+    ctx.fill();
+    ctx.beginPath();
     ctx.moveTo(d.cx - d.rx * 0.72, top);
     ctx.lineTo(d.cx + d.rx * 0.72, top);
     ctx.lineTo(d.cx + d.rx * 0.48, bot);
     ctx.lineTo(d.cx - d.rx * 0.48, bot);
     ctx.closePath();
-    ctx.fillStyle = "#f4a3c2";
+    const liner = ctx.createLinearGradient(d.cx - d.rx, 0, d.cx + d.rx, 0);
+    liner.addColorStop(0, "#e07098");
+    liner.addColorStop(0.5, "#f7b7cf");
+    liner.addColorStop(1, "#c45b84");
+    ctx.fillStyle = liner;
     ctx.fill();
     ctx.fillStyle = "#fff8ec";
     for (let i = -2; i <= 2; i++) {
       ctx.fillRect(d.cx + i * d.rx * 0.22 - 3, top, 6, bot - top);
     }
-    ctx.beginPath();
-    ctx.ellipse(d.cx, d.cy, d.rx, d.ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#f6d2e4";
-    ctx.fill();
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = "#e7a0c4";
+    ctx.strokeStyle = "#e07aa0";
+    ctx.lineWidth = 3;
     ctx.stroke();
+    const frosting = ctx.createRadialGradient(d.cx - d.rx * 0.15, d.cy - d.ry * 0.2, 8, d.cx, d.cy, d.rx);
+    frosting.addColorStop(0, "#fff0f6");
+    frosting.addColorStop(1, "#f0b0cc");
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy + d.ry * 0.08, d.rx * 0.92, d.ry * 0.55, 0, 0, Math.PI * 2);
+    ctx.fillStyle = frosting;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy - d.ry * 0.28, d.rx * 0.62, d.ry * 0.42, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy - d.ry * 0.55, d.rx * 0.28, d.ry * 0.2, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "#fff6ea";
+    ctx.fill();
   }
   function drawCake(d) {
     const side = d.ry * 0.55;
+    ctx.beginPath();
+    ctx.ellipse(d.cx, d.cy + side + 8, d.rx * 0.85, d.ry * 0.1, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(120, 70, 30, 0.16)";
+    ctx.fill();
+    ctx.fillStyle = "#f7b7cf";
+    ctx.fillRect(d.cx - d.rx * 0.92, d.cy + side * 0.15, d.rx * 1.84, side);
     ctx.fillStyle = "#f7d7e2";
     ctx.fillRect(d.cx - d.rx, d.cy, d.rx * 2, side);
     ctx.fillStyle = "#e7a0c4";
-    ctx.fillRect(d.cx - d.rx, d.cy + side - 10, d.rx * 2, 10);
+    ctx.fillRect(d.cx - d.rx, d.cy + side - 12, d.rx * 2, 12);
+    const icing = ctx.createLinearGradient(d.cx, d.cy - d.ry * 0.4, d.cx, d.cy + d.ry * 0.3);
+    icing.addColorStop(0, "#fffaf3");
+    icing.addColorStop(1, "#f3d7b0");
     ctx.beginPath();
     ctx.ellipse(d.cx, d.cy, d.rx, d.ry * 0.72, 0, 0, Math.PI * 2);
-    ctx.fillStyle = "#fff6ea";
+    ctx.fillStyle = icing;
     ctx.fill();
     ctx.lineWidth = 5;
     ctx.strokeStyle = "#e2c7a4";
     ctx.stroke();
+    ctx.fillStyle = "#e86a9a";
+    for (let i = -1; i <= 1; i++) {
+      ctx.beginPath();
+      ctx.ellipse(d.cx + i * d.rx * 0.45, d.cy + d.ry * 0.08, 7, 10, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
   function drawCone(d) {
     const rim = d.cy + d.ry * 0.35;
@@ -1212,7 +1543,12 @@
       ctx.translate(p.x, p.y);
       ctx.rotate(m.rot || 0);
       traceLobes(lobes, radius);
-      ctx.fillStyle = COLORS[m.color];
+      const deep = { pink: "#b43d68", chocolate: "#3a1c12", white: "#e4cba8", blue: "#3d86b8" };
+      const icing = ctx.createRadialGradient(-radius * 0.28, -radius * 0.32, radius * 0.05, 0, 0, radius);
+      icing.addColorStop(0, "#fff");
+      icing.addColorStop(0.28, COLORS[m.color]);
+      icing.addColorStop(1, deep[m.color] || COLORS[m.color]);
+      ctx.fillStyle = icing;
       ctx.fill();
       if (m.color === "white") {
         ctx.lineWidth = 2;
@@ -1237,45 +1573,58 @@
         ctx.fill();
       });
     } else if (m.type === "sprinkle") {
-      if (m.splash) {
-        const c = fromUV(m.cu, m.cv);
-        ctx.save();
-        ctx.translate(c.x, c.y);
-        ctx.rotate(m.splash.rot || 0);
-        traceLobes(m.splash.lobes, blobR() * 0.85);
-        ctx.fillStyle = "rgba(255, 236, 214, 0.92)";
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "rgba(210, 160, 110, 0.55)";
-        ctx.stroke();
-        ctx.restore();
-        (m.splash.drops || []).forEach((drop) => {
-          ctx.fillStyle = "rgba(255, 236, 214, 0.9)";
-          ctx.beginPath();
-          ctx.arc(c.x + drop.ox * blobR(), c.y + drop.oy * blobR(), Math.max(2, blobR() * drop.s), 0, Math.PI * 2);
-          ctx.fill();
-        });
-      }
       ctx.save();
       ctx.translate(p.x, p.y);
       ctx.rotate(m.rot || 0);
+      const shine = ctx.createLinearGradient(-4, -3, 4, 3);
+      shine.addColorStop(0, "#fff");
+      shine.addColorStop(0.35, m.hue);
+      shine.addColorStop(1, m.hue);
       ctx.fillStyle = m.hue;
+      ctx.strokeStyle = "rgba(0,0,0,0.15)";
+      ctx.lineWidth = 1;
       if (m.shape === "dot") {
         ctx.beginPath();
-        ctx.arc(0, 0, 3.5, 0, Math.PI * 2);
+        ctx.arc(0, 0, 4, 0, Math.PI * 2);
         ctx.fill();
-      } else ctx.fillRect(-6 * (m.len || 1), -2, 12 * (m.len || 1), 4);
+        ctx.fillStyle = "rgba(255,255,255,0.65)";
+        ctx.beginPath();
+        ctx.arc(-1.2, -1.2, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        const len = 7 * (m.len || 1);
+        ctx.beginPath();
+        ctx.roundRect(-len, -2.4, len * 2, 4.8, 2.4);
+        ctx.fill();
+        ctx.fillStyle = shine;
+        ctx.globalAlpha = 0.55;
+        ctx.fillRect(-len + 1, -2.2, len * 0.7, 1.6);
+      }
       ctx.restore();
     } else if (m.type === "cherry") {
-      ctx.strokeStyle = "#2f8a3e";
-      ctx.lineWidth = 3;
+      const r = blobR() * 0.48;
+      ctx.strokeStyle = "#217a32";
+      ctx.lineWidth = 4;
+      ctx.lineCap = "round";
       ctx.beginPath();
-      ctx.moveTo(p.x, p.y);
-      ctx.quadraticCurveTo(p.x + 8, p.y - 16, p.x + 4, p.y - 22);
+      ctx.moveTo(p.x, p.y - r * 0.4);
+      ctx.quadraticCurveTo(p.x + r * 0.7, p.y - r * 1.5, p.x + r * 0.2, p.y - r * 2.1);
       ctx.stroke();
+      ctx.fillStyle = "#3aaa6a";
       ctx.beginPath();
-      ctx.arc(p.x, p.y, blobR() * 0.45, 0, Math.PI * 2);
-      ctx.fillStyle = "#e23b3b";
+      ctx.ellipse(p.x + r * 0.55, p.y - r * 1.9, r * 0.45, r * 0.22, -0.6, 0, Math.PI * 2);
+      ctx.fill();
+      const berry = ctx.createRadialGradient(p.x - r * 0.35, p.y - r * 0.4, r * 0.1, p.x, p.y, r);
+      berry.addColorStop(0, "#ff8d8d");
+      berry.addColorStop(0.45, "#e23b3b");
+      berry.addColorStop(1, "#9d1818");
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+      ctx.fillStyle = berry;
+      ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.7)";
+      ctx.beginPath();
+      ctx.ellipse(p.x - r * 0.32, p.y - r * 0.36, r * 0.22, r * 0.14, -0.6, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -1413,7 +1762,7 @@
   function step(now) {
     const prev = clock;
     clock = now;
-    if (mode === "orders" && levelId === "rush" && !timeUp && prev) {
+    if (clockKind() !== "none" && !timeUp && prev) {
       const dt = (now - prev) / 1000;
       if (dt > 0 && dt < 120) {
         timeLeft -= dt;
@@ -1556,7 +1905,7 @@
   function state() {
     return {
       mode, tool, treat, level: levelId, latch,
-      timeLeft, timeUp,
+      timeLeft, timeUp, customer: customerMood(),
       marks: {
         globs: { pink: score.globs.pink, chocolate: score.globs.chocolate, white: score.globs.white, blue: score.globs.blue },
         stripes: { pink: score.stripes.pink, chocolate: score.stripes.chocolate, white: score.stripes.white, blue: score.stripes.blue },
@@ -1581,7 +1930,11 @@
     const requirements = card.reqs.map((req) => ({
       kind: req.kind, color: req.color || null, need: req.n, have: haveOf(req)
     }));
-    return { index: orderIndex, treat: card.treat, requirements, filled: cardFilled() };
+    const info = levelId === "rush" ? locateBox(orderIndex) : null;
+    const box = info
+      ? { number: info.number, size: info.size, slot: info.slot + 1, packed: info.packed }
+      : null;
+    return { index: orderIndex, treat: card.treat, requirements, filled: cardFilled(), box };
   }
   function look(nx, ny) {
     gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
@@ -1886,6 +2239,65 @@
       tap(centers().back.nx, centers().back.ny);
       s = state();
       if (s.mode !== "start" || s.treat !== "donut" || !tray.hidden || !backBtn.hidden) fail("Case 22", "tap Back stayed in " + s.mode + " on " + s.treat);
+
+      selectLevel("rush");
+      start("orders");
+      let boxed = order();
+      if (!boxed.box || boxed.box.size !== 2 || boxed.box.slot !== 1 || boxed.box.packed !== 0) {
+        fail("Case 23", "rush did not open a box of 2: " + JSON.stringify(boxed.box));
+      }
+      tap(approxCenter().nx, approxCenter().ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      if (!order().filled) fail("Case 23", "three pink globs did not fill the first box slot");
+      timeLeft = 40;
+      patienceTotal = 150;
+      timeUp = false;
+      doneBtn.click();
+      boxed = order();
+      s = state();
+      if (!boxed.box || boxed.box.slot !== 2 || boxed.box.packed !== 1 || s.marks.globs.pink !== 0 || s.timeLeft !== 40) {
+        fail("Case 23", "packing the first treat did not keep the clock: " + JSON.stringify(boxed.box) + " time " + s.timeLeft);
+      }
+      tap(centers().tools.chocolate.nx, centers().tools.chocolate.ny);
+      drag(zigzag());
+      tap(centers().tools.cherry.nx, centers().tools.cherry.ny);
+      tap(approxCenter().nx, approxCenter().ny);
+      if (!order().filled || order().treat !== "donut") fail("Case 23", "second slot stayed open: " + JSON.stringify(order()));
+      doneBtn.click();
+      boxed = order();
+      s = state();
+      if (!boxed.box || boxed.box.slot !== 1 || boxed.box.packed !== 0 || Math.abs(s.timeLeft - 150) > 0.1 || s.customer === "left") {
+        fail("Case 23", "a full box did not bring the next customer: " + JSON.stringify(boxed.box) + " time " + s.timeLeft + " " + s.customer);
+      }
+
+      selectLevel("little");
+      start("orders");
+      if (!clockEl.hidden) fail("Case 24", "Little Pals showed a clock");
+      selectLevel("shop");
+      start("orders");
+      if (clockEl.hidden || state().timeLeft < 200) fail("Case 24", "Shopkeeper clock was " + state().timeLeft);
+      clock = 9000;
+      timeLeft = 1;
+      patienceTotal = 240;
+      timeUp = false;
+      step(11000);
+      s = state();
+      if (!s.timeUp || s.customer === "left" || (clockEl.textContent !== "Take your time" && clockEl.textContent !== "No rush")) {
+        fail("Case 24", "shop wait ended as " + s.customer + " / " + clockEl.textContent);
+      }
+      selectLevel("rush");
+      start("orders");
+      clock = 12000;
+      timeLeft = 1;
+      patienceTotal = 150;
+      timeUp = false;
+      tap(approxCenter().nx, approxCenter().ny);
+      step(14000);
+      s = state();
+      if (s.customer !== "left" || s.marks.globs.pink !== 1 || (clockEl.textContent !== "See you soon" && clockEl.textContent !== "Soon")) {
+        fail("Case 24", "rush leave cleared the treat or stayed: " + JSON.stringify(s) + " " + clockEl.textContent);
+      }
     } catch (err) {
       failures.push("Case error: " + (err && err.stack ? err.stack : err));
     } finally {
@@ -1971,7 +2383,9 @@
   muteBtn.addEventListener("click", () => {
     mute = !mute;
     muteBtn.setAttribute("aria-pressed", mute ? "true" : "false");
-    muteBtn.textContent = mute ? "Sound" : "Mute";
+    muteBtn.setAttribute("aria-label", mute ? "Turn sound on" : "Mute sound");
+    document.getElementById("sound-on").hidden = mute;
+    document.getElementById("sound-off").hidden = !mute;
     if (master) master.gain.value = mute ? 0 : 0.6;
   });
   fullBtn.addEventListener("click", () => {
@@ -2010,12 +2424,20 @@
     selectLevel("shop"); start("free"); setTreat("scoops");
   } else if (params.has("soft")) {
     selectLevel("shop"); start("free"); setTreat("soft");
+  } else if (params.has("sprinkle")) {
+    selectLevel("tiny"); start("free"); tool = "sprinkles"; addCluster(layout().donut.cx, layout().donut.cy, 1); render();
   } else if (params.has("cupcake")) {
     selectLevel("tiny"); start("free"); setTreat("cupcake");
   } else if (params.has("cake")) {
     selectLevel("little"); start("free"); setTreat("cake");
   } else if (params.has("rush")) {
     selectLevel("rush"); start("orders");
+  } else if (params.has("impatient")) {
+    selectLevel("rush"); start("orders");
+    timeLeft = patienceTotal * 0.08;
+    render();
+  } else if (params.has("shop")) {
+    selectLevel("shop"); start("orders");
   } else if (params.has("orders")) {
     selectLevel("little"); start("orders");
   } else if (params.has("play")) {
