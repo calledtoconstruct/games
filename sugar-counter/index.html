@@ -110,12 +110,6 @@
     border: 3px solid #fff;
     box-shadow: 0 10px 0 rgba(90, 50, 20, 0.06), 0 16px 36px rgba(50, 30, 10, 0.14);
   }
-  #card.wiggle { animation: wiggle 0.4s ease; }
-  @keyframes wiggle {
-    0%, 100% { translate: 0 0; }
-    25% { translate: -8px 0; }
-    75% { translate: 8px 0; }
-  }
   #face { width: 112px; height: 112px; flex: none; filter: drop-shadow(0 8px 0 rgba(80, 40, 20, 0.08)); }
   #face svg { width: 100%; height: 100%; display: block; }
   #box-line { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
@@ -186,6 +180,15 @@
   #clock.up { background: #ffd0c8; }
   #clock.easy { background: #fff6df; }
   #clock[hidden] { display: none !important; }
+  #note {
+    position: fixed; z-index: 47; left: 50%; top: 22%;
+    transform: translateX(-50%);
+    margin: 0; pointer-events: none;
+    background: #fff8ec; color: var(--ink);
+    border: 4px solid var(--ink); border-radius: 18px;
+    padding: 10px 18px; font-size: 32px; font-weight: 800;
+  }
+  #note:empty { visibility: hidden; }
   @media (max-width: 799px) {
     #face { width: 84px; height: 84px; }
     #back { min-width: 0; height: 56px; padding: 0 10px; font-size: 14px; }
@@ -193,9 +196,6 @@
     .req b { font-size: 14px; }
     #clock { left: 136px; right: 156px; transform: none; text-align: center; font-size: 16px; line-height: 1.05; padding: 6px 4px; }
     #treats button { font-size: 13px; padding: 0 4px; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    #card.wiggle { animation: none; }
   }
 </style>
 </head>
@@ -214,6 +214,7 @@
 <button id="full" type="button" aria-label="Fullscreen">Full</button>
 <button id="back" type="button" hidden aria-label="Back to the menu">Back to Menu</button>
 <button id="done" type="button" hidden>Item ready</button>
+<p id="note" role="status"></p>
 <div id="eyes" hidden>Eyes</div>
 <div id="gaze" hidden></div>
 <div id="clock" hidden>1:30</div>
@@ -291,6 +292,7 @@
   const LEAVE_MS = 280;
   const POINTER_DEAD = 18;
   const COLORS = { pink: "#e86a9a", chocolate: "#6b3a2a", white: "#fff6ea", blue: "#6eb5e8" };
+  const PLATE_CAPS = { blobs: 800, sprinkleShakes: 200, cherries: 48, scoops: 24, swirls: 12 };
   const FLAVOR_OF = { pink: "strawberry", chocolate: "chocolate", white: "vanilla", blue: "mint" };
   const FLAVOR_COLOR = { strawberry: "#e86a9a", chocolate: "#6b3a2a", vanilla: "#fff6ea", mint: "#3aaa6a" };
   const TOOLS = ["pink", "chocolate", "white", "blue", "sprinkles", "cherry"];
@@ -372,12 +374,13 @@
   let clock = 0;
   let checking = false;
   let flashUntil = 0;
-  let wiggleUntil = 0;
   let groupSeq = 1;
   let ac = null;
   let master = null;
   let lastTick = -1e9;
   let lastSplat = -1e9;
+  let noteUntil = 0;
+  let correctServes = 0;
 
   let gazeSock = null;
   let gazeBuf = new Uint8Array(0);
@@ -619,6 +622,7 @@
     else if (name === "cherry") osc(t, 0.12, "triangle", 620, 440, 0.06);
     else if (name === "release") osc(t, 0.08, "sine", 240, 180, 0.04);
     else if (name === "serve") { osc(t, 0.12, "triangle", 520, 780, 0.07); osc(t + 0.1, 0.16, "sine", 780, 980, 0.06); }
+    else if (name === "ding") { osc(t, 0.14, "triangle", 494, 330, 0.07); osc(t + 0.16, 0.18, "sine", 330, 220, 0.06); }
     else if (name === "wait") osc(t, 0.16, "sine", 180, 140, 0.05);
   }
   function ensureAudio() {
@@ -694,8 +698,14 @@
     }
     return { lobes, drops, rot: Math.random() * Math.PI * 2 };
   }
+  function plateFull() {
+    showNote("The plate's full!");
+  }
+  function acceptPlate() {
+    if (noteEl.textContent === "The plate's full!") clearNote();
+  }
   function addBlob(x, y, color, group) {
-    if (countMarks("blob") >= 400) return null;
+    if (countMarks("blob") >= PLATE_CAPS.blobs) return null;
     const uv = toUV(x, y);
     const splat = makeSplat();
     const mark = { type: "blob", color, u: uv.u, v: uv.v, group, lobes: splat.lobes, drops: splat.drops, rot: splat.rot };
@@ -703,7 +713,7 @@
     return mark;
   }
   function addCluster(x, y, group) {
-    if (countMarks("sprinkle") >= 80 * 7) return;
+    if (countMarks("sprinkle") >= PLATE_CAPS.sprinkleShakes * 7) return false;
     const hues = ["#e23b3b", "#2f8a3e", "#ffc857", "#6eb5e8", "#6b3a2a", "#e86a9a", "#f08a3a"];
     for (let i = 0; i < 7; i++) {
       const ang = Math.random() * Math.PI * 2;
@@ -717,6 +727,7 @@
       };
       marks.push(mark);
     }
+    return true;
   }
   function moveGroup(group, x, y) {
     const center = toUV(x, y);
@@ -739,16 +750,23 @@
       path: 0, lined: false, promoted: false, scored: null
     };
     if (tool === "sprinkles") {
-      addCluster(x, y, group);
+      if (!addCluster(x, y, group)) {
+        plateFull();
+        return null;
+      }
       score.sprinkles++;
       g.scored = "cluster";
       playSound("sprinkle");
     } else if (COLORS[tool]) {
-      addBlob(x, y, tool, group);
+      if (!addBlob(x, y, tool, group)) {
+        plateFull();
+        return null;
+      }
       score.globs[tool]++;
       g.scored = "glob";
       playSound("splat");
     } else return null;
+    acceptPlate();
     gesture = g;
     return g;
   }
@@ -775,8 +793,13 @@
       const t = spacing / dist;
       g.drawX += (x - g.drawX) * t;
       g.drawY += (y - g.drawY) * t;
-      if (g.tool === "sprinkles") addCluster(g.drawX, g.drawY, g.group);
-      else addBlob(g.drawX, g.drawY, g.color, g.group);
+      const added = g.tool === "sprinkles"
+        ? addCluster(g.drawX, g.drawY, g.group)
+        : addBlob(g.drawX, g.drawY, g.color, g.group);
+      if (!added) {
+        plateFull();
+        break;
+      }
       guard++;
     }
     if (!g.promoted && g.path >= stripeLength()) {
@@ -794,11 +817,12 @@
   function endGesture() { gesture = null; }
   function placeCherry(x, y) {
     if (!inDonut(x, y)) return null;
-    if (countMarks("cherry") >= 24) { playSound("cherry"); return null; }
+    if (countMarks("cherry") >= PLATE_CAPS.cherries) { plateFull(); return null; }
     const uv = toUV(x, y);
     const mark = { type: "cherry", u: uv.u, v: uv.v };
     marks.push(mark);
     score.cherries++;
+    acceptPlate();
     playSound("cherry");
     return mark;
   }
@@ -831,18 +855,21 @@
   }
   function placeScoop(color) {
     if (!color) return;
-    if (placedScoops() >= 8) { playSound("glob"); return; }
+    if (placedScoops() >= PLATE_CAPS.scoops) { plateFull(); return; }
     marks.push({ type: "scoop", color, u: 0, v: 0, placed: true });
     score.scoops[color]++;
+    acceptPlate();
     playSound("glob");
   }
   function beginScoopDrag(x, y) {
     const color = flavorOf(tool);
-    if (!color || placedScoops() >= 8) { playSound("glob"); return; }
+    if (!color) return;
+    if (placedScoops() >= PLATE_CAPS.scoops) { plateFull(); return; }
     const uv = toUV(x, y);
     const mark = { type: "scoop", color, u: uv.u, v: uv.v, placed: false };
     marks.push(mark);
     scoopDrag = mark;
+    acceptPlate();
     playSound("glob");
   }
   function moveScoop(x, y) {
@@ -867,10 +894,11 @@
   function beginSwirl(source) {
     const color = flavorOf(tool);
     if (!color) return null;
-    if (countMarks("swirl") >= 6) { playSound("glob"); return null; }
+    if (countMarks("swirl") >= PLATE_CAPS.swirls) { plateFull(); return null; }
     const mark = { type: "swirl", color, h: 0.35 };
     marks.push(mark);
     score.swirls[color]++;
+    acceptPlate();
     const g = { kind: "swirl", source, mark, tool: "swirl", path: 0 };
     gesture = g;
     playSound("glob");
@@ -985,6 +1013,29 @@
     });
     reqsEl.replaceChildren(frag);
   }
+  const noteEl = document.getElementById("note");
+  function showNote(text) {
+    noteEl.textContent = text;
+    noteUntil = clock + 1600;
+  }
+  function clearNote() {
+    noteEl.textContent = "";
+    noteUntil = 0;
+  }
+  function advanceOrder(skip, keepPatience) {
+    const info = levelId === "rush" ? locateBox(orderIndex) : null;
+    const moreInBox = !!(keepPatience && info && info.slot < info.size - 1);
+    const finished = currentCard();
+    const nextIndex = orderIndex + skip;
+    clearDonut();
+    if (nextIndex > deck().length) dealOrders(finished);
+    orderIndex = nextIndex > deck().length ? 1 : nextIndex;
+    treat = currentCard().treat;
+    if (!moreInBox) resetPatience();
+    showTools();
+    updateCard();
+    updateClock();
+  }
   function serve() {
     if (mode === "free") {
       playSound("serve");
@@ -994,28 +1045,18 @@
       return;
     }
     if (mode !== "orders") return;
-    if (!cardFilled()) {
-      playSound("wait");
-      card.classList.remove("wiggle");
-      void card.offsetWidth;
-      card.classList.add("wiggle");
-      wiggleUntil = clock + 400;
-      return;
-    }
-    playSound("serve");
+    const matched = cardFilled();
+    playSound(matched ? "serve" : "ding");
+    if (matched) {
+      correctServes += 1;
+      clearNote();
+    } else showNote("Ding!");
     flashUntil = clock + (reduceMotion ? 40 : 700);
-    const info = levelId === "rush" ? locateBox(orderIndex) : null;
-    const moreInBox = info && info.slot < info.size - 1;
-    const finished = currentCard();
-    const atEnd = orderIndex >= deck().length;
-    clearDonut();
-    if (atEnd) dealOrders(finished);
-    orderIndex = atEnd ? 1 : orderIndex + 1;
-    treat = currentCard().treat;
-    if (!moreInBox) resetPatience();
-    showTools();
-    updateCard();
-    updateClock();
+    if (matched) advanceOrder(1, true);
+    else {
+      const info = levelId === "rush" ? locateBox(orderIndex) : null;
+      advanceOrder(info ? info.size - info.slot : 1, false);
+    }
   }
   function showTools() {
     const ice = iceTreat();
@@ -1044,6 +1085,7 @@
     treat = id;
     tool = iceTreat() ? "chocolate" : "pink";
     clearDonut();
+    clearNote();
     showTools();
     syncTreatButtons();
     placeChrome();
@@ -1080,6 +1122,7 @@
     tool = "pink";
     treat = "donut";
     orderIndex = 1;
+    correctServes = 0;
     latch = false;
     pointerActive = false;
     capId = null;
@@ -1089,6 +1132,7 @@
     dwellKey = null;
     dwellFired = false;
     clearDonut();
+    clearNote();
     trayScoop = null;
     toolEls.blue.style.background = "";
     showTools();
@@ -1107,6 +1151,7 @@
     if (mode === "orders") dealOrders();
     else playDeck = null;
     orderIndex = 1;
+    correctServes = 0;
     treat = mode === "orders" ? currentCard().treat : "donut";
     tool = iceTreat() ? "chocolate" : "pink";
     resetPatience();
@@ -1125,6 +1170,7 @@
     gazeAt = 0;
     gazeEl.classList.remove("squeezing");
     clearDonut();
+    clearNote();
     showTools();
     syncTreatButtons();
     screen.hidden = true;
@@ -1291,6 +1337,7 @@
       ctx.fillStyle = FLAVOR_COLOR[trayScoop.color];
       ctx.fill();
     }
+    if (noteUntil && clock >= noteUntil) clearNote();
     if (clock < flashUntil) {
       ctx.save();
       ctx.globalAlpha = reduceMotion ? 0.45 : Math.max(0, (flashUntil - clock) / 700) * 0.35;
@@ -1916,6 +1963,8 @@
       },
       orderIndex: mode === "orders" ? orderIndex : 0,
       orderFilled: mode === "orders" && cardFilled(),
+      note: noteEl.textContent,
+      correctServes,
       visuals: {
         icing: countMarks("blob"),
         sprinkles: countMarks("sprinkle"),
@@ -2118,7 +2167,23 @@
       tap(approxCenter().nx, approxCenter().ny);
       tap(centers().done.nx, centers().done.ny);
       s = state();
-      if (s.orderIndex !== 1 || s.marks.globs.pink !== 1) fail("Case 12", "early Done changed the order or cleared marks: index " + s.orderIndex + " globs " + s.marks.globs.pink);
+      if (s.orderIndex !== 2 || s.marks.globs.pink !== 0 || s.visuals.icing !== 0 || s.note !== "Ding!" || s.correctServes !== 0) {
+        fail("Case 12", "a short order stayed on the counter: " + JSON.stringify(s));
+      }
+
+      selectLevel("rush");
+      start("orders");
+      tap(approxCenter().nx, approxCenter().ny);
+      timeLeft = 10;
+      doneBtn.click();
+      s = state();
+      const missedBox = order();
+      if (s.orderIndex !== 3 || s.marks.globs.pink !== 0 || s.note !== "Ding!" || s.timeLeft !== 150 || s.correctServes !== 0) {
+        fail("Case 12", "a missed Rush treat stayed in the box: " + JSON.stringify(s) + " " + JSON.stringify(missedBox.box));
+      }
+      if (!missedBox.box || missedBox.box.slot !== 1 || missedBox.box.packed !== 0 || missedBox.box.number !== 2) {
+        fail("Case 12", "a miss did not bring the next customer: " + JSON.stringify(missedBox.box));
+      }
 
       start("orders");
       tap(approxCenter().nx, approxCenter().ny);
@@ -2126,7 +2191,7 @@
       tap(approxCenter().nx, approxCenter().ny);
       tap(centers().done.nx, centers().done.ny);
       s = state();
-      if (s.orderIndex !== 2 || s.marks.globs.pink !== 0 || s.visuals.icing !== 0) fail("Case 13", "finished Done did not advance and clear: " + JSON.stringify(s));
+      if (s.orderIndex !== 2 || s.marks.globs.pink !== 0 || s.visuals.icing !== 0 || s.correctServes !== 1 || s.note === "Ding!") fail("Case 13", "finished Done did not advance and clear: " + JSON.stringify(s));
 
       start("free");
       tap(centers().tools.sprinkles.nx, centers().tools.sprinkles.ny);
@@ -2297,6 +2362,76 @@
       s = state();
       if (s.customer !== "left" || s.marks.globs.pink !== 1 || (clockEl.textContent !== "See you soon" && clockEl.textContent !== "Soon")) {
         fail("Case 24", "rush leave cleared the treat or stayed: " + JSON.stringify(s) + " " + clockEl.textContent);
+      }
+
+      selectLevel("shop");
+      start("free");
+      setTreat("scoops");
+      tap(centers().tools.chocolate.nx, centers().tools.chocolate.ny);
+      for (let i = 0; i < 24; i++) tap(approxCenter().nx, approxCenter().ny);
+      s = state();
+      if (s.marks.scoops.chocolate !== 24 || s.note === "The plate's full!") {
+        fail("Case 25", "24 scoops did not fit: " + s.marks.scoops.chocolate + " note " + s.note);
+      }
+      tap(approxCenter().nx, approxCenter().ny);
+      const coneFull = layout().donut;
+      drag([
+        { x: coneFull.cx / window.innerWidth, y: coneFull.cy / window.innerHeight },
+        { x: (coneFull.cx + coneFull.rx * 0.15) / window.innerWidth, y: coneFull.cy / window.innerHeight }
+      ]);
+      s = state();
+      if (s.marks.scoops.chocolate !== 24 || s.note !== "The plate's full!") {
+        fail("Case 25", "scoop 25 was added: " + s.marks.scoops.chocolate + " note " + s.note);
+      }
+
+      setTreat("soft");
+      tap(centers().tools.chocolate.nx, centers().tools.chocolate.ny);
+      for (let i = 0; i < 12; i++) tap(approxCenter().nx, approxCenter().ny);
+      s = state();
+      if (s.marks.swirls.chocolate !== 12 || s.note === "The plate's full!") {
+        fail("Case 25", "12 swirls did not fit: " + s.marks.swirls.chocolate + " note " + s.note);
+      }
+      tap(approxCenter().nx, approxCenter().ny);
+      s = state();
+      if (s.marks.swirls.chocolate !== 12 || s.note !== "The plate's full!") {
+        fail("Case 25", "swirl 13 was added: " + s.marks.swirls.chocolate + " note " + s.note);
+      }
+
+      setTreat("donut");
+      tap(centers().tools.cherry.nx, centers().tools.cherry.ny);
+      for (let i = 0; i < 48; i++) tap(approxCenter().nx, approxCenter().ny);
+      s = state();
+      if (s.marks.cherries !== 48 || s.note === "The plate's full!") {
+        fail("Case 25", "48 cherries did not fit: " + s.marks.cherries + " note " + s.note);
+      }
+      tap(approxCenter().nx, approxCenter().ny);
+      s = state();
+      if (s.marks.cherries !== 48 || s.note !== "The plate's full!") {
+        fail("Case 25", "cherry 49 was added: " + s.marks.cherries + " note " + s.note);
+      }
+
+      tap(centers().tools.sprinkles.nx, centers().tools.sprinkles.ny);
+      for (let i = 0; i < 200; i++) tap(approxCenter().nx, approxCenter().ny);
+      s = state();
+      if (s.marks.sprinkles !== 200 || s.visuals.sprinkles !== 1400 || s.note === "The plate's full!") {
+        fail("Case 25", "200 sprinkle shakes did not fit: " + s.marks.sprinkles + " marks " + s.visuals.sprinkles + " note " + s.note);
+      }
+      tap(approxCenter().nx, approxCenter().ny);
+      s = state();
+      if (s.marks.sprinkles !== 200 || s.visuals.sprinkles !== 1400 || s.note !== "The plate's full!") {
+        fail("Case 25", "sprinkle shake 201 was added: " + s.marks.sprinkles + " marks " + s.visuals.sprinkles + " note " + s.note);
+      }
+
+      tap(centers().tools.pink.nx, centers().tools.pink.ny);
+      for (let i = 0; i < 800; i++) tap(approxCenter().nx, approxCenter().ny);
+      s = state();
+      if (s.marks.globs.pink !== 800 || s.visuals.icing !== 800 || s.note === "The plate's full!") {
+        fail("Case 25", "800 icing splats did not fit: " + s.marks.globs.pink + " marks " + s.visuals.icing + " note " + s.note);
+      }
+      tap(approxCenter().nx, approxCenter().ny);
+      s = state();
+      if (s.marks.globs.pink !== 800 || s.visuals.icing !== 800 || s.note !== "The plate's full!") {
+        fail("Case 25", "splat 801 was added: " + s.marks.globs.pink + " marks " + s.visuals.icing + " note " + s.note);
       }
     } catch (err) {
       failures.push("Case error: " + (err && err.stack ? err.stack : err));
