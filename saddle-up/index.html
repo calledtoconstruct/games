@@ -451,7 +451,7 @@
   let eatUntil = 0;
   let pourUntil = 0;
   let travel = null;
-  const chase = { x: null, y: null, gait: "stand", face: 1 };
+  const chase = { x: null, y: null, gait: "stand", face: 1, shown: 1, turnFrom: 0, turnTo: 1 };
   let hoofReturnAt = 0;
   let phaseMs = 0;
   let clock = 0;
@@ -613,7 +613,7 @@
     }
     if (!opts.arrive && !checking && !reduceMotion && session.place === "stable" && place === "yard" && session.horse) {
       if (!travel || travel.kind !== "out") {
-        travel = { kind: "out", dest: "yard", start: clock, ms: 1700 };
+        travel = { kind: "out", dest: "yard", start: clock, ms: 2600, turnMs: 900 };
         pose = "walk";
         render();
       }
@@ -716,6 +716,9 @@
     chase.y = null;
     chase.gait = "stand";
     chase.face = 1;
+    chase.shown = 1;
+    chase.turnFrom = 0;
+    chase.turnTo = 1;
   }
 
   function endCattle() {
@@ -724,6 +727,9 @@
     chase.y = null;
     chase.gait = "stand";
     chase.face = 1;
+    chase.shown = 1;
+    chase.turnFrom = 0;
+    chase.turnTo = 1;
   }
 
   function herdBlock() {
@@ -2029,11 +2035,63 @@
 
   function travelShift() {
     if (!travel || checking || reduceMotion || session.place !== "stable") return 0;
-    const u = Math.max(0, Math.min(1, (clock - travel.start) / travel.ms));
-    const ease = u * u * (3 - 2 * u);
     const dist = Math.min(460, Math.max(220, window.innerWidth * 0.42));
-    if (travel.kind === "in") return (1 - ease) * -dist;
+    if (travel.kind === "in") {
+      const u = Math.max(0, Math.min(1, (clock - travel.start) / travel.ms));
+      const ease = u * u * (3 - 2 * u);
+      return (1 - ease) * -dist;
+    }
+    const turnMs = travel.turnMs || 0;
+    const walked = clock - travel.start - turnMs;
+    if (walked <= 0) return 0;
+    const u = Math.max(0, Math.min(1, walked / Math.max(1, travel.ms - turnMs)));
+    const ease = u * u * (3 - 2 * u);
     return ease * -dist;
+  }
+
+  function turnScale(from, to, t) {
+    let scale = from * Math.cos(t * Math.PI / 2) + to * Math.sin(t * Math.PI / 2);
+    if (Math.abs(scale) < 0.64) {
+      const sign = t < 0.5 ? (from < 0 ? -1 : 1) : (to < 0 ? -1 : 1);
+      scale = sign * 0.64;
+    }
+    return scale;
+  }
+
+  function haunchFacing(from, to, t) {
+    if (t <= 0) return { scale: from, bend: 0 };
+    if (t >= 1) return { scale: to, bend: 0 };
+    if (t < 0.62) return { scale: from, bend: Math.sin((t / 0.62) * Math.PI / 2) };
+    if (t < 0.8) return { scale: turnScale(from, to, (t - 0.62) / 0.18), bend: 1 };
+    return { scale: to, bend: Math.cos(((t - 0.8) / 0.2) * Math.PI / 2) };
+  }
+
+  function travelFacing() {
+    if (!travel || checking || reduceMotion || session.place !== "stable" || travel.kind !== "out") return null;
+    const turnMs = travel.turnMs || 0;
+    if (!turnMs) return { scale: -1, bend: 0 };
+    return haunchFacing(1, -1, (clock - travel.start) / turnMs);
+  }
+
+  function facingOf(face) {
+    if (face && typeof face === "object") {
+      let scale = face.scale == null ? 1 : face.scale;
+      if (scale > 1) scale = 1;
+      if (scale < -1) scale = -1;
+      let bend = face.bend > 0 ? face.bend : 0;
+      if (bend > 1) bend = 1;
+      return { scale: scale, bend: bend };
+    }
+    if (typeof face === "number" && face < 0) return { scale: -1, bend: 0 };
+    return { scale: 1, bend: 0 };
+  }
+
+  function resolveFacing(face, appearance) {
+    if (!appearance) {
+      const leaving = travelFacing();
+      if (leaving) return leaving;
+    }
+    return facingOf(face);
   }
 
   function gaitBob(gait, phase) {
@@ -2068,11 +2126,20 @@
     else if (!reduceMotion && gait === "trot") vis.y += Math.sin(phase * Math.PI * 4) * 2;
     else if (gait === "gallop") { vis.x += 8 * s; vis.y -= 3 * s; }
     else if (gait === "jump") { vis.x += 10 * s; vis.y -= 12 * s; }
+    const facing = resolveFacing(face, appearance);
+    const turn = facing.bend;
+    const glance = eyeGlance(poseName, appearance);
+    if (turn > 0.04) {
+      vis.x -= turn * 16 * s;
+      vis.y += turn * 4 * s;
+      glance.x = glance.x * (1 - turn) - turn * 0.9;
+      glance.ear = glance.ear * (1 - turn) - turn * 0.8;
+    }
     ctx.save();
     ctx.translate(appearance ? 0 : travelShift(), gaitBob(gait, phase));
-    if (face < 0) {
+    if (facing.scale !== 1) {
       ctx.translate(body.cx, 0);
-      ctx.scale(-1, 1);
+      ctx.scale(facing.scale, 1);
       ctx.translate(-body.cx, 0);
     }
     ctx.lineJoin = "round";
@@ -2083,8 +2150,23 @@
     const ground = hip.y + 90 * s;
     const reachPx = 48 * s;
     const far = shade(meta.coat, -36);
-    function paintLeg(name, at, upper, lower, width, coat, bend) {
-      drawLeg(at, legShift(name, gait, phase), ground - at.y, reachPx, upper, lower, width, coat, bend);
+    function paintLeg(name, at, upper, lower, width, coat, knee) {
+      const raw = legShift(name, gait, phase);
+      const shift = { x: raw.x, y: raw.y, tuck: raw.tuck };
+      if (turn > 0.04) {
+        if (name === "nearFore") {
+          shift.x += turn * 0.9;
+          shift.y -= turn * 0.2;
+        } else if (name === "farFore") {
+          shift.x -= turn * 0.75;
+          shift.y -= turn * 0.35;
+        } else {
+          const hold = 1 - 0.8 * turn;
+          shift.x *= hold;
+          shift.y *= hold;
+        }
+      }
+      drawLeg(at, shift, ground - at.y, reachPx, upper, lower, width, coat, knee);
     }
     paintLeg("farHind", { x: hip.x + 10 * s, y: hip.y - 6 * s }, 46 * s, 52 * s, Math.max(7, 16 * s), far, 1);
     paintLeg("farFore", { x: shoulder.x - 8 * s, y: shoulder.y - 4 * s }, 42 * s, 50 * s, Math.max(7, 14 * s), far, -1);
@@ -2098,8 +2180,17 @@
       ctx.ellipse(body.cx - body.rx * 0.85 - puff * 28, ground - 6, 7 + puff * 12, 4 + puff * 3, 0, 0, Math.PI * 2);
       ctx.fill();
     }
+    const withersX = body.cx + body.rx * 0.12;
+    const withersY = body.cy - body.ry * 0.42;
+    ctx.save();
+    if (turn > 0.04) {
+      ctx.translate(withersX, withersY);
+      ctx.rotate(-turn * 1.15);
+      ctx.translate(-withersX, -withersY);
+    }
     drawNeck(body, vis, meta.coat, meta.mane);
-    drawHorseHead(vis, meta.coat, meta.mane, meta.ribbon, eyeGlance(poseName, appearance), poseName);
+    drawHorseHead(vis, meta.coat, meta.mane, meta.ribbon, glance, poseName);
+    ctx.restore();
     if (meta.id === "pinto") {
       ctx.beginPath();
       ctx.ellipse(parts.patch.x, parts.patch.y, parts.patch.rx, parts.patch.ry, -0.4, 0, Math.PI * 2);
@@ -2619,6 +2710,19 @@
     if (session.vet && session.vet.part) paintPartBadge(Math.round(w * 0.55), Math.round(h * 0.32), session.vet.part);
   }
 
+  function raceFacing(progress) {
+    const a = Math.PI / 2 + progress * Math.PI * 2;
+    const dx = -Math.sin(a);
+    const ddx = -Math.cos(a);
+    const sign = Math.abs(dx) < 1e-4 ? (ddx >= 0 ? 1 : -1) : (dx < 0 ? -1 : 1);
+    if (reduceMotion) return { scale: sign, bend: 0 };
+    const adx = Math.abs(dx);
+    let bend = adx >= 0.55 ? 0 : (0.55 - adx) / 0.55;
+    if (dx * ddx > 0) bend *= 0.2;
+    if (adx < 0.12) bend *= adx / 0.12;
+    return { scale: sign * (1 - bend * 0.28), bend: bend };
+  }
+
   function trackPoint(w, h, progress, lane) {
     const cx = w * 0.5;
     const cy = h * 0.46;
@@ -2699,7 +2803,7 @@
         anchorX: point.x,
         anchorY: point.y - 46 * scale
       };
-      drawHorse(ctx, box, trackGait(item.horse.key), item.horse.appearance);
+      drawHorse(ctx, box, trackGait(item.horse.key), item.horse.appearance, raceFacing(item.horse.progress));
       const label = item.horse.label;
       ctx.font = "700 16px " + FONT;
       const chipW = Math.max(72, ctx.measureText(label).width + 18);
@@ -2803,7 +2907,7 @@
         h: unit * 0.72,
         anchorX: hx,
         anchorY: hy
-      }, fieldGait, null, chase.face || 1);
+      }, fieldGait, null, chaseFacing());
       paintSweat(hx - 20, hy - 70);
     }
     const cattle = session.cattle;
@@ -3502,6 +3606,9 @@
       chase.y = homeY;
       chase.gait = "stand";
       chase.face = 1;
+      chase.shown = 1;
+      chase.turnFrom = 0;
+      chase.turnTo = 1;
       return;
     }
     const target = session.cattle.cows.find((cow) => cow.state === "loop");
@@ -3512,7 +3619,6 @@
       const dir = cowX >= chase.x ? 1 : -1;
       goalX = cowX - dir * 86;
       goalY = target.yFrac * h;
-      chase.face = dir;
     }
     const dx = goalX - chase.x;
     const dy = goalY - chase.y;
@@ -3523,11 +3629,40 @@
       chase.x += (dx / dist) * stepPx;
       chase.y += (dy / dist) * stepPx;
       chase.gait = dist > 170 ? "gallop" : "canter";
-      if (!target) chase.face = dx < 0 ? -1 : 1;
     } else {
       chase.gait = target ? "canter" : "stand";
-      if (!target) chase.face = 1;
     }
+    let want = chase.shown;
+    if (dist > 6 && Math.abs(dx) > 4) want = dx < 0 ? -1 : 1;
+    else if (!target) want = 1;
+    askChaseTurn(want);
+  }
+
+  function finishChaseTurn() {
+    if (!chase.turnFrom || clock - chase.turnFrom < 650) return;
+    chase.shown = chase.turnTo;
+    chase.face = chase.shown;
+    chase.turnFrom = 0;
+  }
+
+  function askChaseTurn(want) {
+    finishChaseTurn();
+    if (chase.turnFrom) return;
+    if (want === chase.shown) {
+      chase.face = chase.shown;
+      return;
+    }
+    chase.turnFrom = clock;
+    chase.turnTo = want;
+    chase.face = want;
+  }
+
+  function chaseFacing() {
+    if (!chase.turnFrom) return { scale: chase.shown || 1, bend: 0 };
+    const t = (clock - chase.turnFrom) / 650;
+    if (t <= 0) return { scale: chase.shown || 1, bend: 0 };
+    if (t >= 1) return { scale: chase.turnTo || 1, bend: 0 };
+    return haunchFacing(chase.shown || 1, chase.turnTo || 1, t);
   }
 
   function look(nx, ny) {
