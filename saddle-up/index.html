@@ -36,10 +36,10 @@
     background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
     box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
   }
-  #gaze[hidden], #eyes[hidden], .panel[hidden], #back[hidden],
+  #gaze[hidden], #eyes-chip[hidden], .panel[hidden], #back[hidden],
   #dock[hidden], #hoof-ui[hidden], #jump-ui[hidden], #race-ui[hidden], #cattle-ui[hidden],
-  #day-ui[hidden], #barn-ui[hidden], #clock[hidden], #banner[hidden] { display: none !important; }
-  #eyes {
+  #day-ui[hidden], #barn-ui[hidden], #clock[hidden], #banner[hidden], #vet-ui[hidden] { display: none !important; }
+  #eyes-chip {
     position: fixed; z-index: 46;
     top: calc(18px + env(safe-area-inset-top));
     left: 172px;
@@ -171,6 +171,21 @@
     box-shadow: 0 4px 0 #c8b48a;
   }
   #day-again, #barn-back { background: var(--sun); box-shadow: 0 4px 0 var(--sun-d); }
+  #vet-ui { position: fixed; inset: 0; z-index: 44; pointer-events: none; }
+  #vet-ui button {
+    position: fixed; pointer-events: auto;
+    border: none; border-radius: 16px;
+    background: var(--paper); color: var(--ink);
+    font-weight: 800; font-size: 15px; line-height: 1.05;
+    box-shadow: 0 4px 0 #c8b48a;
+    padding: 4px;
+  }
+  #vet-ui #lesson-clean { background: #f0d2b0; color: var(--ink); }
+  #vet-ui #lesson-dirty { background: #6b4a2a; color: var(--paper); }
+  #vet-ui #lesson-yes { background: var(--sun); color: var(--ink); box-shadow: 0 4px 0 var(--sun-d); font-size: 22px; }
+  #vet-ui #lesson-no { font-size: 22px; }
+  #vet-ui #lesson-water { background: #3d8fd4; color: #fffdf6; }
+  #vet-ui #lesson-empty { background: #c4a574; color: var(--ink); }
 </style>
 </head>
 <body>
@@ -188,16 +203,16 @@
 <button id="full" type="button" aria-label="Fullscreen">Full</button>
 <button id="back" type="button" hidden>Back to Menu</button>
 <p id="banner" role="status" hidden></p>
-<div id="eyes" hidden>Eyes</div>
+<div id="eyes-chip" hidden>Eyes</div>
 <div id="gaze" hidden></div>
 
 <section id="panel-level" class="panel">
   <h1>Saddle Up!</h1>
   <p class="tag">Horse farm</p>
   <div class="stack" id="levels">
-    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Brush, water, and feed, then one jump. No clock.</small></button>
-    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. The same barn, a short ride, a gentle race, and two cows. No clock.</small></button>
-    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. The same barn, jumps, a race, cattle, and a long barn day.</small></button>
+    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Take care of your horse, then a short walk. No clock.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. Care, a ride, and a gentle race. No clock.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. Jumps, a race, cattle, and a long barn day.</small></button>
     <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Faster jumps from the saddle, cattle, and a shorter barn day.</small></button>
   </div>
   <div class="stack" style="margin-top:12px">
@@ -219,7 +234,7 @@
   <button id="brush" type="button" data-play="true">Brush</button>
   <button id="water" type="button" data-play="true">Water</button>
   <button id="saddle" type="button" data-play="true">Saddle</button>
-  <button id="hooves" type="button" data-play="true">Hooves</button>
+  <button id="dock-hooves" type="button" data-play="true">Hooves</button>
   <button id="apples" type="button" data-play="true">Apples</button>
   <button id="carrots" type="button" data-play="true">Carrots</button>
 </div>
@@ -270,6 +285,21 @@
   <button id="shoe-3" type="button" data-play="true">Shoe</button>
   <button id="shoe-4" type="button" data-play="true">Shoe</button>
   <button id="barn-cattle" type="button">Back to the cattle</button>
+</div>
+
+<div id="vet-ui" hidden>
+  <button id="hooves" type="button" data-play="true">Hooves</button>
+  <button id="mouth" type="button" data-play="true">Mouth</button>
+  <button id="teeth" type="button" data-play="true">Teeth</button>
+  <button id="belly" type="button" data-play="true">Belly</button>
+  <button id="eyes" type="button" data-play="true">Eyes</button>
+  <button id="coat" type="button" data-play="true">Coat</button>
+  <button id="lesson-clean" type="button" data-play="true" hidden>Clean hoof</button>
+  <button id="lesson-dirty" type="button" data-play="true" hidden>Dirty hoof</button>
+  <button id="lesson-yes" type="button" data-play="true" hidden>Yes</button>
+  <button id="lesson-no" type="button" data-play="true" hidden>No</button>
+  <button id="lesson-water" type="button" data-play="true" hidden>Water</button>
+  <button id="lesson-empty" type="button" data-play="true" hidden>Empty</button>
 </div>
 
 <script>
@@ -336,6 +366,18 @@
     shoeTaps: 4
   };
 
+  const VET_CASES = {
+    tiny: [],
+    little: [{ id: "morning", lessonId: "hoof", checksNeeded: 2 }],
+    shop: [{ id: "morning", lessonId: "teeth", checksNeeded: 3 }],
+    rush: [
+      { id: "morning", lessonId: "teeth", checksNeeded: 3 },
+      { id: "dusty", lessonId: "water", checksNeeded: 3 }
+    ]
+  };
+
+  const VET_PARTS = ["hooves", "mouth", "teeth", "belly", "eyes", "coat"];
+
   const BREEDS = [
     { id: "palomino", name: "Sunny", parent: "Gold", coat: "#e2b84a", mane: "#f3e2a0", ribbon: "#e23b3b" },
     { id: "pinto", name: "Patches", parent: "Spots", coat: "#8a4b2a", mane: "#2a2118", ribbon: "#ffc857" },
@@ -348,7 +390,8 @@
     { id: "jumps", label: "Ride", levels: ["tiny", "little", "shop", "rush"] },
     { id: "race", label: "Race", levels: ["little", "shop", "rush"] },
     { id: "cattle", label: "Cattle", levels: ["little", "shop", "rush"] },
-    { id: "chores", label: "Barn day", levels: ["shop", "rush"] }
+    { id: "chores", label: "Barn day", levels: ["shop", "rush"] },
+    { id: "vet", label: "Call the vet", levels: ["tiny", "little", "shop", "rush"] }
   ];
 
   const RIVALS = {
@@ -358,7 +401,7 @@
   };
 
   const PLACES = ["level", "breed", "yard", "stable", "hoof", "jumps", "race", "cattle", "chores", "vet"];
-  const LIVE = { level: true, breed: true, yard: true, stable: true, hoof: true, jumps: true, race: true, cattle: true, chores: true };
+  const LIVE = { level: true, breed: true, yard: true, stable: true, hoof: true, jumps: true, race: true, cattle: true, chores: true, vet: true };
   const LOW_COLOR = "#2f8a3e";
   const MID_COLOR = "#e2a62e";
   const HIGH_COLOR = "#e07030";
@@ -369,7 +412,7 @@
   const fullBtn = document.getElementById("full");
   const backBtn = document.getElementById("back");
   const bannerEl = document.getElementById("banner");
-  const eyesEl = document.getElementById("eyes");
+  const eyesEl = document.getElementById("eyes-chip");
   const gazeEl = document.getElementById("gaze");
   const panelLevel = document.getElementById("panel-level");
   const panelBreed = document.getElementById("panel-breed");
@@ -380,6 +423,7 @@
   const jumpUi = document.getElementById("jump-ui");
   const raceUi = document.getElementById("race-ui");
   const cattleUi = document.getElementById("cattle-ui");
+  const vetUi = document.getElementById("vet-ui");
   const letsGoBtn = document.getElementById("lets-go");
 
   const session = {
@@ -390,7 +434,8 @@
     jumps: null,
     race: null,
     cattle: null,
-    chores: null
+    chores: null,
+    vet: null
   };
 
   let boostLatch = false;
@@ -477,6 +522,7 @@
       return herdBanner();
     }
     if (session.place === "cattle" && session.cattle) return herdBanner();
+    if (session.place === "vet" && session.vet) return vetBanner();
     if (session.place === "hoof") {
       return horse.care.spots.every((s) => s.cleared) ? "Clean hooves." : "Hooves.";
     }
@@ -557,7 +603,7 @@
       }
       return;
     }
-    if ((place === "yard" || place === "stable" || place === "hoof" || place === "jumps" || place === "race" || place === "cattle" || place === "chores") && !session.horse) {
+    if ((place === "yard" || place === "stable" || place === "hoof" || place === "jumps" || place === "race" || place === "cattle" || place === "chores" || place === "vet") && !session.horse) {
       if (place === "yard") place = "breed";
       else return;
     }
@@ -568,11 +614,13 @@
     if (place !== "jumps") endJumps();
     if (place !== "race") endRace();
     if (place !== "cattle") endCattle();
+    if (place !== "vet") endVet();
     session.place = place;
     if (place === "jumps") beginJumps();
     if (place === "race") beginRace();
     if (place === "cattle") beginCattle();
     if (place === "chores") beginChores();
+    if (place === "vet") beginVet();
     maybeCheer();
     render();
   }
@@ -1270,13 +1318,123 @@
     render();
   }
 
+  function beginVet() {
+    const rows = VET_CASES[session.levelId] || [];
+    const row = rows[0] || null;
+    session.vet = {
+      caseIndex: 0,
+      caseId: row ? row.id : null,
+      checked: [],
+      lessonId: row ? row.lessonId : null,
+      lesson: "none",
+      line: "The vet.",
+      part: null,
+      leanUntil: 0
+    };
+  }
+
+  function endVet() {
+    session.vet = null;
+  }
+
+  function vetBanner() {
+    const vet = session.vet;
+    if (!vet) return "The vet.";
+    const rows = VET_CASES[session.levelId] || [];
+    if (vet.lesson === "right") return "The vet says all set.";
+    if (!rows.length && vet.checked.length >= 1) return "The vet says all set.";
+    if (vet.lesson === "pending" && vet.line === "Look again.") return "Look again.";
+    if (vet.lesson === "pending") {
+      if (vet.lessonId === "hoof") return "Which hoof is clean?";
+      if (vet.lessonId === "teeth") return "Does a horse need smooth teeth to chew?";
+      if (vet.lessonId === "water") return "Which bucket is water?";
+    }
+    return vet.line || "The vet.";
+  }
+
+  function vetSentence(part, horse) {
+    if (part === "hooves") {
+      const dirty = horse.care.spots.some((spot) => !spot.cleared);
+      return "The vet looks.\n" + (dirty ? "Let's pick the dirt." : "Clean hooves.");
+    }
+    if (part === "mouth") return "The vet looks in the mouth.";
+    if (part === "teeth") return "The vet smooths a tooth.";
+    if (part === "belly") {
+      return "The vet listens.\n" + (horse.needs.drink ? "Time for a drink." : "The belly sounds fine.");
+    }
+    if (part === "eyes") return "Bright eyes.";
+    if (part === "coat") return horse.care.brushed ? "The coat is shiny." : "A brush would help.";
+    return "The vet.";
+  }
+
+  function vetCheck(part) {
+    const vet = session.vet;
+    const horse = session.horse;
+    if (!vet || !horse || session.place !== "vet") return;
+    if (VET_PARTS.indexOf(part) < 0) return;
+    const line = vetSentence(part, horse);
+    const fresh = vet.checked.indexOf(part) < 0;
+    if (fresh) {
+      vet.checked.push(part);
+      playSound("vet");
+      if (part === "hooves") {
+        horse.care.spots.forEach((spot) => {
+          if (!spot.cleared) clearSpot(spot.id);
+        });
+      } else if (part === "belly" && horse.needs.drink) {
+        fillTrough();
+      }
+      const rows = VET_CASES[session.levelId] || [];
+      const row = rows[vet.caseIndex];
+      if (row && vet.lesson === "none" && vet.checked.length >= row.checksNeeded) vet.lesson = "pending";
+    }
+    vet.part = part;
+    vet.line = line;
+    vet.leanUntil = reduceMotion ? 0 : clock + 700;
+    render();
+  }
+
+  function lessonRight(lessonId, choice) {
+    if (lessonId === "hoof") return choice === "clean";
+    if (lessonId === "teeth") return choice === "yes";
+    if (lessonId === "water") return choice === "water";
+    return false;
+  }
+
+  function answerLesson(choice) {
+    const vet = session.vet;
+    if (!vet || session.place !== "vet") return;
+    if (vet.lesson === "right") return;
+    if (vet.lesson !== "pending") return;
+    if (!lessonRight(vet.lessonId, choice)) {
+      vet.line = "Look again.";
+      render();
+      return;
+    }
+    vet.lesson = "right";
+    vet.line = "The vet says all set.";
+    const rows = VET_CASES[session.levelId] || [];
+    const next = rows[vet.caseIndex + 1];
+    if (next) {
+      vet.caseIndex += 1;
+      vet.caseId = next.id;
+      vet.checked = [];
+      vet.lessonId = next.lessonId;
+      vet.lesson = "none";
+      vet.line = "The vet.";
+      vet.part = null;
+      vet.leanUntil = 0;
+    }
+    render();
+  }
+
   function letsGo() {
     go(session.horse ? "yard" : "breed");
   }
 
   function onBack() {
     if (session.place === "breed" || session.place === "yard") go("level");
-    else if (session.place === "stable" || session.place === "jumps" || session.place === "race" || session.place === "cattle") go("yard");
+    else if (session.place === "stable" || session.place === "jumps" || session.place === "race" || session.place === "cattle" || session.place === "vet") go("yard");
     else if (session.place === "hoof") go("stable");
   }
 
@@ -1342,7 +1500,7 @@
     const left = Math.round((w - rowW) / 2);
     const totalH = rows * size + (rows - 1) * gap;
     const top = h - totalH - 16;
-    const ids = ["brush", "water", "saddle", "hooves", "apples", "carrots"];
+    const ids = ["brush", "water", "saddle", "dock-hooves", "apples", "carrots"];
     return ids.map((id, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
@@ -1939,7 +2097,78 @@
     else if (session.place === "jumps") paintJumps(w, h);
     else if (session.place === "race") paintRace(w, h);
     else if (session.place === "cattle" || session.place === "chores") paintCattle(w, h);
+    else if (session.place === "vet") paintVet(w, h);
     else paintStable(w, h);
+  }
+
+  function paintVetPerson(x, y, lean) {
+    const shift = lean ? -26 : 0;
+    const px = x + shift;
+    ctx.fillStyle = "#f0d2b0";
+    ctx.beginPath();
+    ctx.arc(px, y, 22, 0, Math.PI * 2);
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.fillStyle = WOOD;
+    ctx.fillRect(px - 26, y - 30, 52, 10);
+    ctx.fillRect(px - 16, y - 48, 32, 20);
+    strokeInk();
+    ctx.strokeRect(px - 26, y - 30, 52, 10);
+    ctx.strokeRect(px - 16, y - 48, 32, 20);
+    roundFill(px - 28, y + 24, 56, 72, "#c46a3a", 14);
+    ctx.fillStyle = "#3d4f73";
+    ctx.fillRect(px - 22, y + 92, 16, 46);
+    ctx.fillRect(px + 6, y + 92, 16, 46);
+    roundFill(px + 34, y + 50, 36, 30, SADDLE, 8);
+    ctx.font = "700 18px " + FONT;
+    const label = "The vet";
+    const chipW = Math.max(88, ctx.measureText(label).width + 20);
+    const chipX = px - chipW / 2;
+    const chipY = y - 84;
+    roundFill(chipX, chipY, chipW, 28, PAPER, 12);
+    ctx.fillStyle = INK;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, px, chipY + 14);
+  }
+
+  function paintPartBadge(x, y, part) {
+    const coat = session.horse ? breedMeta(session.horse.breedId).coat : PAPER;
+    const fill = part === "hooves" ? HOOF
+      : part === "mouth" ? APPLE
+      : part === "teeth" ? PAPER
+      : part === "belly" ? CARROT
+      : part === "eyes" ? "#fffdf6"
+      : coat;
+    ctx.beginPath();
+    ctx.arc(x, y, 18, 0, Math.PI * 2);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    if (part === "eyes") {
+      ctx.fillStyle = INK;
+      ctx.beginPath();
+      ctx.arc(x + 4, y, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  function paintVet(w, h) {
+    ctx.fillStyle = "#9fd4f2";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = GRASS;
+    ctx.fillRect(0, Math.round(h * 0.62), w, h);
+    const box = { x: 16, y: 120, w: Math.max(220, w * 0.58), h: Math.max(200, h * 0.46) };
+    drawHorse(ctx, box, "stand");
+    if (session.horse) {
+      const parts = horseParts(box, "stand");
+      paintSweat(parts.head.x - 8, parts.head.y - parts.head.r - 10);
+    }
+    const lean = !!(session.vet && !reduceMotion && session.vet.leanUntil && clock < session.vet.leanUntil);
+    paintVetPerson(Math.round(w * 0.76), Math.round(h * 0.46), lean);
+    if (session.vet && session.vet.part) paintPartBadge(Math.round(w * 0.55), Math.round(h * 0.32), session.vet.part);
   }
 
   function trackPoint(w, h, progress, lane) {
@@ -2178,7 +2407,7 @@
     backBtn.hidden = false;
     let label = "Back";
     if (place === "breed" || place === "yard") label = "Back to Menu";
-    else if (place === "stable" || place === "jumps" || place === "race" || place === "cattle") label = "Back to the yard";
+    else if (place === "stable" || place === "jumps" || place === "race" || place === "cattle" || place === "vet") label = "Back to the yard";
     backBtn.textContent = label;
     backBtn.setAttribute("aria-label", label);
   }
@@ -2222,6 +2451,7 @@
     syncJumps(w, h);
     syncCattle(w, h);
     syncDay(w, h);
+    syncVet(w, h);
     paint();
   }
 
@@ -2275,7 +2505,7 @@
     const day = session.chores;
     const barn = !!(day && session.place === "stable" && day.phase === "barn");
     const morning = session.place === "stable" && !day;
-    ["brush", "saddle", "hooves", "apples", "carrots"].forEach((id) => {
+    ["brush", "saddle", "dock-hooves", "apples", "carrots"].forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.hidden = !morning;
     });
@@ -2325,6 +2555,60 @@
       clockEl.textContent = formatClock(day.msLeft);
       clockEl.classList.toggle("warm", day.msLeft > 0 && day.msLeft <= 30000);
     }
+  }
+
+  function vetLayout(w, h) {
+    const size = 72;
+    const gap = 8;
+    const cols = w >= 520 ? 6 : 3;
+    const rowW = cols * size + (cols - 1) * gap;
+    const left = Math.round((w - rowW) / 2);
+    const rows = Math.ceil(VET_PARTS.length / cols);
+    const checksTop = h - (rows * size + (rows - 1) * gap) - 16;
+    const checks = VET_PARTS.map((id, i) => ({
+      id: id,
+      x: left + (i % cols) * (size + gap),
+      y: checksTop + Math.floor(i / cols) * (size + gap),
+      w: size,
+      h: size
+    }));
+    const lessonW = Math.max(72, Math.min(160, Math.floor((w - 48) / 2)));
+    const lessonY = Math.max(88, checksTop - gap - size);
+    const lessonLeft = Math.round((w - (lessonW * 2 + gap)) / 2);
+    const pair = [
+      ["lesson-clean", "hoof", 0],
+      ["lesson-dirty", "hoof", 1],
+      ["lesson-yes", "teeth", 0],
+      ["lesson-no", "teeth", 1],
+      ["lesson-water", "water", 0],
+      ["lesson-empty", "water", 1]
+    ];
+    const lessons = pair.map((item) => ({
+      id: item[0],
+      kind: item[1],
+      x: lessonLeft + item[2] * (lessonW + gap),
+      y: lessonY,
+      w: lessonW,
+      h: size
+    }));
+    return { checks: checks, lessons: lessons };
+  }
+
+  function syncVet(w, h) {
+    const on = session.place === "vet" && !!session.vet;
+    vetUi.hidden = !on;
+    const layout = vetLayout(w, h);
+    const lessonId = on && session.vet.lesson === "pending" ? session.vet.lessonId : null;
+    layout.checks.forEach((box) => {
+      const el = document.getElementById(box.id);
+      el.hidden = !on;
+      placeBox(el, box);
+    });
+    layout.lessons.forEach((box) => {
+      const el = document.getElementById(box.id);
+      el.hidden = !(on && lessonId === box.kind);
+      placeBox(el, box);
+    });
   }
 
   function syncCattle(w, h) {
@@ -2508,6 +2792,9 @@
     const barn = barnLayout(w, h);
     targets.push(barn.strap, barn.water, barn.cattle, barn.again, barn.yard, barn.barnBack);
     barn.shoes.forEach((box) => targets.push(box));
+    const vet = vetLayout(w, h);
+    vet.checks.forEach((box) => targets.push(box));
+    vet.lessons.forEach((box) => targets.push(box));
     const cow = TUNE.cowBoxPx;
     TUNE.field.lanes.forEach((lane, i) => {
       const cx = TUNE.field.patrolX[0] * w;
@@ -2541,7 +2828,7 @@
       race: racePublic(),
       cattle: cattlePublic(),
       chores: choresPublic(),
-      vet: null
+      vet: vetPublic()
     };
   }
 
@@ -2581,6 +2868,17 @@
       phase: cattle.phase,
       pen: cattle.pen,
       cows: cattle.cows.map((cow) => ({ id: cow.id, state: cow.state }))
+    };
+  }
+
+  function vetPublic() {
+    const vet = session.vet;
+    if (!vet || session.place !== "vet") return null;
+    return {
+      caseId: vet.caseId,
+      checked: vet.checked.slice(),
+      lessonId: vet.lessonId,
+      lesson: vet.lesson
     };
   }
 
@@ -3733,6 +4031,155 @@
         choresFail("chores link " + JSON.stringify({ level: state().level, place: state().place, chores: state().chores }));
       }
       if (state().breed !== careSnap.breed || state().hoofSpots !== careSnap.hoofSpots) choresFail("chores link rebuilt the horse");
+
+      function vetFail(detail) { fail("Vet", detail); }
+      function lessonHidden(id) { return document.getElementById(id).hidden; }
+      go("vet");
+      if (state().place !== "chores" || !state().chores) vetFail("left the open day");
+      step(clock + 100000);
+      step(clock + 100000);
+      step(clock + Math.max(1000, state().chores.msLeft));
+      if (!state().chores || state().chores.phase !== "long") vetFail("day did not run long " + JSON.stringify(state().chores));
+      leaveChores();
+      if (state().place !== "yard" || state().chores) vetFail("day stayed open");
+      ["tiny", "little", "shop", "rush"].forEach((id) => {
+        level(id);
+        go("yard");
+        const btn = document.getElementById("act-vet");
+        if (!btn || btn.textContent !== "Call the vet") vetFail(id + " yard button");
+      });
+      level("shop");
+      session.horse.care.saddle = "on";
+      session.horse.care.foods.apple = true;
+      if (session.horse.care.spots.every((spot) => spot.cleared)) session.horse.care.spots[0].cleared = false;
+      const saddleBefore = state().saddle;
+      const appleBefore = state().apple;
+      const brushedBefore = state().brushed;
+      go("vet");
+      if (!state().vet || state().vet.caseId !== "morning" || state().vet.lesson !== "none" || state().vet.checked.length !== 0 || state().vet.lessonId !== "teeth") {
+        vetFail("shop open " + JSON.stringify(state().vet));
+      }
+      if (!lessonHidden("lesson-yes") || !lessonHidden("lesson-clean") || !lessonHidden("lesson-water")) vetFail("lesson showed before a check");
+      document.getElementById("hooves").click();
+      if (state().banner.indexOf("The vet looks.") < 0 || state().banner.indexOf("Let's pick the dirt.") < 0) vetFail("hooves banner " + state().banner);
+      if (!state().vet || state().vet.checked.length !== 1 || state().vet.checked[0] !== "hooves") vetFail("checked " + JSON.stringify(state().vet));
+      if (state().hoofCleared !== state().hoofSpots) vetFail("spots stayed dirty " + state().hoofCleared + "/" + state().hoofSpots);
+      if (state().saddle !== saddleBefore || state().apple !== appleBefore) vetFail("hooves rewrote saddle or apple");
+      if (state().vet.lesson !== "none") vetFail("one shop check opened the lesson");
+      document.getElementById("hooves").click();
+      if (state().vet.checked.length !== 1) vetFail("second hooves grew the list");
+      document.getElementById("coat").click();
+      if (state().brushed !== brushedBefore || state().banner.indexOf("A brush would help.") < 0) vetFail("coat " + state().banner + " brushed " + state().brushed);
+      if (state().vet.lesson !== "none" || state().vet.checked.length !== 2 || !lessonHidden("lesson-yes")) vetFail("coat opened the lesson " + JSON.stringify(state().vet));
+      document.getElementById("teeth").click();
+      if (state().vet.checked.length !== 3 || state().vet.lesson !== "pending" || state().vet.lessonId !== "teeth") vetFail("shop pending " + JSON.stringify(state().vet));
+      if (state().banner !== "Does a horse need smooth teeth to chew?" || lessonHidden("lesson-yes") || lessonHidden("lesson-no")) vetFail("yes buttons " + state().banner);
+      if (!lessonHidden("lesson-clean") || !lessonHidden("lesson-water")) vetFail("other lessons showed");
+      document.getElementById("lesson-no").click();
+      if (state().vet.lesson !== "pending" || state().banner !== "Look again.") vetFail("no answer " + state().banner + " " + state().vet.lesson);
+      document.getElementById("lesson-yes").click();
+      if (state().vet.lesson !== "right" || state().banner !== "The vet says all set.") vetFail("yes answer " + state().banner + " " + JSON.stringify(state().vet));
+      document.getElementById("lesson-yes").click();
+      if (state().vet.lesson !== "right") vetFail("second yes moved the lesson");
+      if (state().saddle !== "on" || !state().apple) vetFail("lesson rewrote the saddle or the apple");
+
+      go("vet");
+      emptyTrough();
+      document.getElementById("belly").click();
+      if (state().banner.indexOf("Time for a drink.") < 0 || state().trough !== "full" || state().needs.drink || state().vet.lesson !== "none") {
+        vetFail("belly " + state().banner + " trough " + state().trough + " drink " + state().needs.drink);
+      }
+      session.horse.care.trough = "full";
+      session.horse.needs.drink = false;
+      document.getElementById("mouth").click();
+      if (state().banner !== "The vet looks in the mouth." || state().vet.checked.length !== 2 || state().vet.lesson !== "none") vetFail("mouth " + state().banner);
+
+      level("little");
+      go("vet");
+      if (state().vet.caseId !== "morning" || state().vet.lessonId !== "hoof" || state().vet.lesson !== "none" || state().vet.checked.length !== 0) {
+        vetFail("little open " + JSON.stringify(state().vet));
+      }
+      document.getElementById("hooves").click();
+      if (state().vet.lesson !== "none" || !lessonHidden("lesson-clean") || !lessonHidden("lesson-dirty")) vetFail("one little check showed pictures");
+      document.getElementById("teeth").click();
+      if (state().vet.checked.length !== 2 || state().vet.lesson !== "pending" || state().banner !== "Which hoof is clean?") {
+        vetFail("little pending " + state().banner + " " + JSON.stringify(state().vet));
+      }
+      const cleanBox = document.getElementById("lesson-clean").getBoundingClientRect();
+      const dirtyBox = document.getElementById("lesson-dirty").getBoundingClientRect();
+      if (lessonHidden("lesson-clean") || lessonHidden("lesson-dirty") || Math.min(cleanBox.width, cleanBox.height) < 72 || Math.min(dirtyBox.width, dirtyBox.height) < 72) {
+        vetFail("picture size " + Math.round(cleanBox.width) + "x" + Math.round(cleanBox.height));
+      }
+      const cleanBg = rgbChannels(getComputedStyle(document.getElementById("lesson-clean")).backgroundColor);
+      const dirtyBg = rgbChannels(getComputedStyle(document.getElementById("lesson-dirty")).backgroundColor);
+      if (!cleanBg || colorDist(cleanBg, HOOF) > 8 || !dirtyBg || colorDist(dirtyBg, DIRT) > 8) {
+        vetFail("hoof colors " + JSON.stringify(cleanBg) + " " + JSON.stringify(dirtyBg));
+      }
+      document.getElementById("lesson-dirty").click();
+      if (state().vet.lesson !== "pending" || state().banner !== "Look again.") vetFail("dirty hoof " + state().banner);
+      document.getElementById("lesson-clean").click();
+      if (state().vet.lesson !== "right" || state().banner !== "The vet says all set.") vetFail("clean hoof " + state().banner + " " + JSON.stringify(state().vet));
+
+      level("tiny");
+      go("vet");
+      if (state().vet.caseId !== null || state().vet.lessonId !== null || state().vet.lesson !== "none") vetFail("tiny open " + JSON.stringify(state().vet));
+      document.getElementById("mouth").click();
+      if (state().banner !== "The vet says all set." || state().vet.lesson !== "none" || !lessonHidden("lesson-yes")) {
+        vetFail("tiny all set " + state().banner + " " + JSON.stringify(state().vet));
+      }
+
+      level("rush");
+      go("vet");
+      document.getElementById("teeth").click();
+      if (state().banner !== "The vet smooths a tooth." || state().vet.lesson !== "none") vetFail("teeth " + state().banner);
+      document.getElementById("hooves").click();
+      document.getElementById("mouth").click();
+      if (state().vet.lesson !== "pending" || state().vet.lessonId !== "teeth" || state().vet.checked.length !== 3) vetFail("rush teeth " + JSON.stringify(state().vet));
+      document.getElementById("lesson-yes").click();
+      if (!state().vet || state().vet.checked.length !== 0 || state().vet.lessonId !== "water" || state().vet.lesson !== "none" || state().vet.caseId !== "dusty") {
+        vetFail("rush next " + JSON.stringify(state().vet));
+      }
+      if (!lessonHidden("lesson-water") || !lessonHidden("lesson-empty")) vetFail("buckets showed early");
+      const savedMotion = reduceMotion;
+      reduceMotion = true;
+      document.getElementById("eyes").click();
+      if (session.vet.leanUntil !== 0 || state().banner !== "Bright eyes." || state().vet.lesson !== "none") {
+        vetFail("reduced lean " + session.vet.leanUntil + " " + state().banner);
+      }
+      reduceMotion = savedMotion;
+      document.getElementById("belly").click();
+      if (state().vet.lesson !== "none" || state().vet.checked.length !== 2) vetFail("rush water early " + JSON.stringify(state().vet));
+      document.getElementById("coat").click();
+      if (state().vet.checked.length !== 3 || state().vet.lesson !== "pending" || state().banner !== "Which bucket is water?") {
+        vetFail("rush water " + state().banner + " " + JSON.stringify(state().vet));
+      }
+      const waterBg = rgbChannels(getComputedStyle(document.getElementById("lesson-water")).backgroundColor);
+      const emptyBg = rgbChannels(getComputedStyle(document.getElementById("lesson-empty")).backgroundColor);
+      if (!waterBg || colorDist(waterBg, WATER) > 8 || !emptyBg || colorDist(emptyBg, TROUGH_EMPTY) > 8) {
+        vetFail("bucket colors " + JSON.stringify(waterBg) + " " + JSON.stringify(emptyBg));
+      }
+      document.getElementById("lesson-empty").click();
+      if (state().vet.lesson !== "pending" || state().banner !== "Look again.") vetFail("empty bucket " + state().banner);
+      document.getElementById("lesson-water").click();
+      if (state().vet.lesson !== "right" || state().banner !== "The vet says all set.") vetFail("water right " + state().banner + " " + JSON.stringify(state().vet));
+      document.getElementById("lesson-water").click();
+      if (state().vet.lesson !== "right") vetFail("second water answer");
+
+      vetLayout(390, 844).checks.concat(vetLayout(390, 844).lessons).forEach((box) => {
+        if (Math.min(box.w, box.h) < 72) vetFail("390 " + box.id + " " + box.w + "x" + box.h);
+      });
+      if (localStorage.getItem("saddle-up") !== null || localStorage.getItem("pop-pals-v1") !== popsBefore) vetFail("storage changed");
+      if ((bannerEl.textContent || "").indexOf("lose") >= 0) vetFail("banner said lose");
+      const breedBefore = state().breed;
+      const spotsBefore = state().hoofSpots;
+      applyDeepLink(new URLSearchParams("vet"));
+      if (state().level !== "little" || state().place !== "vet" || state().breed !== breedBefore || state().hoofSpots !== spotsBefore) {
+        vetFail("vet link " + JSON.stringify({ level: state().level, place: state().place, breed: state().breed, hoofSpots: state().hoofSpots }));
+      }
+      if (!state().vet || state().vet.lesson !== "none" || state().vet.checked.length !== 0 || state().vet.caseId !== "morning" || state().vet.lessonId !== "hoof") {
+        vetFail("vet link case " + JSON.stringify(state().vet));
+      }
+      if ((state().banner || "").indexOf("lose") >= 0) vetFail("link banner said lose");
     } catch (err) {
       failures.push("Case error: " + (err && err.stack ? err.stack : err));
     }
@@ -3760,6 +4207,10 @@
       if (!session.horse) pickBreed("palomino");
       level("shop");
       go("chores");
+    } else if (params.has("vet")) {
+      if (!session.horse) pickBreed("palomino");
+      level("little");
+      go("vet");
     }
   }
 
@@ -3806,7 +4257,7 @@
   document.getElementById("brush").addEventListener("click", brushHorse);
   document.getElementById("water").addEventListener("click", fillTrough);
   document.getElementById("saddle").addEventListener("click", putSaddle);
-  document.getElementById("hooves").addEventListener("click", () => go("hoof"));
+  document.getElementById("dock-hooves").addEventListener("click", () => go("hoof"));
   document.getElementById("apples").addEventListener("click", () => feed("apple"));
   document.getElementById("carrots").addEventListener("click", () => feed("carrot"));
   ["spot-1", "spot-2", "spot-3", "spot-4"].forEach((id) => {
@@ -3834,6 +4285,15 @@
   [1, 2, 3, 4].forEach((n) => {
     document.getElementById("shoe-" + n).addEventListener("click", tapShoe);
   });
+  VET_PARTS.forEach((part) => {
+    document.getElementById(part).addEventListener("click", () => vetCheck(part));
+  });
+  document.getElementById("lesson-clean").addEventListener("click", () => answerLesson("clean"));
+  document.getElementById("lesson-dirty").addEventListener("click", () => answerLesson("dirty"));
+  document.getElementById("lesson-yes").addEventListener("click", () => answerLesson("yes"));
+  document.getElementById("lesson-no").addEventListener("click", () => answerLesson("no"));
+  document.getElementById("lesson-water").addEventListener("click", () => answerLesson("water"));
+  document.getElementById("lesson-empty").addEventListener("click", () => answerLesson("empty"));
   document.getElementById("jump-up").addEventListener("click", () => pickHeight(1));
   document.getElementById("jump-low").addEventListener("click", () => pickHeight(1));
   document.getElementById("jump-mid").addEventListener("click", () => pickHeight(2));
