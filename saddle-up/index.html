@@ -37,7 +37,8 @@
     box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
   }
   #gaze[hidden], #eyes[hidden], .panel[hidden], #back[hidden],
-  #dock[hidden], #hoof-ui[hidden], #jump-ui[hidden], #race-ui[hidden], #cattle-ui[hidden], #banner[hidden] { display: none !important; }
+  #dock[hidden], #hoof-ui[hidden], #jump-ui[hidden], #race-ui[hidden], #cattle-ui[hidden],
+  #day-ui[hidden], #barn-ui[hidden], #clock[hidden], #banner[hidden] { display: none !important; }
   #eyes {
     position: fixed; z-index: 46;
     top: calc(18px + env(safe-area-inset-top));
@@ -151,6 +152,25 @@
     border: none; padding: 0; border-radius: 18px;
     background: transparent;
   }
+  #clock {
+    position: fixed; z-index: 40; pointer-events: none;
+    left: 50%; top: calc(12px + env(safe-area-inset-top));
+    transform: translateX(-50%);
+    min-width: 72px; text-align: center;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 6px 14px; font-size: 22px; font-weight: 800;
+  }
+  #clock.warm { background: #fff6df; }
+  #day-ui, #barn-ui { position: fixed; inset: 0; z-index: 45; pointer-events: none; }
+  #day-ui button, #barn-ui button {
+    position: fixed; pointer-events: auto;
+    border: none; border-radius: 16px;
+    background: var(--paper); color: var(--ink);
+    font-weight: 800; font-size: 18px;
+    box-shadow: 0 4px 0 #c8b48a;
+  }
+  #day-again, #barn-back { background: var(--sun); box-shadow: 0 4px 0 var(--sun-d); }
 </style>
 </head>
 <body>
@@ -177,8 +197,8 @@
   <div class="stack" id="levels">
     <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Brush, water, and feed, then one jump. No clock.</small></button>
     <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. The same barn, a short ride, a gentle race, and two cows. No clock.</small></button>
-    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. The same barn, jumps, a race, and cattle.</small></button>
-    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Faster jumps from the saddle, a race, and cattle.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. The same barn, jumps, a race, cattle, and a long barn day.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Faster jumps from the saddle, cattle, and a shorter barn day.</small></button>
   </div>
   <div class="stack" style="margin-top:12px">
     <button id="lets-go" class="big" type="button">Let's go</button>
@@ -235,6 +255,21 @@
   <button id="cow-4" type="button" data-play="true" aria-label="Cow"></button>
   <button id="cow-5" type="button" data-play="true" aria-label="Cow"></button>
   <button id="cow-6" type="button" data-play="true" aria-label="Cow"></button>
+</div>
+
+<div id="clock" hidden>0:00</div>
+<div id="day-ui" hidden>
+  <button id="barn-back" type="button">Back to the barn</button>
+  <button id="day-again" type="button">Go again</button>
+  <button id="day-yard" type="button">Back to the yard</button>
+</div>
+<div id="barn-ui" hidden>
+  <button id="strap" type="button" data-play="true">Strap</button>
+  <button id="shoe-1" type="button" data-play="true">Shoe</button>
+  <button id="shoe-2" type="button" data-play="true">Shoe</button>
+  <button id="shoe-3" type="button" data-play="true">Shoe</button>
+  <button id="shoe-4" type="button" data-play="true">Shoe</button>
+  <button id="barn-cattle" type="button">Back to the cattle</button>
 </div>
 
 <script>
@@ -312,7 +347,8 @@
     { id: "stable", label: "Stable", levels: ["tiny", "little", "shop", "rush"] },
     { id: "jumps", label: "Ride", levels: ["tiny", "little", "shop", "rush"] },
     { id: "race", label: "Race", levels: ["little", "shop", "rush"] },
-    { id: "cattle", label: "Cattle", levels: ["little", "shop", "rush"] }
+    { id: "cattle", label: "Cattle", levels: ["little", "shop", "rush"] },
+    { id: "chores", label: "Barn day", levels: ["shop", "rush"] }
   ];
 
   const RIVALS = {
@@ -322,7 +358,7 @@
   };
 
   const PLACES = ["level", "breed", "yard", "stable", "hoof", "jumps", "race", "cattle", "chores", "vet"];
-  const LIVE = { level: true, breed: true, yard: true, stable: true, hoof: true, jumps: true, race: true, cattle: true };
+  const LIVE = { level: true, breed: true, yard: true, stable: true, hoof: true, jumps: true, race: true, cattle: true, chores: true };
   const LOW_COLOR = "#2f8a3e";
   const MID_COLOR = "#e2a62e";
   const HIGH_COLOR = "#e07030";
@@ -353,7 +389,8 @@
     cheered: false,
     jumps: null,
     race: null,
-    cattle: null
+    cattle: null,
+    chores: null
   };
 
   let boostLatch = false;
@@ -432,19 +469,14 @@
       }
       return text;
     }
-    if (session.place === "cattle" && session.cattle) {
-      const cattle = session.cattle;
-      if (cattle.phase === "done") return "All in.";
-      if (cattle.notice === "drink") return "Time for a drink.";
-      if (cattle.notice === "buckle") return "The saddle needs a buckle.";
-      if (cattle.notice === "shoes") return "The shoes need a tap.";
-      if (cattle.notice === "grass") return "Try again.";
-      if (cattle.pen > 0) {
-        const left = cattle.cows.length - cattle.pen;
-        return "In the pen.\n" + countWord(left) + " to go.";
-      }
-      return "Cattle.";
+    if (session.chores && (session.place === "chores" || (session.place === "stable" && session.chores.phase === "barn"))) {
+      const day = session.chores;
+      if (day.phase === "done") return "All in.";
+      if (day.phase === "long") return "The day got long. The cattle can wait.";
+      if (day.phase === "barn") return needBanner() || "The clock is waiting.";
+      return herdBanner();
     }
+    if (session.place === "cattle" && session.cattle) return herdBanner();
     if (session.place === "hoof") {
       return horse.care.spots.every((s) => s.cleared) ? "Clean hooves." : "Hooves.";
     }
@@ -461,7 +493,7 @@
 
   function maybeCheer() {
     if (!session.horse || session.cheered) return;
-    if (session.place === "stable" && ready(session.horse)) {
+    if (session.place === "stable" && !session.chores && ready(session.horse)) {
       session.cheered = true;
       playSound("cheer");
     }
@@ -508,12 +540,30 @@
   function go(place) {
     if (PLACES.indexOf(place) < 0) return;
     if (!LIVE[place]) return;
-    if ((place === "yard" || place === "stable" || place === "hoof" || place === "jumps" || place === "race" || place === "cattle") && !session.horse) {
+    if (session.chores) {
+      if (place === "stable") {
+        if (session.chores.phase !== "field") return;
+        session.chores.phase = "barn";
+        session.place = "stable";
+        render();
+        return;
+      }
+      if (place === "chores") {
+        if (session.chores.phase !== "barn" && session.chores.phase !== "field") return;
+        session.chores.phase = "field";
+        session.place = "chores";
+        render();
+        return;
+      }
+      return;
+    }
+    if ((place === "yard" || place === "stable" || place === "hoof" || place === "jumps" || place === "race" || place === "cattle" || place === "chores") && !session.horse) {
       if (place === "yard") place = "breed";
       else return;
     }
     if (place === "race" && !rivalNames().length) return;
     if (place === "cattle" && !herdNow()) return;
+    if (place === "chores" && !TUNE.chores[session.levelId]) return;
     if (place !== "hoof") hoofReturnAt = 0;
     if (place !== "jumps") endJumps();
     if (place !== "race") endRace();
@@ -522,6 +572,7 @@
     if (place === "jumps") beginJumps();
     if (place === "race") beginRace();
     if (place === "cattle") beginCattle();
+    if (place === "chores") beginChores();
     maybeCheer();
     render();
   }
@@ -604,8 +655,38 @@
     return null;
   }
 
+  function needBanner() {
+    const block = herdBlock();
+    if (block === "drink") return "Time for a drink.";
+    if (block === "buckle") return "The saddle needs a buckle.";
+    if (block === "shoes") return "The shoes need a tap.";
+    return null;
+  }
+
+  function herdBanner() {
+    const cattle = session.cattle;
+    if (!cattle) return "Cattle.";
+    if (cattle.phase === "done") return "All in.";
+    const need = needBanner();
+    if (need) return need;
+    if (cattle.notice === "grass") return "Try again.";
+    if (cattle.pen > 0) {
+      const left = cattle.cows.length - cattle.pen;
+      return "In the pen.\n" + countWord(left) + " to go.";
+    }
+    return "Cattle.";
+  }
+
+  function onHerdField() {
+    if (session.place === "cattle" && !session.chores) return true;
+    return !!(session.place === "chores" && session.chores && session.chores.phase === "field");
+  }
+
   function loopCow(id) {
-    if (session.place !== "cattle") go("cattle");
+    if (!onHerdField()) {
+      if (session.chores) return;
+      if (session.place !== "cattle") go("cattle");
+    }
     const cattle = session.cattle;
     if (!cattle || cattle.phase === "done") return;
     const block = herdBlock();
@@ -672,9 +753,85 @@
     if (cattle.pen >= cattle.cows.length) {
       cattle.phase = "done";
       playSound("cheer");
+      if (session.chores && session.chores.phase === "field" && session.chores.msLeft > 0) {
+        session.chores.phase = "done";
+      }
     } else {
       promoteWaiter(lane);
     }
+  }
+
+  function beginChores() {
+    const tune = TUNE.chores[session.levelId];
+    if (!tune || !session.horse || !herdNow()) return;
+    const saddle = session.horse.care.saddle === "buckle" ? "on" : session.horse.care.saddle;
+    session.chores = {
+      phase: "field",
+      msLeft: tune.budgetMs,
+      rideMs: 0,
+      events: { drink: false, buckle: false, shoes: false },
+      morning: { trough: session.horse.care.trough, saddle: saddle }
+    };
+    beginCattle();
+  }
+
+  function again() {
+    if (!session.chores || !session.horse) return;
+    const tune = TUNE.chores[session.levelId];
+    if (!tune) return;
+    const morning = session.chores.morning;
+    session.horse.care.trough = morning.trough;
+    session.horse.care.saddle = morning.saddle === "buckle" ? "on" : morning.saddle;
+    session.horse.needs.drink = false;
+    session.horse.needs.shoes = 0;
+    session.chores.msLeft = tune.budgetMs;
+    session.chores.rideMs = 0;
+    session.chores.events = { drink: false, buckle: false, shoes: false };
+    session.chores.phase = "field";
+    session.place = "chores";
+    beginCattle();
+    render();
+  }
+
+  function leaveChores() {
+    if (!session.chores || !session.horse) return;
+    if (session.chores.phase !== "done" && session.chores.phase !== "long") return;
+    const morning = session.chores.morning;
+    session.horse.care.trough = morning.trough;
+    session.horse.care.saddle = morning.saddle === "buckle" ? "on" : morning.saddle;
+    session.horse.needs.drink = false;
+    session.horse.needs.shoes = 0;
+    session.chores = null;
+    endCattle();
+    go("yard");
+  }
+
+  function advanceChores(dtMs) {
+    const day = session.chores;
+    if (!day || session.place !== "chores" || day.phase !== "field") return;
+    const tune = TUNE.chores[session.levelId];
+    if (!tune) return;
+    day.rideMs += dtMs;
+    day.msLeft = Math.max(0, day.msLeft - dtMs);
+    const full = session.cattle && session.cattle.pen >= session.cattle.cows.length;
+    if (!full) {
+      if (!day.events.drink && day.rideMs >= tune.drinkMs) {
+        day.events.drink = true;
+        emptyTrough();
+      }
+      if (!day.events.buckle && day.rideMs >= tune.buckleMs) {
+        day.events.buckle = true;
+        openBuckle();
+      }
+      if (!day.events.shoes && day.rideMs >= tune.shoesMs) {
+        day.events.shoes = true;
+        askShoes();
+      }
+    }
+    if (day.phase !== "field") return;
+    const fullNow = session.cattle && session.cattle.pen >= session.cattle.cows.length;
+    if (fullNow && day.msLeft > 0) day.phase = "done";
+    else if (day.msLeft <= 0) day.phase = "long";
   }
 
   function patrolCow(cow, dt, w) {
@@ -760,7 +917,8 @@
 
   function advanceCattle(dtMs) {
     const cattle = session.cattle;
-    if (!cattle || session.place !== "cattle" || cattle.phase !== "run") return;
+    const playing = session.place === "cattle" || (session.place === "chores" && session.chores && session.chores.phase === "field");
+    if (!cattle || !playing || cattle.phase !== "run") return;
     const w = window.innerWidth;
     const h = window.innerHeight;
     if (w < 2 || h < 2) return;
@@ -1516,6 +1674,7 @@
     const box = horseBox(w, h);
     const parts = horseParts(box, pose);
     drawHorse(ctx, box, pose);
+    if (session.horse && session.horse.needs.drink) paintSweat(parts.head.x - 10, parts.head.y - 24);
 
     const rackX = 28;
     const rackY = 150;
@@ -1779,7 +1938,7 @@
     if (session.place === "hoof") paintHoof(w, h);
     else if (session.place === "jumps") paintJumps(w, h);
     else if (session.place === "race") paintRace(w, h);
-    else if (session.place === "cattle") paintCattle(w, h);
+    else if (session.place === "cattle" || session.place === "chores") paintCattle(w, h);
     else paintStable(w, h);
   }
 
@@ -1955,20 +2114,33 @@
     ctx.fillRect(pen.x + pen.w - 6, pen.y, 12, pen.h);
     if (session.horse) {
       const unit = w < 520 ? 150 : 190;
+      const hx = TUNE.field.horseXFrac * w;
+      const hy = h * 0.84;
       drawHorse(ctx, {
         x: 0,
         y: 0,
         w: unit,
         h: unit * 0.72,
-        anchorX: TUNE.field.horseXFrac * w,
-        anchorY: h * 0.84
+        anchorX: hx,
+        anchorY: hy
       }, "stand", null);
+      paintSweat(hx - 20, hy - 70);
     }
     const cattle = session.cattle;
     if (!cattle) return;
     const drawn = cattle.cows.filter((cow) => cow.shown);
     drawn.sort((a, b) => a.yFrac - b.yFrac);
     drawn.forEach((cow) => paintCow(cow, w, h));
+  }
+
+  function paintSweat(x, y) {
+    if (!session.horse || !session.horse.needs.drink) return;
+    ctx.fillStyle = WATER;
+    [0, 16, 32].forEach((dx, i) => {
+      ctx.beginPath();
+      ctx.arc(x + dx, y + (i === 1 ? 10 : 0), 5, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 
   function placeBox(el, box) {
@@ -1999,7 +2171,7 @@
 
   function syncBack() {
     const place = session.place;
-    if (place === "level") {
+    if (place === "level" || session.chores) {
       backBtn.hidden = true;
       return;
     }
@@ -2020,7 +2192,7 @@
     hoofUi.hidden = place !== "hoof";
     jumpUi.hidden = place !== "jumps" && place !== "race";
     raceUi.hidden = place !== "race";
-    cattleUi.hidden = place !== "cattle";
+    cattleUi.hidden = place !== "cattle" && place !== "chores";
     if (session.horse) whoEl.textContent = session.horse.name;
     const text = bannerText();
     bannerEl.textContent = text;
@@ -2049,11 +2221,115 @@
     placeBox(done, hoofLayout(w, h, spotCount()).done);
     syncJumps(w, h);
     syncCattle(w, h);
+    syncDay(w, h);
     paint();
   }
 
+  function overlaps(a, b) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  function barnLayout(w, h) {
+    const parts = horseParts(horseBox(w, h), "stand");
+    const strap = {
+      id: "strap",
+      x: Math.round(parts.saddle.cx - 36),
+      y: Math.round(parts.saddle.cy - 36),
+      w: 72,
+      h: 72
+    };
+    const water = {
+      id: "water",
+      x: Math.round(parts.trough.cx - 36),
+      y: Math.round(parts.trough.cy - 36),
+      w: 72,
+      h: 72
+    };
+    if (overlaps(strap, water)) strap.y = Math.max(88, water.y - 80);
+    const gap = 8;
+    const shoeW = 72;
+    const rowW = shoeW * 4 + gap * 3;
+    let sx = Math.round((w - rowW) / 2);
+    const shoeY = Math.max(88, h - 72 - gap - 72 - 16);
+    const shoes = [1, 2, 3, 4].map((n) => {
+      const box = { id: "shoe-" + n, x: sx, y: shoeY, w: shoeW, h: shoeW };
+      sx += shoeW + gap;
+      return box;
+    });
+    const backY = Math.max(88, h - 72 - 16);
+    const cattle = { id: "barn-cattle", x: 16, y: backY, w: Math.max(72, w - 32), h: 72 };
+    const again = { id: "day-again", x: Math.round(w / 2 - 168), y: backY, w: 160, h: 72 };
+    const yard = { id: "day-yard", x: Math.round(w / 2 + 8), y: backY, w: Math.max(72, Math.min(220, w / 2 - 24)), h: 72 };
+    const barnBack = { id: "barn-back", x: Math.round((w - 220) / 2), y: backY, w: 220, h: 72 };
+    return { strap: strap, water: water, shoes: shoes, cattle: cattle, again: again, yard: yard, barnBack: barnBack };
+  }
+
+  function formatClock(ms) {
+    const total = Math.max(0, Math.ceil(ms / 1000));
+    const m = Math.floor(total / 60);
+    const s = total % 60;
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function syncDay(w, h) {
+    const day = session.chores;
+    const barn = !!(day && session.place === "stable" && day.phase === "barn");
+    const morning = session.place === "stable" && !day;
+    ["brush", "saddle", "hooves", "apples", "carrots"].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = !morning;
+    });
+    const layout = barnLayout(w, h);
+    const water = document.getElementById("water");
+    const wantWater = !!(session.horse && (session.horse.care.trough !== "full" || session.horse.needs.drink));
+    if (barn) {
+      water.hidden = !wantWater;
+      if (wantWater) placeBox(water, layout.water);
+    } else if (morning) {
+      water.hidden = false;
+    } else {
+      water.hidden = true;
+    }
+    const barnUi = document.getElementById("barn-ui");
+    barnUi.hidden = !barn;
+    const strap = document.getElementById("strap");
+    const wantStrap = barn && session.horse && session.horse.care.saddle === "buckle";
+    strap.hidden = !wantStrap;
+    placeBox(strap, layout.strap);
+    const wantShoes = barn && session.horse && session.horse.needs.shoes > 0;
+    layout.shoes.forEach((box) => {
+      const el = document.getElementById(box.id);
+      el.hidden = !wantShoes;
+      placeBox(el, box);
+    });
+    const cattleBtn = document.getElementById("barn-cattle");
+    cattleBtn.hidden = !barn;
+    placeBox(cattleBtn, layout.cattle);
+    const dayUi = document.getElementById("day-ui");
+    const onField = !!(day && session.place === "chores" && day.phase === "field");
+    const ending = !!(day && session.place === "chores" && (day.phase === "done" || day.phase === "long"));
+    dayUi.hidden = !onField && !ending;
+    const barnBack = document.getElementById("barn-back");
+    barnBack.hidden = !onField;
+    placeBox(barnBack, layout.barnBack);
+    const again = document.getElementById("day-again");
+    const yard = document.getElementById("day-yard");
+    again.hidden = !ending;
+    yard.hidden = !ending;
+    placeBox(again, layout.again);
+    placeBox(yard, layout.yard);
+    const clockEl = document.getElementById("clock");
+    const showClock = !!(day && (day.phase === "field" || day.phase === "barn"));
+    clockEl.hidden = !showClock;
+    if (showClock) {
+      clockEl.textContent = formatClock(day.msLeft);
+      clockEl.classList.toggle("warm", day.msLeft > 0 && day.msLeft <= 30000);
+    }
+  }
+
   function syncCattle(w, h) {
-    const on = session.place === "cattle" && session.cattle;
+    const onField = session.place === "cattle" || (session.place === "chores" && session.chores && session.chores.phase !== "barn");
+    const on = onField && session.cattle;
     const field = document.getElementById("field");
     placeBox(field, { x: 0, y: 0, w: w, h: h });
     field.hidden = !on;
@@ -2229,6 +2505,9 @@
       if (box.used) targets.push({ id: box.id, x: box.x, y: box.y, w: box.w, h: box.h });
     });
     targets.push({ id: "faster", x: Math.round((w - 160) / 2), y: Math.max(0, h - 88), w: 160, h: 72 });
+    const barn = barnLayout(w, h);
+    targets.push(barn.strap, barn.water, barn.cattle, barn.again, barn.yard, barn.barnBack);
+    barn.shoes.forEach((box) => targets.push(box));
     const cow = TUNE.cowBoxPx;
     TUNE.field.lanes.forEach((lane, i) => {
       const cx = TUNE.field.patrolX[0] * w;
@@ -2261,7 +2540,7 @@
       jumps: jumpsPublic(),
       race: racePublic(),
       cattle: cattlePublic(),
-      chores: null,
+      chores: choresPublic(),
       vet: null
     };
   }
@@ -2297,11 +2576,27 @@
 
   function cattlePublic() {
     const cattle = session.cattle;
-    if (!cattle || session.place !== "cattle") return null;
+    if (!cattle || (session.place !== "cattle" && !session.chores)) return null;
     return {
       phase: cattle.phase,
       pen: cattle.pen,
       cows: cattle.cows.map((cow) => ({ id: cow.id, state: cow.state }))
+    };
+  }
+
+  function choresPublic() {
+    const day = session.chores;
+    if (!day) return null;
+    return {
+      phase: day.phase,
+      msLeft: day.msLeft,
+      rideMs: day.rideMs,
+      events: {
+        drink: !!day.events.drink,
+        buckle: !!day.events.buckle,
+        shoes: !!day.events.shoes
+      },
+      morning: { trough: day.morning.trough, saddle: day.morning.saddle }
     };
   }
 
@@ -2412,6 +2707,7 @@
     if (dtSec > 0 && dtSec < 120) {
       advanceJumps(now - prev);
       advanceRace(prev, now);
+      advanceChores(now - prev);
     }
     render();
   }
@@ -3264,6 +3560,179 @@
         cattleFail("cattle link " + JSON.stringify({ level: state().level, place: state().place, cattle: state().cattle }));
       }
       if (state().breed !== careSnap.breed || state().hoofSpots !== careSnap.hoofSpots) cattleFail("cattle link rebuilt the horse");
+
+      function choresFail(detail) { fail("Chores", detail); }
+      function boxesOverlap(a, b) {
+        return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      }
+      const popsBefore = localStorage.getItem("pop-pals-v1");
+      level("tiny");
+      go("yard");
+      if (document.getElementById("act-chores")) choresFail("tiny shows a barn day");
+      go("chores");
+      if (state().place !== "yard" || state().chores) choresFail("tiny entered the day");
+      level("little");
+      go("yard");
+      if (document.getElementById("act-chores")) choresFail("little shows a barn day");
+      go("chores");
+      if (state().place !== "yard" || state().chores) choresFail("little entered the day");
+
+      level("rush");
+      go("chores");
+      if (!state().chores || state().chores.msLeft !== 180000 || state().chores.phase !== "field" || state().cattle.cows.length !== 6) {
+        choresFail("rush budget " + JSON.stringify(state().chores));
+      }
+      const rushLeft = state().chores.msLeft;
+      step(clock + 120000);
+      if (state().chores.msLeft !== rushLeft || state().chores.rideMs !== 0) choresFail("120s step moved the rush clock");
+      step(clock + 15000);
+      if (!state().chores.events.drink || state().trough !== "empty" || !state().needs.drink || state().banner !== "Time for a drink.") {
+        choresFail("rush drink " + JSON.stringify(state().chores) + " " + state().banner);
+      }
+      go("stable");
+      const paused = state().chores.msLeft;
+      step(clock + 10000);
+      if (state().place !== "stable" || state().chores.phase !== "barn" || state().chores.msLeft !== paused) {
+        choresFail("rush barn pause " + JSON.stringify(state().chores));
+      }
+      go("chores");
+      step(clock + 100000);
+      step(clock + 80000);
+      if (state().chores.phase !== "long" || state().banner !== "The day got long. The cattle can wait.") {
+        choresFail("rush long " + state().banner + " " + JSON.stringify(state().chores));
+      }
+      if (!document.getElementById("barn-back").hidden) choresFail("barn back stayed on the long day");
+      leaveChores();
+      if (state().place !== "yard" || state().chores || state().saddle !== "off" || state().needs.drink || state().needs.shoes !== 0) {
+        choresFail("rush leave " + JSON.stringify(state()));
+      }
+
+      level("shop");
+      putSaddle();
+      go("chores");
+      if (!state().chores || state().chores.msLeft !== 240000 || state().chores.morning.saddle !== "on" || state().cattle.cows.length !== 4) {
+        choresFail("shop start " + JSON.stringify(state().chores));
+      }
+      if (document.getElementById("back").hidden !== true) choresFail("chrome back showed during the day");
+      step(clock + 120000);
+      if (state().chores.msLeft !== 240000 || state().chores.rideMs !== 0) choresFail("120s step moved the shop clock");
+      let bring = 0;
+      while (state().chores.phase === "field" && bring < 24) {
+        state().cattle.cows.forEach((cow) => {
+          if (cow.state !== "out") return;
+          const box = centers().targets[cow.id];
+          if (box && box.x > 0 && box.x < window.innerWidth) document.getElementById(cow.id).click();
+        });
+        step(clock + 1000);
+        bring += 1;
+      }
+      if (state().chores.phase !== "done" || state().banner !== "All in." || state().chores.events.drink || state().chores.rideMs >= 20000) {
+        choresFail("fast herd " + JSON.stringify(state().chores) + " " + state().banner);
+      }
+      if (!document.getElementById("barn-back").hidden || document.getElementById("day-again").hidden) {
+        choresFail("ending buttons");
+      }
+      again();
+      if (state().chores.phase !== "field" || state().chores.events.buckle || state().saddle !== "on" || state().cattle.pen !== 0 || state().needs.drink) {
+        choresFail("again " + JSON.stringify(state().chores) + " saddle " + state().saddle);
+      }
+      again();
+      if (state().chores.phase !== "field" || state().place !== "chores" || state().chores.events.drink) choresFail("second again");
+      leaveChores();
+      if (state().place !== "chores" || !state().chores) choresFail("leave from the field");
+
+      step(clock + 10000);
+      if (Math.abs(state().chores.msLeft - 230000) > 50 || Math.abs(state().chores.rideMs - 10000) > 50) {
+        choresFail("10s clock " + JSON.stringify(state().chores));
+      }
+      go("stable");
+      if (state().chores.phase !== "barn" || state().banner !== "The clock is waiting.") {
+        choresFail("barn waiting " + state().banner + " " + state().chores.phase);
+      }
+      if (!document.getElementById("brush").hidden || !document.getElementById("back").hidden) choresFail("morning dock showed in the barn");
+      if (document.getElementById("water").hidden) choresFail("empty trough hid the water");
+      const barnPaused = state().chores.msLeft;
+      step(clock + 10000);
+      if (state().chores.msLeft !== barnPaused || state().chores.rideMs !== 10000) choresFail("barn clock moved");
+      document.getElementById("barn-cattle").click();
+      if (state().place !== "chores" || state().chores.phase !== "field") choresFail("back to the cattle");
+      step(clock + 10000);
+      if (!state().chores.events.drink || state().trough !== "empty" || !state().needs.drink || state().banner !== "Time for a drink.") {
+        choresFail("drink event " + JSON.stringify(state().chores) + " " + state().banner);
+      }
+      go("stable");
+      document.getElementById("water").click();
+      if (state().needs.drink || state().trough !== "full" || state().banner !== "The clock is waiting.") {
+        choresFail("filled " + state().banner + " " + state().trough);
+      }
+      go("chores");
+      step(clock + 30000);
+      if (!state().chores.events.buckle || state().saddle !== "buckle" || state().banner !== "The saddle needs a buckle.") {
+        choresFail("buckle event " + state().saddle + " " + state().banner);
+      }
+      document.getElementById("cow-1").click();
+      if (state().cattle.cows[0].state !== "out" || state().cattle.pen !== 0) choresFail("buckle tap " + JSON.stringify(state().cattle));
+      go("stable");
+      const strap = document.getElementById("strap");
+      const strapBox = strap.getBoundingClientRect();
+      if (strap.hidden || Math.min(strapBox.width, strapBox.height) < 72) choresFail("strap size");
+      const phone = barnLayout(390, 844);
+      if (boxesOverlap(phone.strap, phone.water)) choresFail("strap covers the trough " + JSON.stringify(phone));
+      phone.shoes.forEach((shoe) => {
+        if (Math.min(shoe.w, shoe.h) < 72) choresFail("shoe layout");
+      });
+      if (Math.min(phone.cattle.w, phone.cattle.h) < 72 || Math.min(phone.water.w, phone.water.h) < 72) choresFail("barn targets");
+      strap.click();
+      if (state().saddle !== "on") choresFail("strap left " + state().saddle);
+      go("chores");
+      document.getElementById("cow-1").click();
+      if (state().cattle.cows[0].state === "out") choresFail("loop stayed out after the strap");
+      step(clock + 30000);
+      if (!state().chores.events.shoes || state().needs.shoes !== 4 || state().banner !== "The shoes need a tap.") {
+        choresFail("shoes event " + state().needs.shoes + " " + state().banner);
+      }
+      go("stable");
+      if (document.getElementById("shoe-1").hidden || document.getElementById("strap").hidden !== true) choresFail("shoe buttons");
+      [1, 2, 3, 4].forEach(() => document.getElementById("shoe-1").click());
+      if (state().needs.shoes !== 0 || state().banner !== "The clock is waiting.") choresFail("shoes cleared " + state().needs.shoes + " " + state().banner);
+      go("chores");
+      const leftBeforeLong = state().chores.msLeft;
+      step(clock + 100000);
+      if (state().chores.phase !== "field" || state().chores.msLeft >= leftBeforeLong) choresFail("mid clock");
+      step(clock + Math.max(1000, state().chores.msLeft));
+      if (state().chores.phase !== "long" || state().banner !== "The day got long. The cattle can wait.") {
+        choresFail("long day " + state().banner + " " + JSON.stringify(state().chores));
+      }
+      if (!document.getElementById("barn-back").hidden || document.getElementById("day-yard").hidden || !document.getElementById("back").hidden) {
+        choresFail("long buttons");
+      }
+      again();
+      if (state().saddle !== "on" || state().chores.events.buckle || state().chores.phase !== "field" || state().needs.shoes !== 0) {
+        choresFail("again after long " + state().saddle + " " + JSON.stringify(state().chores));
+      }
+      step(clock + 50000);
+      if (state().saddle !== "buckle") choresFail("second buckle " + state().saddle);
+      step(clock + 100000);
+      step(clock + Math.max(1000, state().chores.msLeft));
+      if (state().chores.phase !== "long" || state().saddle !== "buckle") choresFail("long buckle " + state().saddle);
+      document.getElementById("day-yard").click();
+      if (state().place !== "yard" || state().chores || state().saddle !== "on" || state().needs.drink || state().needs.shoes !== 0 || state().cattle) {
+        choresFail("yard restore " + JSON.stringify({ place: state().place, saddle: state().saddle, needs: state().needs, chores: state().chores }));
+      }
+      go("stable");
+      if (state().chores || document.getElementById("brush").hidden || !document.getElementById("strap").hidden || state().banner === "The clock is waiting.") {
+        choresFail("morning after the day " + state().banner);
+      }
+      session.horse.care.saddle = "off";
+      if (!careSame()) choresFail("day rewrote the morning horse");
+      if (localStorage.getItem("saddle-up") !== null || localStorage.getItem("pop-pals-v1") !== popsBefore) {
+        choresFail("storage changed");
+      }
+      applyDeepLink(new URLSearchParams("chores"));
+      if (state().level !== "shop" || state().place !== "chores" || !state().chores || state().chores.phase !== "field" || state().chores.msLeft !== 240000) {
+        choresFail("chores link " + JSON.stringify({ level: state().level, place: state().place, chores: state().chores }));
+      }
+      if (state().breed !== careSnap.breed || state().hoofSpots !== careSnap.hoofSpots) choresFail("chores link rebuilt the horse");
     } catch (err) {
       failures.push("Case error: " + (err && err.stack ? err.stack : err));
     }
@@ -3287,6 +3756,10 @@
       if (!session.horse) pickBreed("palomino");
       level("little");
       go("cattle");
+    } else if (params.has("chores")) {
+      if (!session.horse) pickBreed("palomino");
+      level("shop");
+      go("chores");
     }
   }
 
@@ -3353,6 +3826,14 @@
     const cowId = "cow-" + i;
     document.getElementById(cowId).addEventListener("click", () => loopCow(cowId));
   }
+  document.getElementById("barn-back").addEventListener("click", () => go("stable"));
+  document.getElementById("barn-cattle").addEventListener("click", () => go("chores"));
+  document.getElementById("day-again").addEventListener("click", again);
+  document.getElementById("day-yard").addEventListener("click", leaveChores);
+  document.getElementById("strap").addEventListener("click", fixBuckle);
+  [1, 2, 3, 4].forEach((n) => {
+    document.getElementById("shoe-" + n).addEventListener("click", tapShoe);
+  });
   document.getElementById("jump-up").addEventListener("click", () => pickHeight(1));
   document.getElementById("jump-low").addEventListener("click", () => pickHeight(1));
   document.getElementById("jump-mid").addEventListener("click", () => pickHeight(2));
