@@ -456,6 +456,8 @@
   let raceWalk = null;
   let hoofReturnAt = 0;
   let phaseMs = 0;
+  let jumpFrom = 0;
+  let jumpTired = 0;
   let clock = 0;
   let reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let mute = false;
@@ -1151,6 +1153,8 @@
       windowMs: TUNE.windowsMs[speed]
     };
     phaseMs = 0;
+    jumpFrom = 0;
+    jumpTired = 0;
     pose = "stand";
     brushUntil = 0;
     drinkUntil = 0;
@@ -1163,6 +1167,8 @@
   function endJumps() {
     session.jumps = null;
     phaseMs = 0;
+    jumpFrom = 0;
+    jumpTired = 0;
     if (pose === "jump" || pose === "run") pose = "stand";
   }
 
@@ -1194,16 +1200,20 @@
     if (!j || j.phase !== "choose") return;
     const height = Number(step);
     if (!(height >= 1)) return;
+    const from = j.approach;
     j.pick = height;
     j.approach = 0;
     phaseMs = 0;
     if (height >= j.need) {
       j.phase = "jump";
       j.cleared += 1;
+      jumpFrom = from;
+      addJumpEffort(height - j.need);
       playSound("jump");
     } else {
       j.phase = "miss";
       pose = "stand";
+      jumpFrom = 0;
       playSound("miss");
     }
     render();
@@ -1616,7 +1626,7 @@
     let cy = Math.round(box.y + box.h * 0.48);
     if (box.anchorX != null) cx = Math.round(box.anchorX);
     if (box.anchorY != null) cy = Math.round(box.anchorY);
-    if (poseName === "jump") cy -= Math.round(ry * 0.9);
+    if (poseName === "jump") cy -= Math.round(ry * 0.9 * jumpReach() * jumpAir());
     const body = { cx: cx, cy: cy, rx: rx, ry: ry };
     const trough = {
       x: Math.round(body.cx + body.rx + 18),
@@ -1745,10 +1755,51 @@
 
   function legShift(name, gait, phase) {
     if (gait === "jump") {
-      if (name === "farHind") return { x: -1.15, y: -0.22, tuck: 0 };
-      if (name === "nearHind") return { x: -0.95, y: -0.08, tuck: 0 };
-      if (name === "farFore") return { x: 0.95, y: -0.7, tuck: 0 };
-      return { x: 1.15, y: -0.9, tuck: 0 };
+      if (reduceMotion || session.place !== "jumps") {
+        if (name === "farHind") return { x: -1.15, y: -0.22, tuck: 0 };
+        if (name === "nearHind") return { x: -0.95, y: -0.08, tuck: 0 };
+        if (name === "farFore") return { x: 0.95, y: -0.7, tuck: 0 };
+        return { x: 1.15, y: -0.9, tuck: 0 };
+      }
+      const u = Math.max(0, Math.min(1, phaseMs / TUNE.jumpMs));
+      const fore = name.indexOf("Fore") >= 0;
+      const near = name.indexOf("near") === 0;
+      let x;
+      let y;
+      if (u < 0.24) {
+        const t = u / 0.24;
+        if (fore) {
+          x = 0.25 + t * 0.85;
+          y = -0.1 - t * 0.65;
+        } else {
+          x = -0.15 - t * 1.05;
+          y = -0.04 * t;
+        }
+      } else if (u < 0.7) {
+        const t = (u - 0.24) / 0.46;
+        const tuck = Math.sin(t * Math.PI);
+        if (fore) {
+          x = 1.1 - tuck * 0.45;
+          y = -0.75 - tuck * 0.3;
+        } else {
+          x = -1.2 + tuck * 0.25;
+          y = -0.08 - tuck * 0.85;
+        }
+      } else {
+        const t = (u - 0.7) / 0.3;
+        if (fore) {
+          x = 0.65 * (1 - t) + 0.15 * t;
+          y = -0.75 * (1 - t);
+        } else {
+          x = -0.95 + t * 0.15;
+          y = -0.9 * (1 - t);
+        }
+      }
+      if (!near) {
+        x *= 0.86;
+        y *= 0.9;
+      }
+      return { x: x, y: y, tuck: 0 };
     }
     const spec = gaitSpec(gait);
     if (!spec) {
@@ -2297,6 +2348,15 @@
       ctx.scale(facing.scale, 1);
       ctx.translate(-body.cx, 0);
     }
+    if (!appearance && !reduceMotion && gait === "jump" && session.place === "jumps") {
+      const u = Math.max(0, Math.min(1, phaseMs / TUNE.jumpMs));
+      const tilt = u < 0.55
+        ? -0.14 * Math.sin((u / 0.55) * Math.PI)
+        : 0.16 * Math.sin(((u - 0.55) / 0.45) * Math.PI);
+      ctx.translate(body.cx, body.cy);
+      ctx.rotate(tilt);
+      ctx.translate(-body.cx, -body.cy);
+    }
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
     drawTail(body, gait, phase, meta.mane);
@@ -2633,25 +2693,96 @@
     });
   }
 
+  function effortBand() {
+    return session.levelId === "shop" || session.levelId === "rush";
+  }
+
+  function addJumpEffort(over) {
+    if (!effortBand()) return;
+    if (over <= 0) jumpTired = Math.max(0, jumpTired - 2);
+    else jumpTired = Math.min(8, jumpTired + over);
+  }
+
+  function jumpAir() {
+    const j = session.jumps;
+    if (!j || j.phase !== "jump") return 0;
+    if (reduceMotion) return 1;
+    const u = Math.max(0, Math.min(1, phaseMs / TUNE.jumpMs));
+    return Math.sin(u * Math.PI);
+  }
+
+  function jumpReach() {
+    const j = session.jumps;
+    const ask = j && j.pick ? j.pick : 1;
+    let scale = ask <= 1 ? 0.76 : ask === 2 ? 1.37 : 2.28;
+    if (effortBand() && jumpTired >= 4) scale *= 0.86;
+    return scale;
+  }
+
+  function rideGait() {
+    const j = session.jumps;
+    if (effortBand() && jumpTired >= 4) return "walk";
+    return (j && j.speed) || "walk";
+  }
+
   function ridePose() {
     const j = session.jumps;
     if (!j) return "stand";
     if (j.phase === "jump") return "jump";
-    if (j.phase === "choose" || j.phase === "gap") return j.speed || "walk";
+    if (j.phase === "choose" || j.phase === "gap") return rideGait();
     return "stand";
   }
 
-  function visualApproach() {
+  function fenceNeedNow() {
     const j = session.jumps;
-    if (!j) return 0;
-    if (j.phase === "jump") return 1;
-    if (j.phase === "choose") return j.approach;
-    return 0;
+    if (!j) return 1;
+    if (j.phase === "gap") {
+      const course = courseNow();
+      const next = course && course.needs[j.index + 1];
+      return next || j.need;
+    }
+    return j.need;
   }
 
   function gateCenterX(w) {
-    const a = visualApproach();
-    return w * (TUNE.gateXFrac.far + (TUNE.gateXFrac.near - TUNE.gateXFrac.far) * a);
+    const j = session.jumps;
+    const far = w * TUNE.gateXFrac.far;
+    const near = w * TUNE.gateXFrac.near;
+    if (!j || j.phase === "ready" || j.phase === "miss" || j.phase === "done") return far;
+    if (j.phase === "choose") return far + (near - far) * j.approach;
+    if (j.phase === "jump") {
+      if (reduceMotion) return near;
+      const u = Math.max(0, Math.min(1, phaseMs / TUNE.jumpMs));
+      const start = far + (near - far) * jumpFrom;
+      const under = w * 0.3;
+      const past = w * 0.02;
+      if (u < 0.42) {
+        const t = u / 0.42;
+        const ease = t * t * (3 - 2 * t);
+        return start + (under - start) * ease;
+      }
+      const t = (u - 0.42) / 0.58;
+      return under + (past - under) * t;
+    }
+    if (j.phase === "gap" && !reduceMotion) {
+      const u = Math.max(0, Math.min(1, phaseMs / TUNE.gapMs));
+      const ease = u * u * (3 - 2 * u);
+      return w * 1.2 + (far - w * 1.2) * ease;
+    }
+    return far;
+  }
+
+  function leaveGateX(w) {
+    const u = Math.max(0, Math.min(1, phaseMs / TUNE.gapMs));
+    if (u >= 0.45) return null;
+    const t = u / 0.45;
+    return w * 0.02 + (-w * 0.24 - w * 0.02) * t;
+  }
+
+  function courseRy(w, ground) {
+    const boxH = Math.max(240, ground - 80);
+    const rx = Math.round(Math.min(140, w * 0.22, boxH * 0.28));
+    return Math.round(rx * 0.62);
   }
 
   function stepColor(step, need) {
@@ -2662,33 +2793,68 @@
     return "rgb(" + mix(c.r) + "," + mix(c.g) + "," + mix(c.b) + ")";
   }
 
-  function paintLog(x, ground) {
-    roundFill(x - 78, ground - 40, 156, 36, LOW_COLOR, 16);
+  function paintLog(x, ground, ry) {
+    const h = Math.max(28, Math.round(ry * 0.5));
+    const w = Math.round(h * 4.2);
+    const cap = Math.max(10, Math.round(h * 0.42));
+    roundFill(x - w / 2, ground - h, w, Math.round(h * 0.9), LOW_COLOR, 16);
     ctx.fillStyle = WOOD;
     ctx.beginPath();
-    ctx.arc(x - 70, ground - 22, 16, 0, Math.PI * 2);
-    ctx.arc(x + 70, ground - 22, 16, 0, Math.PI * 2);
+    ctx.arc(x - w / 2 + cap * 0.3, ground - h * 0.45, cap, 0, Math.PI * 2);
+    ctx.arc(x + w / 2 - cap * 0.3, ground - h * 0.45, cap, 0, Math.PI * 2);
     ctx.fill();
     strokeInk();
     ctx.stroke();
   }
 
-  function paintRails(x, ground, need) {
-    const postH = 128;
+  function paintRails(x, ground, need, ry) {
+    const postH = Math.round(ry * (need <= 1 ? 0.95 : need === 2 ? 1.5 : 2.15));
     const top = ground - postH;
+    const rails = need <= 1 ? [1] : need === 2 ? [2, 1] : [3, 2, 1];
+    const half = Math.round(ry * 0.85);
+    const postW = Math.max(10, Math.round(ry * 0.16));
+    const railH = Math.max(12, Math.round(ry * 0.16));
     ctx.fillStyle = WOOD;
-    ctx.fillRect(x - 58, top, 14, postH);
-    ctx.fillRect(x + 44, top, 14, postH);
+    ctx.fillRect(x - half - postW + 4, top, postW, postH);
+    ctx.fillRect(x + half - 4, top, postW, postH);
     strokeInk();
-    ctx.strokeRect(x - 58, top, 14, postH);
-    ctx.strokeRect(x + 44, top, 14, postH);
-    [3, 2, 1].forEach((step, i) => {
-      const y = top + 12 + i * 38;
+    ctx.strokeRect(x - half - postW + 4, top, postW, postH);
+    ctx.strokeRect(x + half - 4, top, postW, postH);
+    const gap = Math.max(railH + 6, (postH - railH - 8) / rails.length);
+    rails.forEach((step, i) => {
+      const y = top + 8 + i * gap;
       ctx.fillStyle = stepColor(step, need);
-      ctx.fillRect(x - 52, y, 104, 16);
+      ctx.fillRect(x - half, y, half * 2, railH);
       strokeInk();
-      ctx.strokeRect(x - 52, y, 104, 16);
+      ctx.strokeRect(x - half, y, half * 2, railH);
     });
+  }
+
+  function paintCourseFence(x, ground, need, ry) {
+    if (session.levelId === "tiny") paintLog(x, ground, ry);
+    else paintRails(x, ground, need, ry);
+  }
+
+  function paintTrackMove(w, ground) {
+    const j = session.jumps;
+    if (!j || reduceMotion) return;
+    if (j.phase !== "choose" && j.phase !== "jump" && j.phase !== "gap") return;
+    const heavy = effortBand() && jumpTired >= 4;
+    const pace = heavy ? 70 : j.speed === "canter" ? 220 : j.speed === "trot" ? 150 : 90;
+    const shift = ((clock / 1000) * pace) % 84;
+    ctx.fillStyle = "#c4a574";
+    for (let x = -84; x < w + 84; x += 84) ctx.fillRect(x - shift, ground + 16, 34, 6);
+  }
+
+  function paintJumpEffort(x, y) {
+    if (!effortBand() || jumpTired <= 0) return;
+    const drops = jumpTired >= 4 ? 3 : jumpTired >= 2 ? 2 : 1;
+    ctx.fillStyle = WATER;
+    for (let i = 0; i < drops; i++) {
+      ctx.beginPath();
+      ctx.arc(x + i * 16, y + (i === 1 ? 8 : 0), 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   function paintSideCourse(w, h) {
@@ -2701,26 +2867,42 @@
     ctx.fillRect(0, ground, w, h - ground);
     ctx.fillStyle = "#6b4a2a";
     ctx.fillRect(0, ground - 6, w, 10);
+    paintTrackMove(w, ground);
     const j = session.jumps;
+    const ry = courseRy(w, ground);
+    const horseX = w * 0.28;
+    const nose = horseX + Math.round(ry / 0.62) * 0.85;
+    const behind = [];
+    const ahead = [];
     if (j && j.phase !== "done") {
-      const x = gateCenterX(w);
-      if (session.levelId === "tiny") paintLog(x, ground);
-      else paintRails(x, ground, j.need);
+      const fence = { x: gateCenterX(w), need: fenceNeedNow() };
+      if (fence.x < nose) behind.push(fence);
+      else ahead.push(fence);
+      if (!reduceMotion && j.phase === "gap") {
+        const left = leaveGateX(w);
+        if (left != null) behind.push({ x: left, need: j.need });
+      }
     }
+    behind.forEach((fence) => paintCourseFence(fence.x, ground, fence.need, ry));
     const box = {
       x: 0,
       y: 70,
       w: w,
       h: Math.max(240, ground - 80),
-      anchorX: w * 0.28,
-      anchorY: ground - 150
+      anchorX: horseX,
+      anchorY: ground - Math.round(ry * 1.5)
     };
     drawHorse(ctx, box, ridePose());
+    ahead.forEach((fence) => paintCourseFence(fence.x, ground, fence.need, ry));
+    if (j && session.horse) {
+      const parts = horseParts(box, ridePose());
+      paintJumpEffort(parts.head.x - 18, parts.head.y - parts.head.r - 6);
+    }
   }
 
-  function paintEars(w, h, meta) {
+  function paintEars(w, h, meta, lift) {
     const cx = w / 2;
-    const base = h - 6;
+    const base = h - 6 - (lift || 0);
     ctx.fillStyle = meta.coat;
     ctx.beginPath();
     ctx.moveTo(cx - 46, base);
@@ -2769,27 +2951,70 @@
     ctx.lineTo(w * 0.34, h);
     ctx.closePath();
     ctx.fill();
+    paintFirstRush(w, h, horizon);
     const j = session.jumps;
+    let earLift = 0;
     if (j && j.phase !== "done") {
-      const a = visualApproach();
-      const gh = TUNE.gatePx.far + (TUNE.gatePx.near - TUNE.gatePx.far) * a;
-      const gw = 48 + 150 * a;
-      const base = horizon + 8 + a * Math.max(24, (h - horizon) * 0.22);
+      const need = fenceNeedNow();
+      const scale = need <= 1 ? 0.46 : need === 2 ? 0.86 : 1.32;
+      let a = j.phase === "choose" ? j.approach : 0;
+      let pass = 0;
+      let grow = 1;
+      if (!reduceMotion && j.phase === "jump") {
+        const u = Math.max(0, Math.min(1, phaseMs / TUNE.jumpMs));
+        const arrive = Math.min(1, u / 0.42);
+        a = jumpFrom + (1 - jumpFrom) * arrive;
+        pass = u < 0.42 ? 0 : (u - 0.42) / 0.58;
+        earLift = Math.sin(u * Math.PI) * (18 + jumpReach() * 22);
+      } else if (j.phase === "jump") {
+        a = 1;
+      } else if (!reduceMotion && j.phase === "gap") {
+        const u = Math.max(0, Math.min(1, phaseMs / TUNE.gapMs));
+        a = 0;
+        grow = u * u * (3 - 2 * u);
+      }
+      const size = Math.max(0, Math.min(1, a));
+      const gh = (TUNE.gatePx.far + (TUNE.gatePx.near - TUNE.gatePx.far) * size) * scale * grow;
+      const gw = (48 + 150 * size) * (0.4 + 0.6 * grow);
+      const travel = Math.max(24, (h - horizon) * 0.22);
+      const base = horizon + 8 + size * travel + pass * h * 0.72;
       const top = base - gh;
       const x = w / 2;
-      ctx.fillStyle = WOOD;
-      ctx.fillRect(x - gw / 2, top, 8, gh);
-      ctx.fillRect(x + gw / 2 - 8, top, 8, gh);
-      strokeInk();
-      ctx.strokeRect(x - gw / 2, top, 8, gh);
-      ctx.strokeRect(x + gw / 2 - 8, top, 8, gh);
-      [3, 2, 1].forEach((step, i) => {
-        const y = top + 4 + i * Math.max(6, (gh - 12) / 3);
-        ctx.fillStyle = stepColor(step, j.need);
-        ctx.fillRect(x - gw / 2, y, gw, Math.max(5, gh * 0.1));
-      });
+      const rails = need <= 1 ? [1] : need === 2 ? [2, 1] : [3, 2, 1];
+      if (gh > 2 && gw > 2) {
+        ctx.fillStyle = WOOD;
+        ctx.fillRect(x - gw / 2, top, 8, gh);
+        ctx.fillRect(x + gw / 2 - 8, top, 8, gh);
+        strokeInk();
+        ctx.strokeRect(x - gw / 2, top, 8, gh);
+        ctx.strokeRect(x + gw / 2 - 8, top, 8, gh);
+        rails.forEach((step, i) => {
+          const y = top + 4 + i * Math.max(6, (gh - 12) / rails.length);
+          ctx.fillStyle = stepColor(step, need);
+          ctx.fillRect(x - gw / 2, y, gw, Math.max(5, gh * 0.1));
+        });
+      }
     }
-    if (session.horse) paintEars(w, h, breedMeta(session.horse.breedId));
+    if (session.horse) {
+      paintEars(w, h, breedMeta(session.horse.breedId), earLift);
+      paintJumpEffort(w / 2 - 20, h - 130);
+    }
+  }
+
+  function paintFirstRush(w, h, horizon) {
+    const j = session.jumps;
+    if (!j || reduceMotion) return;
+    if (j.phase !== "choose" && j.phase !== "jump" && j.phase !== "gap") return;
+    const heavy = effortBand() && jumpTired >= 4;
+    const pace = heavy ? 0.35 : j.speed === "canter" ? 1.15 : j.speed === "trot" ? 0.8 : 0.5;
+    const t = ((clock / 1000) * pace) % 1;
+    ctx.fillStyle = "#c4a574";
+    for (let i = 0; i < 4; i++) {
+      const u = Math.pow((t + i / 4) % 1, 1.6);
+      const y = horizon + 12 + u * (h - horizon - 28);
+      const half = 10 + u * w * 0.14;
+      ctx.fillRect(w / 2 - half, y, half * 2, 3 + u * 7);
+    }
   }
 
   function paintJumps(w, h) {
