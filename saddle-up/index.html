@@ -448,6 +448,10 @@
   let pose = "stand";
   let brushUntil = 0;
   let drinkUntil = 0;
+  let eatUntil = 0;
+  let pourUntil = 0;
+  let travel = null;
+  const chase = { x: null, y: null, gait: "stand", face: 1 };
   let hoofReturnAt = 0;
   let phaseMs = 0;
   let clock = 0;
@@ -568,6 +572,9 @@
     pose = "stand";
     brushUntil = 0;
     drinkUntil = 0;
+    eatUntil = 0;
+    pourUntil = 0;
+    travel = null;
     hoofReturnAt = 0;
     return true;
   }
@@ -583,7 +590,8 @@
     render();
   }
 
-  function go(place) {
+  function go(place, opts) {
+    opts = opts || {};
     if (PLACES.indexOf(place) < 0) return;
     if (!LIVE[place]) return;
     if (session.chores) {
@@ -603,6 +611,14 @@
       }
       return;
     }
+    if (!opts.arrive && !checking && !reduceMotion && session.place === "stable" && place === "yard" && session.horse) {
+      if (!travel || travel.kind !== "out") {
+        travel = { kind: "out", dest: "yard", start: clock, ms: 1700 };
+        pose = "walk";
+        render();
+      }
+      return;
+    }
     if ((place === "yard" || place === "stable" || place === "hoof" || place === "jumps" || place === "race" || place === "cattle" || place === "chores" || place === "vet") && !session.horse) {
       if (place === "yard") place = "breed";
       else return;
@@ -615,7 +631,15 @@
     if (place !== "race") endRace();
     if (place !== "cattle") endCattle();
     if (place !== "vet") endVet();
+    const from = session.place;
     session.place = place;
+    if (!opts.arrive && !checking && !reduceMotion && from === "yard" && place === "stable" && session.horse) {
+      travel = { kind: "in", dest: "stable", start: clock, ms: 1700 };
+      pose = "walk";
+    } else {
+      travel = null;
+      if (pose === "walk") pose = "stand";
+    }
     if (place === "jumps") beginJumps();
     if (place === "race") beginRace();
     if (place === "cattle") beginCattle();
@@ -688,10 +712,18 @@
       });
     }
     session.cattle = { phase: "run", pen: 0, cows: cows, notice: null };
+    chase.x = null;
+    chase.y = null;
+    chase.gait = "stand";
+    chase.face = 1;
   }
 
   function endCattle() {
     session.cattle = null;
+    chase.x = null;
+    chase.y = null;
+    chase.gait = "stand";
+    chase.face = 1;
   }
 
   function herdBlock() {
@@ -1110,6 +1142,9 @@
     pose = "stand";
     brushUntil = 0;
     drinkUntil = 0;
+    eatUntil = 0;
+    pourUntil = 0;
+    travel = null;
   }
 
   function endJumps() {
@@ -1213,12 +1248,19 @@
     }
   }
 
+  function stopTravel() {
+    if (!travel) return;
+    travel = null;
+    if (pose === "walk") pose = "stand";
+  }
+
   function brushHorse() {
     const horse = session.horse;
     if (!horse || horse.care.brushed) return;
+    stopTravel();
     horse.care.brushed = true;
     pose = reduceMotion ? "stand" : "brush";
-    brushUntil = reduceMotion ? 0 : clock + TUNE.brushMs;
+    brushUntil = reduceMotion ? 0 : clock + 1700;
     playSound("brush");
     maybeCheer();
     render();
@@ -1228,10 +1270,12 @@
     const horse = session.horse;
     if (!horse) return;
     if (horse.care.trough === "full" && !horse.needs.drink) return;
+    stopTravel();
     horse.care.trough = "full";
     horse.needs.drink = false;
     pose = "drink";
-    drinkUntil = reduceMotion ? clock : clock + TUNE.drinkMs;
+    pourUntil = reduceMotion ? 0 : clock + 2200;
+    drinkUntil = reduceMotion ? clock : pourUntil + TUNE.drinkMs;
     playSound("water");
     maybeCheer();
     render();
@@ -1243,12 +1287,14 @@
     if (horse.care.trough === "empty" && horse.needs.drink) return;
     horse.care.trough = "empty";
     horse.needs.drink = true;
+    pourUntil = 0;
     render();
   }
 
   function putSaddle() {
     const horse = session.horse;
     if (!horse || horse.care.saddle !== "off") return;
+    stopTravel();
     horse.care.saddle = "on";
     playSound("saddle");
     maybeCheer();
@@ -1297,7 +1343,12 @@
     if (!horse) return;
     if (kind !== "apple" && kind !== "carrot") return;
     if (horse.care.foods[kind]) return;
+    stopTravel();
     horse.care.foods[kind] = true;
+    if (!reduceMotion) {
+      pose = "eat";
+      eatUntil = clock + 2400;
+    }
     playSound("munch");
     maybeCheer();
     render();
@@ -1543,7 +1594,7 @@
   }
 
   function horseParts(box, poseName) {
-    const shown = poseName === "drink" || poseName === "brush" ? poseName : "stand";
+    const shown = poseName === "drink" || poseName === "brush" || poseName === "eat" ? poseName : "stand";
     const rx = Math.round(Math.min(140, box.w * 0.22, box.h * 0.28));
     const ry = Math.round(rx * 0.62);
     const groupW = rx * 2 + 18 + 96;
@@ -1552,7 +1603,6 @@
     if (box.anchorX != null) cx = Math.round(box.anchorX);
     if (box.anchorY != null) cy = Math.round(box.anchorY);
     if (poseName === "jump") cy -= Math.round(ry * 0.9);
-    else if (poseName === "run" && !reduceMotion) cy += Math.round(Math.sin(clock / 140) * 6);
     const body = { cx: cx, cy: cy, rx: rx, ry: ry };
     const trough = {
       x: Math.round(body.cx + body.rx + 18),
@@ -1610,6 +1660,20 @@
         };
       }
     } else if (shown === "brush") head = brushHead;
+    else if (shown === "eat") {
+      const eatHead = { x: standHead.x + 10, y: standHead.y + Math.round(hr * 0.55), r: hr };
+      const span = 2400;
+      if (reduceMotion || !eatUntil || clock <= eatUntil - span || clock >= eatUntil) head = standHead;
+      else {
+        const u = Math.max(0, Math.min(1, 1 - (eatUntil - clock) / span));
+        const dip = Math.sin(u * Math.PI);
+        head = {
+          x: Math.round(standHead.x + (eatHead.x - standHead.x) * dip),
+          y: Math.round(standHead.y + (eatHead.y - standHead.y) * dip),
+          r: hr
+        };
+      }
+    }
     const mouth = {
       x: Math.round(head.x + head.r * 0.2),
       y: Math.round(head.y + head.r * 0.35)
@@ -1631,107 +1695,418 @@
     ctx.stroke();
   }
 
-  function drawHorse(ctx, box, poseName, appearance) {
+  function shade(hex, amt) {
+    const c = hexRgb(hex);
+    const clamp = (v) => Math.max(0, Math.min(255, Math.round(v + amt)));
+    return "rgb(" + clamp(c.r) + "," + clamp(c.g) + "," + clamp(c.b) + ")";
+  }
+
+  function gaitName(poseName) {
+    if (poseName === "run") return "gallop";
+    if (poseName === "walk" || poseName === "trot" || poseName === "canter" || poseName === "gallop" || poseName === "jump") return poseName;
+    return "stand";
+  }
+
+  function gaitSpec(name) {
+    if (name === "walk") return { stance: 0.62, reach: 0.72, lift: 0.38, offsets: { nearHind: 0, farHind: 0.5, nearFore: 0.25, farFore: 0.75 } };
+    if (name === "trot") return { stance: 0.42, reach: 0.88, lift: 0.62, offsets: { nearHind: 0, farHind: 0.5, nearFore: 0.5, farFore: 0 } };
+    if (name === "canter") return { stance: 0.34, reach: 0.95, lift: 0.72, suspend: 0.82, offsets: { nearHind: 0.33, farHind: 0, nearFore: 0.62, farFore: 0.33 } };
+    if (name === "gallop") return { stance: 0.22, reach: 1.05, lift: 0.85, suspend: 0.74, offsets: { nearHind: 0, farHind: 0.16, nearFore: 0.34, farFore: 0.52 } };
+    return null;
+  }
+
+  function appearanceSalt(meta) {
+    if (!meta || !meta.id) return 0;
+    let n = 0;
+    for (let i = 0; i < meta.id.length; i++) n += meta.id.charCodeAt(i);
+    return (n % 17) / 17;
+  }
+
+  function gaitPhase(name, salt) {
+    if (name === "stand" || name === "jump") return 0;
+    const hz = name === "walk" ? 0.95 : name === "trot" ? 1.45 : name === "canter" ? 1.75 : 2.35;
+    if (reduceMotion) return name === "gallop" ? 0.2 : name === "canter" ? 0.15 : name === "trot" ? 0.1 : 0.05;
+    return ((clock / 1000) * hz + (salt || 0)) % 1;
+  }
+
+  function legShift(name, gait, phase) {
+    if (gait === "jump") {
+      if (name === "farHind") return { x: -1.15, y: -0.22, tuck: 0 };
+      if (name === "nearHind") return { x: -0.95, y: -0.08, tuck: 0 };
+      if (name === "farFore") return { x: 0.95, y: -0.7, tuck: 0 };
+      return { x: 1.15, y: -0.9, tuck: 0 };
+    }
+    const spec = gaitSpec(gait);
+    if (!spec) {
+      if (reduceMotion) return { x: 0, y: 0, tuck: 0 };
+      const sway = Math.sin(clock / 1800) * 0.05;
+      if (name === "farHind") return { x: 0.3 + sway, y: -0.1, tuck: 0.12 };
+      if (name === "nearHind") return { x: -0.05, y: 0, tuck: 0 };
+      if (name === "farFore") return { x: 0.05 - sway, y: 0, tuck: 0 };
+      return { x: -0.03, y: 0, tuck: 0 };
+    }
+    if (spec.suspend && phase >= spec.suspend) {
+      const fore = name.indexOf("Fore") >= 0;
+      return { x: fore ? 0.22 : -0.18, y: -0.95, tuck: 1 };
+    }
+    let p = (phase + spec.offsets[name]) % 1;
+    if (p < 0) p += 1;
+    if (p < spec.stance) {
+      const u = p / spec.stance;
+      return { x: spec.reach * (1 - 2 * u), y: 0, tuck: 0 };
+    }
+    const u = (p - spec.stance) / (1 - spec.stance);
+    return { x: spec.reach * (-1 + 2 * u), y: -Math.sin(u * Math.PI) * spec.lift, tuck: 0 };
+  }
+
+  function twoBone(ax, ay, hx, hy, len1, len2, bend) {
+    const dx = hx - ax;
+    const dy = hy - ay;
+    const dist = Math.max(1, Math.hypot(dx, dy));
+    const max = len1 + len2 - 0.5;
+    const min = Math.abs(len1 - len2) + 0.5;
+    const d = Math.min(max, Math.max(min, dist));
+    const ux = dx / dist;
+    const uy = dy / dist;
+    const tx = ax + ux * d;
+    const ty = ay + uy * d;
+    const cos = (len1 * len1 + d * d - len2 * len2) / (2 * len1 * d);
+    const ang = Math.acos(Math.max(-1, Math.min(1, cos)));
+    const knee = Math.atan2(ty - ay, tx - ax) + bend * ang;
+    return { kx: ax + Math.cos(knee) * len1, ky: ay + Math.sin(knee) * len1, hx: tx, hy: ty };
+  }
+
+  function fillBone(ax, ay, bx, by, w1, w2, coat) {
+    const ang = Math.atan2(by - ay, bx - ax);
+    const nx = Math.sin(ang);
+    const ny = -Math.cos(ang);
+    ctx.beginPath();
+    ctx.moveTo(ax + nx * w1, ay + ny * w1);
+    ctx.lineTo(bx + nx * w2, by + ny * w2);
+    ctx.lineTo(bx - nx * w2, by - ny * w2);
+    ctx.lineTo(ax - nx * w1, ay - ny * w1);
+    ctx.closePath();
+    ctx.fillStyle = coat;
+    ctx.fill();
+    strokeInk();
+    ctx.lineWidth = Math.max(2, Math.min(w1, w2) * 0.22);
+    ctx.stroke();
+  }
+
+  function drawLeg(attach, shift, drop, reachPx, upper, lower, width, coat, bend) {
+    let hx = attach.x + shift.x * reachPx;
+    let hy = attach.y + drop + shift.y * drop * 0.85;
+    if (shift.tuck) {
+      hx = attach.x + (hx - attach.x) * 0.35;
+      hy = attach.y + drop * 0.28;
+    }
+    const joint = twoBone(attach.x, attach.y, hx, hy, upper, lower, bend);
+    fillBone(attach.x, attach.y, joint.kx, joint.ky, width, width * 0.72, coat);
+    fillBone(joint.kx, joint.ky, joint.hx, joint.hy, width * 0.62, width * 0.4, coat);
+    ctx.fillStyle = coat;
+    ctx.beginPath();
+    ctx.arc(joint.kx, joint.ky, width * 0.46, 0, Math.PI * 2);
+    ctx.fill();
+    strokeInk();
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    const ang = Math.atan2(joint.hy - joint.ky, joint.hx - joint.kx);
+    ctx.save();
+    ctx.translate(joint.hx, joint.hy);
+    ctx.rotate(ang);
+    ctx.fillStyle = "#3a2a22";
+    ctx.beginPath();
+    ctx.moveTo(-width * 0.45, -width * 0.15);
+    ctx.lineTo(width * 0.95, -width * 0.05);
+    ctx.lineTo(width * 0.8, width * 0.45);
+    ctx.lineTo(-width * 0.35, width * 0.38);
+    ctx.closePath();
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawTail(body, gait, phase, mane) {
+    const s = body.ry / 78;
+    const rootX = body.cx - body.rx * 0.82;
+    const rootY = body.cy - body.ry * 0.15;
+    let tipX = rootX - 8 * s;
+    let tipY = rootY + 92 * s;
+    if (gait === "gallop") {
+      tipX = rootX - 78 * s;
+      tipY = rootY + 6 * s;
+    } else if (gait === "canter") {
+      tipX = rootX - 40 * s + Math.sin(phase * Math.PI * 2) * 12 * s;
+      tipY = rootY + 54 * s;
+    } else if (gait === "trot" || gait === "walk") {
+      tipX = rootX + Math.sin(phase * Math.PI * 2) * 22 * s;
+      tipY = rootY + 86 * s;
+    } else if (!reduceMotion) {
+      const t = clock % 4800;
+      const swish = t < 650 ? Math.sin((t / 650) * Math.PI * 2) * 42 * s : Math.sin(clock / 900) * 7 * s;
+      tipX = rootX + swish;
+      tipY = rootY + 92 * s;
+    }
+    const hair = Math.max(10, 18 * s);
+    ctx.fillStyle = mane;
+    ctx.beginPath();
+    ctx.moveTo(rootX, rootY - hair * 0.3);
+    ctx.quadraticCurveTo(rootX - hair, (rootY + tipY) / 2, tipX - hair * 0.35, tipY);
+    ctx.quadraticCurveTo((rootX + tipX) / 2 + hair, tipY + hair * 0.4, rootX + hair * 0.2, rootY + hair * 0.2);
+    ctx.closePath();
+    ctx.fill();
+    strokeInk();
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
+
+  function drawBarrel(body, coat) {
+    const cx = body.cx;
+    const cy = body.cy;
+    const rx = body.rx;
+    const ry = body.ry;
+    ctx.beginPath();
+    ctx.moveTo(cx - rx * 0.78, cy + ry * 0.05);
+    ctx.quadraticCurveTo(cx - rx * 0.72, cy - ry * 0.95, cx - rx * 0.15, cy - ry * 0.82);
+    ctx.quadraticCurveTo(cx + rx * 0.28, cy - ry * 1.05, cx + rx * 0.62, cy - ry * 0.35);
+    ctx.quadraticCurveTo(cx + rx * 0.95, cy + ry * 0.05, cx + rx * 0.48, cy + ry * 0.62);
+    ctx.quadraticCurveTo(cx + rx * 0.05, cy + ry * 0.95, cx - rx * 0.42, cy + ry * 0.72);
+    ctx.quadraticCurveTo(cx - rx * 0.9, cy + ry * 0.48, cx - rx * 0.78, cy + ry * 0.05);
+    ctx.closePath();
+    ctx.fillStyle = coat;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(cx + rx * 0.18, cy + ry * 0.3, Math.max(16, ry * 0.28), 0, Math.PI * 2);
+    ctx.fill();
+    strokeInk();
+    ctx.beginPath();
+    ctx.moveTo(cx - rx * 0.78, cy + ry * 0.05);
+    ctx.quadraticCurveTo(cx - rx * 0.72, cy - ry * 0.95, cx - rx * 0.15, cy - ry * 0.82);
+    ctx.quadraticCurveTo(cx + rx * 0.28, cy - ry * 1.05, cx + rx * 0.62, cy - ry * 0.35);
+    ctx.quadraticCurveTo(cx + rx * 0.92, cy + ry * 0.02, cx + rx * 0.5, cy + ry * 0.58);
+    ctx.stroke();
+  }
+
+  function drawNeck(body, vis, coat, mane) {
+    const r = vis.r;
+    const withersX = body.cx + body.rx * 0.12;
+    const withersY = body.cy - body.ry * 0.78;
+    const pollX = vis.x - r * 0.2;
+    const pollY = vis.y - r * 0.55;
+    const throatX = vis.x - r * 0.35;
+    const throatY = vis.y + r * 0.42;
+    const chestX = body.cx + body.rx * 0.48;
+    const chestY = body.cy + body.ry * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(withersX, withersY);
+    ctx.quadraticCurveTo((withersX + pollX) / 2, Math.min(withersY, pollY) - r * 0.15, pollX, pollY);
+    ctx.lineTo(throatX, throatY);
+    ctx.quadraticCurveTo(body.cx + body.rx * 0.62, body.cy - body.ry * 0.05, chestX, chestY);
+    ctx.lineTo(body.cx + body.rx * 0.08, body.cy + body.ry * 0.08);
+    ctx.closePath();
+    ctx.fillStyle = coat;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(withersX - 4, withersY + 6);
+    ctx.quadraticCurveTo((withersX + pollX) / 2 - r * 0.35, (withersY + pollY) / 2, pollX - r * 0.05, pollY + 4);
+    ctx.lineTo(pollX + r * 0.08, pollY + r * 0.2);
+    ctx.quadraticCurveTo((withersX + pollX) / 2 - r * 0.05, (withersY + pollY) / 2 + r * 0.25, withersX + 8, withersY + r * 0.35);
+    ctx.closePath();
+    ctx.fillStyle = mane;
+    ctx.fill();
+    strokeInk();
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  function drawHorseHead(vis, coat, mane, ribbon, glance, poseName) {
+    const x = vis.x;
+    const y = vis.y;
+    const r = vis.r;
+    ctx.fillStyle = coat;
+    ctx.beginPath();
+    ctx.moveTo(x - r * 0.5, y - r * 0.25);
+    ctx.quadraticCurveTo(x - r * 0.15, y - r * 1.2, x + r * 0.28, y - r * 0.62);
+    ctx.quadraticCurveTo(x + r * 0.72, y - r * 0.42, x + r * 1.2, y - r * 0.02);
+    ctx.quadraticCurveTo(x + r * 1.32, y + r * 0.2, x + r * 0.95, y + r * 0.34);
+    ctx.quadraticCurveTo(x + r * 0.45, y + r * 0.58, x - r * 0.05, y + r * 0.4);
+    ctx.quadraticCurveTo(x - r * 0.48, y + r * 0.22, x - r * 0.5, y - r * 0.25);
+    ctx.closePath();
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    [[x - r * 0.02, y - r * 0.78, -0.15 + glance.ear * 0.8], [x + r * 0.22, y - r * 0.7, 0.18 + glance.ear * 0.45]].forEach((ear) => {
+      ctx.save();
+      ctx.translate(ear[0], ear[1]);
+      ctx.rotate(ear[2]);
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(-r * 0.08, -r * 1.05);
+      ctx.lineTo(r * 0.1, -r * 0.02);
+      ctx.closePath();
+      ctx.fillStyle = coat;
+      ctx.fill();
+      strokeInk();
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(0, -r * 0.08);
+      ctx.lineTo(-r * 0.04, -r * 0.68);
+      ctx.lineTo(r * 0.08, -r * 0.1);
+      ctx.closePath();
+      ctx.fillStyle = mane;
+      ctx.fill();
+      ctx.restore();
+    });
+    const blink = !reduceMotion && (clock % 3400) < 140;
+    ctx.save();
+    ctx.translate(x + r * 0.02, y - r * 0.08);
+    ctx.scale(1, blink ? 0.15 : 1);
+    ctx.fillStyle = "#fffdf8";
+    ctx.beginPath();
+    ctx.ellipse(0, 0, r * 0.3, r * 0.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    strokeInk();
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = "#6b3a22";
+    ctx.beginPath();
+    ctx.ellipse(glance.x * r * 0.08, glance.y * r * 0.03, r * 0.14, r * 0.1, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = INK;
+    ctx.fillRect(-r * 0.12 + glance.x * r * 0.06, -Math.max(1.2, r * 0.035), r * 0.22, Math.max(2.4, r * 0.07));
+    ctx.restore();
+    ctx.fillStyle = "#e7b2a8";
+    ctx.beginPath();
+    ctx.ellipse(x + r * 1.02, y + r * 0.12, r * 0.09, r * 0.06, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    if (poseName === "eat" && !reduceMotion && eatUntil && clock > eatUntil - 2400 && clock < eatUntil) {
+      const u = 1 - (eatUntil - clock) / 2400;
+      const openJaw = Math.abs(Math.sin(u * Math.PI * 2 * 4.3)) * r * 0.14;
+      ctx.strokeStyle = "#a15a62";
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x + r * 0.32, y + r * 0.28);
+      ctx.quadraticCurveTo(x + r * 0.6, y + r * 0.32 + openJaw, x + r * 0.82, y + r * 0.16);
+      ctx.stroke();
+    }
+    ctx.fillStyle = ribbon;
+    ctx.beginPath();
+    ctx.arc(x - r * 0.5, y - r * 0.4, Math.max(5, r * 0.18), 0, Math.PI * 2);
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+  }
+
+  function drawBrushArm(body, parts) {
+    const total = 1700;
+    const u = !brushUntil ? 0 : Math.max(0, Math.min(1, 1 - (brushUntil - clock) / total));
+    const cycle = (u * 3) % 1;
+    const along = cycle < 0.78 ? cycle / 0.78 : 1;
+    const flick = cycle < 0.78 ? 0 : Math.sin(((cycle - 0.78) / 0.22) * Math.PI);
+    const x0 = body.cx + body.rx * 0.42;
+    const x1 = body.cx - body.rx * 0.42;
+    const y = parts.marks[1].y;
+    const bx = x0 + (x1 - x0) * along;
+    const by = y - flick * 28;
+    ctx.strokeStyle = "#f0d2b0";
+    ctx.lineWidth = Math.max(8, body.ry * 0.12);
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(bx - 36, y + 62);
+    ctx.quadraticCurveTo(bx - 8, y + 24, bx, by);
+    ctx.stroke();
+    ctx.save();
+    ctx.translate(bx, by);
+    ctx.rotate(-0.35 - flick * 0.8);
+    roundFill(-18, -7, 36, 14, WOOD, 4);
+    ctx.fillStyle = "#d8c3a0";
+    ctx.fillRect(-18, 5, 36, 7);
+    ctx.restore();
+  }
+
+  function travelShift() {
+    if (!travel || checking || reduceMotion || session.place !== "stable") return 0;
+    const u = Math.max(0, Math.min(1, (clock - travel.start) / travel.ms));
+    const ease = u * u * (3 - 2 * u);
+    const dist = Math.min(460, Math.max(220, window.innerWidth * 0.42));
+    if (travel.kind === "in") return (1 - ease) * -dist;
+    return ease * -dist;
+  }
+
+  function gaitBob(gait, phase) {
+    if (reduceMotion || gait === "stand" || gait === "jump") return 0;
+    if (gait === "walk") return Math.sin(phase * Math.PI * 2) * 3;
+    if (gait === "trot") return -Math.abs(Math.sin(phase * Math.PI * 2)) * 5;
+    if (gait === "canter") return Math.sin(phase * Math.PI * 2) * 4;
+    return (phase >= 0.74 ? -7 : 0) + Math.sin(phase * Math.PI * 2) * 3;
+  }
+
+  function eyeGlance(poseName, appearance) {
+    if (poseName === "brush") return { x: -0.55, y: 0.4, ear: -0.45 };
+    if (poseName === "drink" || poseName === "eat") return { x: 0.25, y: 0.75, ear: 0.2 };
+    const onField = session.place === "cattle" || (session.place === "chores" && session.chores && session.chores.phase === "field");
+    if (!appearance && onField) return { x: 0.8, y: 0, ear: 0.65 };
+    if (reduceMotion) return { x: 0.12, y: 0, ear: 0.08 };
+    return { x: Math.sin(clock / 1700) * 0.42, y: Math.sin(clock / 2600) * 0.12, ear: Math.sin(clock / 1700) * 0.48 };
+  }
+
+  function drawHorse(ctx, box, poseName, appearance, face) {
     const horse = appearance || session.horse;
     if (!horse) return;
     const meta = appearance || breedMeta(horse.breedId);
     const parts = horseParts(box, poseName);
     const body = parts.body;
     const head = parts.head;
-    strokeInk();
+    const gait = gaitName(poseName);
+    const phase = gaitPhase(gait, appearanceSalt(meta));
+    const s = body.ry / 78;
+    const vis = { x: head.x, y: head.y, r: head.r };
+    if (!reduceMotion && gait === "walk") vis.y += Math.sin(phase * Math.PI * 2) * 8;
+    else if (!reduceMotion && gait === "trot") vis.y += Math.sin(phase * Math.PI * 4) * 2;
+    else if (gait === "gallop") { vis.x += 8 * s; vis.y -= 3 * s; }
+    else if (gait === "jump") { vis.x += 10 * s; vis.y -= 12 * s; }
+    ctx.save();
+    ctx.translate(appearance ? 0 : travelShift(), gaitBob(gait, phase));
+    if (face < 0) {
+      ctx.translate(body.cx, 0);
+      ctx.scale(-1, 1);
+      ctx.translate(-body.cx, 0);
+    }
     ctx.lineJoin = "round";
     ctx.lineCap = "round";
-
-    ctx.fillStyle = meta.mane;
-    ctx.beginPath();
-    ctx.ellipse(body.cx - body.rx + 8, body.cy + 6, 22, 46, -0.8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    const legTop = body.cy + body.ry * 0.45;
-    let legBot = body.cy + body.ry + Math.min(70, box.h * 0.16);
-    if (poseName === "jump") legBot = body.cy + body.ry * 0.95;
-    const legW = 22;
-    const legXs = [body.cx - body.rx * 0.55, body.cx - body.rx * 0.22, body.cx + body.rx * 0.18, body.cx + body.rx * 0.48];
-    legXs.forEach((lx, i) => {
-      let x = Math.round(lx);
-      if (poseName === "run" && !reduceMotion) x += Math.round(Math.sin(clock / 140 + i) * 8);
-      ctx.fillStyle = meta.coat;
-      ctx.fillRect(x, legTop, legW, legBot - legTop);
-      ctx.strokeRect(x + 1, legTop, legW - 2, legBot - legTop);
-      ctx.fillStyle = HOOF;
-      ctx.fillRect(x - 2, legBot - 8, legW + 4, 12);
-      ctx.strokeRect(x - 2, legBot - 8, legW + 4, 12);
-    });
-
-    ctx.beginPath();
-    ctx.ellipse(body.cx, body.cy, body.rx, body.ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = meta.coat;
-    ctx.fill();
-    ctx.stroke();
-
+    drawTail(body, gait, phase, meta.mane);
+    const hip = { x: body.cx - body.rx * 0.38, y: body.cy + body.ry * 0.38 };
+    const shoulder = { x: body.cx + body.rx * 0.28, y: body.cy + body.ry * 0.22 };
+    const ground = hip.y + 90 * s;
+    const reachPx = 48 * s;
+    const far = shade(meta.coat, -36);
+    function paintLeg(name, at, upper, lower, width, coat, bend) {
+      drawLeg(at, legShift(name, gait, phase), ground - at.y, reachPx, upper, lower, width, coat, bend);
+    }
+    paintLeg("farHind", { x: hip.x + 10 * s, y: hip.y - 6 * s }, 46 * s, 52 * s, Math.max(7, 16 * s), far, 1);
+    paintLeg("farFore", { x: shoulder.x - 8 * s, y: shoulder.y - 4 * s }, 42 * s, 50 * s, Math.max(7, 14 * s), far, -1);
+    drawBarrel(body, meta.coat);
+    paintLeg("nearHind", hip, 46 * s, 54 * s, Math.max(8, 20 * s), meta.coat, 1);
+    paintLeg("nearFore", shoulder, 42 * s, 52 * s, Math.max(8, 18 * s), meta.coat, -1);
+    if (gait === "gallop" && !reduceMotion) {
+      const puff = (phase * 4) % 1;
+      ctx.fillStyle = "rgba(196, 165, 116, " + ((1 - puff) * 0.4).toFixed(3) + ")";
+      ctx.beginPath();
+      ctx.ellipse(body.cx - body.rx * 0.85 - puff * 28, ground - 6, 7 + puff * 12, 4 + puff * 3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    drawNeck(body, vis, meta.coat, meta.mane);
+    drawHorseHead(vis, meta.coat, meta.mane, meta.ribbon, eyeGlance(poseName, appearance), poseName);
     if (meta.id === "pinto") {
       ctx.beginPath();
       ctx.ellipse(parts.patch.x, parts.patch.y, parts.patch.rx, parts.patch.ry, -0.4, 0, Math.PI * 2);
       ctx.fillStyle = "#fff6ea";
       ctx.fill();
     }
-
-    ctx.fillStyle = meta.coat;
-    ctx.beginPath();
-    ctx.moveTo(body.cx + body.rx * 0.35, body.cy - body.ry * 0.2);
-    ctx.quadraticCurveTo(body.cx + body.rx * 0.7, body.cy - body.ry * 0.8, head.x - head.r * 0.2, head.y + head.r * 0.2);
-    ctx.lineTo(head.x - head.r * 0.1, head.y + head.r * 0.7);
-    ctx.quadraticCurveTo(body.cx + body.rx * 0.45, body.cy + 10, body.cx + body.rx * 0.15, body.cy + body.ry * 0.15);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.ellipse(head.x, head.y, head.r * 1.08, head.r * 0.86, shownTilt(poseName), 0, Math.PI * 2);
-    ctx.fillStyle = meta.coat;
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.beginPath();
-    ctx.moveTo(head.x - head.r * 0.15, head.y - head.r * 0.7);
-    ctx.lineTo(head.x - head.r * 0.45, head.y - head.r * 1.45);
-    ctx.lineTo(head.x + head.r * 0.15, head.y - head.r * 0.55);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(head.x + head.r * 0.25, head.y - head.r * 0.65);
-    ctx.lineTo(head.x + head.r * 0.05, head.y - head.r * 1.4);
-    ctx.lineTo(head.x + head.r * 0.55, head.y - head.r * 0.45);
-    ctx.closePath();
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = meta.mane;
-    for (let i = 0; i < 4; i++) {
-      const my = head.y + head.r * 0.1 + i * 14;
-      const mx = head.x - head.r * 0.7 - i * 4;
-      ctx.beginPath();
-      ctx.ellipse(mx, my, 10, 14, -0.6, 0, Math.PI * 2);
-      ctx.fill();
-    }
-
-    ctx.fillStyle = meta.ribbon;
-    ctx.beginPath();
-    ctx.arc(head.x - head.r * 0.85, head.y - head.r * 0.15, 8, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.stroke();
-
-    ctx.fillStyle = "#fffdf8";
-    ctx.beginPath();
-    ctx.arc(head.x + head.r * 0.25, head.y - head.r * 0.08, 6, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = INK;
-    ctx.beginPath();
-    ctx.arc(head.x + head.r * 0.38, head.y - head.r * 0.06, 3, 0, Math.PI * 2);
-    ctx.fill();
-
+    if (poseName === "brush" && !reduceMotion) drawBrushArm(body, parts);
     if (horse.care.brushed) {
       parts.marks.forEach((m) => {
         ctx.beginPath();
@@ -1740,21 +2115,6 @@
         ctx.fill();
       });
     }
-
-    if (poseName === "brush") {
-      const bx = parts.marks[0].x - 36;
-      const by = parts.marks[0].y - 28;
-      ctx.fillStyle = WOOD;
-      roundFill(bx, by, 14, 42, WOOD, 4);
-      ctx.fillStyle = meta.mane;
-      ctx.fillRect(bx - 4, by + 36, 22, 12);
-    }
-
-    ctx.fillStyle = "#e7b2a8";
-    ctx.beginPath();
-    ctx.arc(head.x + head.r * 0.62, head.y + head.r * 0.22, 4, 0, Math.PI * 2);
-    ctx.fill();
-
     if (horse.care.saddle !== "off") {
       ctx.fillStyle = SADDLE;
       ctx.beginPath();
@@ -1779,41 +2139,43 @@
         ctx.fillRect(strapX + 14, strapTop + 2, 10, 10);
       }
     }
-
+    const foodX = vis.x + (parts.mouth.x - head.x);
+    const foodY = vis.y + (parts.mouth.y - head.y);
     if (horse.care.foods.carrot) {
       ctx.fillStyle = CARROT;
       ctx.beginPath();
-      ctx.moveTo(parts.mouth.x - 28, parts.mouth.y - 28);
-      ctx.lineTo(parts.mouth.x - 14, parts.mouth.y - 8);
-      ctx.lineTo(parts.mouth.x - 34, parts.mouth.y - 6);
+      ctx.moveTo(foodX - 28, foodY - 28);
+      ctx.lineTo(foodX - 14, foodY - 8);
+      ctx.lineTo(foodX - 34, foodY - 6);
       ctx.closePath();
       ctx.fill();
       ctx.strokeStyle = "#2f8a3e";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(parts.mouth.x - 28, parts.mouth.y - 28);
-      ctx.lineTo(parts.mouth.x - 34, parts.mouth.y - 38);
+      ctx.moveTo(foodX - 28, foodY - 28);
+      ctx.lineTo(foodX - 34, foodY - 38);
       ctx.stroke();
     }
     if (horse.care.foods.apple) {
       ctx.strokeStyle = "#2f8a3e";
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(parts.mouth.x - 1, parts.mouth.y - 12);
-      ctx.lineTo(parts.mouth.x - 4, parts.mouth.y - 24);
+      ctx.moveTo(foodX - 1, foodY - 12);
+      ctx.lineTo(foodX - 4, foodY - 24);
       ctx.stroke();
       ctx.beginPath();
-      ctx.arc(parts.mouth.x, parts.mouth.y, 14, 0, Math.PI * 2);
+      ctx.arc(foodX, foodY, 14, 0, Math.PI * 2);
       ctx.fillStyle = APPLE;
       ctx.fill();
     }
-  }
-
-  function shownTilt(poseName) {
-    if (poseName === "drink") return 0.5;
-    if (poseName === "jump") return -0.45;
-    if (poseName === "run") return 0.02;
-    return 0.15;
+    if (poseName === "drink" && !reduceMotion && drinkUntil && clock >= drinkUntil) {
+      const pulse = (Math.sin(clock / 150) + 1) / 2;
+      ctx.fillStyle = shade(meta.coat, -20);
+      ctx.beginPath();
+      ctx.ellipse(vis.x - vis.r * 0.32, vis.y + vis.r * 0.12, vis.r * 0.16, vis.r * (0.08 + pulse * 0.08), 0.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   function paintStable(w, h) {
@@ -1851,6 +2213,7 @@
     const trough = parts.trough;
     const troughFill = session.horse && session.horse.care.trough === "full" ? WATER : TROUGH_EMPTY;
     roundFill(trough.x, trough.y, trough.w, trough.h, troughFill, 10);
+    paintBarnWater(trough);
 
     if (session.horse) {
       const flags = pipFlags();
@@ -1892,6 +2255,91 @@
       ctx.fillStyle = kind === "apple" ? APPLE : CARROT;
       ctx.fill();
     }
+    ctx.strokeStyle = "#8d97a1";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(x + 29, y + 2, 16, Math.PI, 0);
+    ctx.stroke();
+    ctx.strokeRect(x + 6, y + 6, 46, 5);
+  }
+
+  function stampTrough(trough) {
+    if (!session.horse || session.horse.care.trough !== "full") return;
+    ctx.beginPath();
+    ctx.ellipse(trough.cx, trough.cy, 16, 9, 0, 0, Math.PI * 2);
+    ctx.fillStyle = WATER;
+    ctx.fill();
+  }
+
+  function paintBarnWater(trough) {
+    const fx = trough.x + trough.w - 6;
+    const fy = trough.y - 78;
+    ctx.fillStyle = "#b7c0c8";
+    ctx.fillRect(fx, fy, Math.max(20, window.innerWidth - fx), 12);
+    ctx.fillRect(fx - 6, fy, 16, 52);
+    ctx.fillRect(fx - 28, fy + 40, 36, 12);
+    ctx.fillStyle = "#8d97a1";
+    ctx.beginPath();
+    ctx.arc(fx + 2, fy + 8, 9, 0, Math.PI * 2);
+    ctx.fill();
+    strokeInk();
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(fx - 6, fy + 8);
+    ctx.lineTo(fx + 10, fy + 8);
+    ctx.moveTo(fx + 2, fy);
+    ctx.lineTo(fx + 2, fy + 16);
+    ctx.stroke();
+    const pouring = !reduceMotion && pourUntil && clock < pourUntil && session.horse && session.horse.care.trough === "full";
+    if (!pouring) {
+      stampTrough(trough);
+      return;
+    }
+    const u = Math.max(0, Math.min(1, 1 - (pourUntil - clock) / 2200));
+    const homeX = fx - 46;
+    const homeY = fy + 54;
+    const rimX = trough.x - 8;
+    const rimY = trough.y - 36;
+    let bx = homeX;
+    let by = homeY;
+    let tilt = 0;
+    if (u < 0.35) {
+      ctx.strokeStyle = WATER;
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(fx - 22, fy + 52);
+      ctx.lineTo(bx + 24, by + 2);
+      ctx.stroke();
+    } else if (u < 0.7) {
+      const k = (u - 0.35) / 0.35;
+      bx = homeX + (rimX - homeX) * k;
+      by = homeY + (rimY - homeY) * k;
+    } else {
+      const k = (u - 0.7) / 0.3;
+      bx = rimX;
+      by = rimY;
+      tilt = -1 * k;
+      ctx.strokeStyle = WATER;
+      ctx.lineWidth = 7;
+      ctx.beginPath();
+      ctx.moveTo(bx + 40, by + 4);
+      ctx.quadraticCurveTo(trough.x + 6, trough.y - 8, trough.x + 10, trough.y + 18);
+      ctx.stroke();
+    }
+    ctx.save();
+    ctx.translate(bx + 24, by + 16);
+    ctx.rotate(tilt);
+    roundFill(-24, -16, 50, 34, "#d5dde4", 8);
+    ctx.strokeStyle = "#8d97a1";
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(0, -16, 14, Math.PI, 0);
+    ctx.stroke();
+    ctx.fillStyle = WATER;
+    const level = u < 0.35 ? 8 + (u / 0.35) * 14 : u < 0.7 ? 22 : 22 - ((u - 0.7) / 0.3) * 16;
+    ctx.fillRect(-16, 8 - level * 0.4, 32, Math.max(4, level * 0.45));
+    ctx.restore();
+    stampTrough(trough);
   }
 
   function paintHoof(w, h) {
@@ -1928,7 +2376,7 @@
     const j = session.jumps;
     if (!j) return "stand";
     if (j.phase === "jump") return "jump";
-    if (j.phase === "choose" || j.phase === "gap") return "run";
+    if (j.phase === "choose" || j.phase === "gap") return j.speed || "walk";
     return "stand";
   }
 
@@ -2251,7 +2699,7 @@
         anchorX: point.x,
         anchorY: point.y - 46 * scale
       };
-      drawHorse(ctx, box, "run", item.horse.appearance);
+      drawHorse(ctx, box, trackGait(item.horse.key), item.horse.appearance);
       const label = item.horse.label;
       ctx.font = "700 16px " + FONT;
       const chipW = Math.max(72, ctx.measureText(label).width + 18);
@@ -2343,8 +2791,11 @@
     ctx.fillRect(pen.x + pen.w - 6, pen.y, 12, pen.h);
     if (session.horse) {
       const unit = w < 520 ? 150 : 190;
-      const hx = TUNE.field.horseXFrac * w;
-      const hy = h * 0.84;
+      const homeX = TUNE.field.horseXFrac * w;
+      const homeY = h * 0.84;
+      const hx = chase.x == null ? homeX : chase.x;
+      const hy = chase.y == null ? homeY : chase.y;
+      const fieldGait = chase.x == null ? "stand" : chase.gait;
       drawHorse(ctx, {
         x: 0,
         y: 0,
@@ -2352,7 +2803,7 @@
         h: unit * 0.72,
         anchorX: hx,
         anchorY: hy
-      }, "stand", null);
+      }, fieldGait, null, chase.face || 1);
       paintSweat(hx - 20, hy - 70);
     }
     const cattle = session.cattle;
@@ -2985,6 +3436,19 @@
     const dtSec = (now - prev) / 1000;
     clock = now;
     if (pose === "brush" && brushUntil && now >= brushUntil) pose = "stand";
+    if (pose === "eat" && eatUntil && now >= eatUntil) {
+      pose = "stand";
+      eatUntil = 0;
+    }
+    if (travel && now >= travel.start + travel.ms) {
+      const dest = travel.dest;
+      const kind = travel.kind;
+      travel = null;
+      if (kind === "out") {
+        pose = "stand";
+        go(dest, { arrive: true });
+      } else if (pose === "walk") pose = "stand";
+    }
     if (session.place === "hoof" && hoofReturnAt && now >= hoofReturnAt) {
       hoofReturnAt = 0;
       go("stable");
@@ -3006,8 +3470,64 @@
       advanceJumps(now - prev);
       advanceRace(prev, now);
       advanceChores(now - prev);
+      updateChase(now - prev);
     }
     render();
+  }
+
+  function trackGait(key) {
+    const race = session.race;
+    if (!race || race.phase === "ready" || race.phase === "done") return "stand";
+    if (key === "child") return race.boost ? "gallop" : race.speed;
+    if (key === "Pip") return "trot";
+    if (key === "Dot") return "canter";
+    if (key === "Hank") return "gallop";
+    return "trot";
+  }
+
+  function updateChase(dtMs) {
+    const playing = session.place === "cattle" || (session.place === "chores" && session.chores && session.chores.phase === "field");
+    if (!playing || !session.cattle || !session.horse) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (w < 2 || h < 2) return;
+    const homeX = TUNE.field.horseXFrac * w;
+    const homeY = h * 0.84;
+    if (chase.x == null) {
+      chase.x = homeX;
+      chase.y = homeY;
+    }
+    if (reduceMotion) {
+      chase.x = homeX;
+      chase.y = homeY;
+      chase.gait = "stand";
+      chase.face = 1;
+      return;
+    }
+    const target = session.cattle.cows.find((cow) => cow.state === "loop");
+    let goalX = homeX;
+    let goalY = homeY;
+    if (target) {
+      const cowX = target.xFrac * w;
+      const dir = cowX >= chase.x ? 1 : -1;
+      goalX = cowX - dir * 86;
+      goalY = target.yFrac * h;
+      chase.face = dir;
+    }
+    const dx = goalX - chase.x;
+    const dy = goalY - chase.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 6) {
+      const speed = dist > 170 ? 320 : 180;
+      const stepPx = Math.min(dist, speed * dtMs / 1000);
+      chase.x += (dx / dist) * stepPx;
+      chase.y += (dy / dist) * stepPx;
+      chase.gait = dist > 170 ? "gallop" : "canter";
+      if (!target) chase.face = dx < 0 ? -1 : 1;
+    } else {
+      chase.gait = target ? "canter" : "stand";
+      if (!target) chase.face = 1;
+    }
   }
 
   function look(nx, ny) {
