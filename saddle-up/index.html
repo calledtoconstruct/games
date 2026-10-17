@@ -37,7 +37,7 @@
     box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
   }
   #gaze[hidden], #eyes[hidden], .panel[hidden], #back[hidden],
-  #dock[hidden], #hoof-ui[hidden], #banner[hidden] { display: none !important; }
+  #dock[hidden], #hoof-ui[hidden], #jump-ui[hidden], #banner[hidden] { display: none !important; }
   #eyes {
     position: fixed; z-index: 46;
     top: calc(18px + env(safe-area-inset-top));
@@ -128,6 +128,15 @@
     font-weight: 800; font-size: 28px;
     box-shadow: 0 5px 0 var(--sun-d);
   }
+  #jump-ui { position: fixed; inset: 0; z-index: 44; pointer-events: none; }
+  #jump-ui button {
+    position: fixed; pointer-events: auto;
+    border: none; border-radius: 16px;
+    font-weight: 800; font-size: 16px; line-height: 1.05;
+    box-shadow: 0 4px 0 #c8b48a;
+    padding: 4px;
+  }
+  #jump-ui button[aria-pressed="true"] { box-shadow: inset 0 0 0 3px var(--ink); }
 </style>
 </head>
 <body>
@@ -152,10 +161,10 @@
   <h1>Saddle Up!</h1>
   <p class="tag">Horse farm</p>
   <div class="stack" id="levels">
-    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Brush, water, and feed. No clock.</small></button>
-    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. The same barn. A few more spots on the hoof.</small></button>
-    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. The same barn. More spots on the hoof.</small></button>
-    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. The same barn. More spots on the hoof.</small></button>
+    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Brush, water, and feed, then one jump. No clock.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. The same barn, then a short ride. No clock.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. The same barn, then jumps at a walk or a trot.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. The same barn, then faster jumps from the saddle.</small></button>
   </div>
   <div class="stack" style="margin-top:12px">
     <button id="lets-go" class="big" type="button">Let's go</button>
@@ -187,6 +196,17 @@
   <button id="spot-3" class="spot" type="button" data-play="true" aria-label="Dirt"></button>
   <button id="spot-4" class="spot" type="button" data-play="true" aria-label="Dirt"></button>
   <button id="hoof-done" type="button">Done</button>
+</div>
+
+<div id="jump-ui" hidden>
+  <button id="speed-walk" type="button">Walk</button>
+  <button id="speed-trot" type="button">Trot</button>
+  <button id="speed-canter" type="button">Canter</button>
+  <button id="jump-go" type="button">Go</button>
+  <button id="jump-up" type="button" data-play="true">Up</button>
+  <button id="jump-low" type="button" data-play="true">Low</button>
+  <button id="jump-mid" type="button" data-play="true">Middle</button>
+  <button id="jump-high" type="button" data-play="true">High</button>
 </div>
 
 <script>
@@ -261,11 +281,15 @@
   ];
 
   const ACTIVITIES = [
-    { id: "stable", label: "Stable", levels: ["tiny", "little", "shop", "rush"] }
+    { id: "stable", label: "Stable", levels: ["tiny", "little", "shop", "rush"] },
+    { id: "jumps", label: "Ride", levels: ["tiny", "little", "shop", "rush"] }
   ];
 
   const PLACES = ["level", "breed", "yard", "stable", "hoof", "jumps", "race", "cattle", "chores", "vet"];
-  const LIVE = { level: true, breed: true, yard: true, stable: true, hoof: true };
+  const LIVE = { level: true, breed: true, yard: true, stable: true, hoof: true, jumps: true };
+  const LOW_COLOR = "#2f8a3e";
+  const MID_COLOR = "#e2a62e";
+  const HIGH_COLOR = "#e07030";
 
   const canvas = document.getElementById("view");
   const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -281,19 +305,22 @@
   const whoEl = document.getElementById("who");
   const dockEl = document.getElementById("dock");
   const hoofUi = document.getElementById("hoof-ui");
+  const jumpUi = document.getElementById("jump-ui");
   const letsGoBtn = document.getElementById("lets-go");
 
   const session = {
     levelId: "tiny",
     place: "level",
     horse: null,
-    cheered: false
+    cheered: false,
+    jumps: null
   };
 
   let pose = "stand";
   let brushUntil = 0;
   let drinkUntil = 0;
   let hoofReturnAt = 0;
+  let phaseMs = 0;
   let clock = 0;
   let reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let mute = false;
@@ -338,6 +365,14 @@
     if (session.place === "level") return "Let's go.";
     if (!horse) return "Pick a horse.";
     if (session.place === "yard") return horse.name;
+    if (session.place === "jumps" && session.jumps) {
+      const phase = session.jumps.phase;
+      if (phase === "ready") return "Ready.";
+      if (phase === "choose") return "Jump.";
+      if (phase === "jump" || phase === "gap") return horse.name + " went over.";
+      if (phase === "miss") return "Try again.";
+      if (phase === "done") return "All the jumps.";
+    }
     if (session.place === "hoof") {
       return horse.care.spots.every((s) => s.cleared) ? "Clean hooves." : "Hooves.";
     }
@@ -401,14 +436,147 @@
   function go(place) {
     if (PLACES.indexOf(place) < 0) return;
     if (!LIVE[place]) return;
-    if ((place === "yard" || place === "stable" || place === "hoof") && !session.horse) {
+    if ((place === "yard" || place === "stable" || place === "hoof" || place === "jumps") && !session.horse) {
       if (place === "yard") place = "breed";
       else return;
     }
     if (place !== "hoof") hoofReturnAt = 0;
+    if (place !== "jumps") endJumps();
     session.place = place;
+    if (place === "jumps") beginJumps();
     maybeCheer();
     render();
+  }
+
+  function courseNow() {
+    return TUNE.courses[session.levelId] || TUNE.courses.tiny;
+  }
+
+  function defaultSpeed(course) {
+    if (session.levelId === "rush" && course.speeds.indexOf("trot") >= 0) return "trot";
+    return course.speeds[0];
+  }
+
+  function beginJumps() {
+    const course = courseNow();
+    if (!course || !session.horse) return;
+    const speed = defaultSpeed(course);
+    session.jumps = {
+      view: course.view,
+      speed: speed,
+      index: 0,
+      need: course.needs[0],
+      phase: "ready",
+      approach: 0,
+      pick: null,
+      cleared: 0,
+      windowMs: TUNE.windowsMs[speed]
+    };
+    phaseMs = 0;
+    pose = "stand";
+    brushUntil = 0;
+    drinkUntil = 0;
+  }
+
+  function endJumps() {
+    session.jumps = null;
+    phaseMs = 0;
+    if (pose === "jump" || pose === "run") pose = "stand";
+  }
+
+  function setSpeed(speed) {
+    const j = session.jumps;
+    if (!j || (j.phase !== "ready" && j.phase !== "miss")) return;
+    const course = courseNow();
+    if (course.speeds.indexOf(speed) < 0) return;
+    j.speed = speed;
+    j.windowMs = TUNE.windowsMs[speed];
+    render();
+  }
+
+  function startChoose() {
+    const j = session.jumps;
+    if (!j || (j.phase !== "ready" && j.phase !== "miss")) return;
+    const course = courseNow();
+    j.phase = "choose";
+    j.approach = 0;
+    j.pick = null;
+    j.need = course.needs[j.index];
+    j.windowMs = TUNE.windowsMs[j.speed];
+    phaseMs = 0;
+    render();
+  }
+
+  function pickHeight(step) {
+    const j = session.jumps;
+    if (!j || j.phase !== "choose") return;
+    const height = Number(step);
+    if (!(height >= 1)) return;
+    j.pick = height;
+    j.approach = 0;
+    phaseMs = 0;
+    if (height >= j.need) {
+      j.phase = "jump";
+      j.cleared += 1;
+      playSound("jump");
+    } else {
+      j.phase = "miss";
+      pose = "stand";
+      playSound("miss");
+    }
+    render();
+  }
+
+  function missJump() {
+    const j = session.jumps;
+    if (!j || j.phase !== "choose") return;
+    j.phase = "miss";
+    j.approach = 0;
+    j.pick = null;
+    phaseMs = 0;
+    pose = "stand";
+    playSound("miss");
+  }
+
+  function finishJump() {
+    const j = session.jumps;
+    const course = courseNow();
+    phaseMs = 0;
+    j.approach = 0;
+    if (j.index + 1 >= course.needs.length) {
+      j.phase = "done";
+      pose = "stand";
+      return;
+    }
+    j.phase = "gap";
+  }
+
+  function finishGap() {
+    const j = session.jumps;
+    const course = courseNow();
+    j.index += 1;
+    j.need = course.needs[j.index];
+    j.phase = "choose";
+    j.approach = 0;
+    j.pick = null;
+    j.windowMs = TUNE.windowsMs[j.speed];
+    phaseMs = 0;
+  }
+
+  function advanceJumps(dtMs) {
+    const j = session.jumps;
+    if (!j || session.place !== "jumps") return;
+    if (j.phase === "choose") {
+      phaseMs += dtMs;
+      j.approach = Math.min(1, phaseMs / j.windowMs);
+      if (phaseMs >= j.windowMs) missJump();
+    } else if (j.phase === "jump") {
+      phaseMs += dtMs;
+      if (phaseMs >= TUNE.jumpMs) finishJump();
+    } else if (j.phase === "gap") {
+      phaseMs += dtMs;
+      if (phaseMs >= TUNE.gapMs) finishGap();
+    }
   }
 
   function brushHorse() {
@@ -522,7 +690,7 @@
 
   function onBack() {
     if (session.place === "breed" || session.place === "yard") go("level");
-    else if (session.place === "stable") go("yard");
+    else if (session.place === "stable" || session.place === "jumps") go("yard");
     else if (session.place === "hoof") go("stable");
   }
 
@@ -635,8 +803,12 @@
     const rx = Math.round(Math.min(140, box.w * 0.22, box.h * 0.28));
     const ry = Math.round(rx * 0.62);
     const groupW = rx * 2 + 18 + 96;
-    const cx = Math.round(box.x + Math.max(0, (box.w - groupW) / 2) + rx);
-    const cy = Math.round(box.y + box.h * 0.48);
+    let cx = Math.round(box.x + Math.max(0, (box.w - groupW) / 2) + rx);
+    let cy = Math.round(box.y + box.h * 0.48);
+    if (box.anchorX != null) cx = Math.round(box.anchorX);
+    if (box.anchorY != null) cy = Math.round(box.anchorY);
+    if (poseName === "jump") cy -= Math.round(ry * 0.9);
+    else if (poseName === "run" && !reduceMotion) cy += Math.round(Math.sin(clock / 140) * 6);
     const body = { cx: cx, cy: cy, rx: rx, ry: ry };
     const trough = {
       x: Math.round(body.cx + body.rx + 18),
@@ -733,11 +905,13 @@
     ctx.stroke();
 
     const legTop = body.cy + body.ry * 0.45;
-    const legBot = body.cy + body.ry + Math.min(70, box.h * 0.16);
+    let legBot = body.cy + body.ry + Math.min(70, box.h * 0.16);
+    if (poseName === "jump") legBot = body.cy + body.ry * 0.95;
     const legW = 22;
     const legXs = [body.cx - body.rx * 0.55, body.cx - body.rx * 0.22, body.cx + body.rx * 0.18, body.cx + body.rx * 0.48];
-    legXs.forEach((lx) => {
-      const x = Math.round(lx);
+    legXs.forEach((lx, i) => {
+      let x = Math.round(lx);
+      if (poseName === "run" && !reduceMotion) x += Math.round(Math.sin(clock / 140 + i) * 8);
       ctx.fillStyle = meta.coat;
       ctx.fillRect(x, legTop, legW, legBot - legTop);
       ctx.strokeRect(x + 1, legTop, legW - 2, legBot - legTop);
@@ -893,6 +1067,8 @@
 
   function shownTilt(poseName) {
     if (poseName === "drink") return 0.5;
+    if (poseName === "jump") return -0.45;
+    if (poseName === "run") return 0.02;
     return 0.15;
   }
 
@@ -1003,12 +1179,177 @@
     });
   }
 
+  function ridePose() {
+    const j = session.jumps;
+    if (!j) return "stand";
+    if (j.phase === "jump") return "jump";
+    if (j.phase === "choose" || j.phase === "gap") return "run";
+    return "stand";
+  }
+
+  function visualApproach() {
+    const j = session.jumps;
+    if (!j) return 0;
+    if (j.phase === "jump") return 1;
+    if (j.phase === "choose") return j.approach;
+    return 0;
+  }
+
+  function gateCenterX(w) {
+    const a = visualApproach();
+    return w * (TUNE.gateXFrac.far + (TUNE.gateXFrac.near - TUNE.gateXFrac.far) * a);
+  }
+
+  function stepColor(step, need) {
+    const full = step === 1 ? LOW_COLOR : step === 2 ? MID_COLOR : HIGH_COLOR;
+    if (step === need) return full;
+    const c = hexRgb(full);
+    const mix = (v) => Math.round(v * 0.35 + 244 * 0.65);
+    return "rgb(" + mix(c.r) + "," + mix(c.g) + "," + mix(c.b) + ")";
+  }
+
+  function paintLog(x, ground) {
+    roundFill(x - 78, ground - 40, 156, 36, LOW_COLOR, 16);
+    ctx.fillStyle = WOOD;
+    ctx.beginPath();
+    ctx.arc(x - 70, ground - 22, 16, 0, Math.PI * 2);
+    ctx.arc(x + 70, ground - 22, 16, 0, Math.PI * 2);
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+  }
+
+  function paintRails(x, ground, need) {
+    const postH = 128;
+    const top = ground - postH;
+    ctx.fillStyle = WOOD;
+    ctx.fillRect(x - 58, top, 14, postH);
+    ctx.fillRect(x + 44, top, 14, postH);
+    strokeInk();
+    ctx.strokeRect(x - 58, top, 14, postH);
+    ctx.strokeRect(x + 44, top, 14, postH);
+    [3, 2, 1].forEach((step, i) => {
+      const y = top + 12 + i * 38;
+      ctx.fillStyle = stepColor(step, need);
+      ctx.fillRect(x - 52, y, 104, 16);
+      strokeInk();
+      ctx.strokeRect(x - 52, y, 104, 16);
+    });
+  }
+
+  function paintSideCourse(w, h) {
+    ctx.fillStyle = "#9fd4f2";
+    ctx.fillRect(0, 0, w, h);
+    const ground = Math.round(h * 0.78);
+    ctx.fillStyle = GRASS;
+    ctx.fillRect(0, Math.round(h * 0.5), w, h);
+    ctx.fillStyle = "#d7c49a";
+    ctx.fillRect(0, ground, w, h - ground);
+    ctx.fillStyle = "#6b4a2a";
+    ctx.fillRect(0, ground - 6, w, 10);
+    const j = session.jumps;
+    if (j && j.phase !== "done") {
+      const x = gateCenterX(w);
+      if (session.levelId === "tiny") paintLog(x, ground);
+      else paintRails(x, ground, j.need);
+    }
+    const box = {
+      x: 0,
+      y: 70,
+      w: w,
+      h: Math.max(240, ground - 80),
+      anchorX: w * 0.28,
+      anchorY: ground - 150
+    };
+    drawHorse(ctx, box, ridePose());
+  }
+
+  function paintEars(w, h, meta) {
+    const cx = w / 2;
+    const base = h - 6;
+    ctx.fillStyle = meta.coat;
+    ctx.beginPath();
+    ctx.moveTo(cx - 46, base);
+    ctx.lineTo(cx - 24, base - 80);
+    ctx.lineTo(cx - 6, base);
+    ctx.closePath();
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + 6, base);
+    ctx.lineTo(cx + 24, base - 80);
+    ctx.lineTo(cx + 46, base);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = meta.mane;
+    ctx.beginPath();
+    ctx.moveTo(cx - 14, base);
+    ctx.lineTo(cx, base - 62);
+    ctx.lineTo(cx + 14, base);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+
+  function paintFirstCourse(w, h) {
+    const horizon = h * 0.45;
+    ctx.fillStyle = "#9fd4f2";
+    ctx.fillRect(0, 0, w, h);
+    const span = w * 0.40;
+    ctx.fillStyle = GRASS;
+    ctx.beginPath();
+    ctx.moveTo((w - span) / 2, horizon);
+    ctx.lineTo((w + span) / 2, horizon);
+    ctx.lineTo(w + 20, h);
+    ctx.lineTo(-20, h);
+    ctx.closePath();
+    ctx.fill();
+    const pathTop = span * 0.32;
+    ctx.fillStyle = "#4e7a32";
+    ctx.beginPath();
+    ctx.moveTo((w - pathTop) / 2, horizon);
+    ctx.lineTo((w + pathTop) / 2, horizon);
+    ctx.lineTo(w * 0.66, h);
+    ctx.lineTo(w * 0.34, h);
+    ctx.closePath();
+    ctx.fill();
+    const j = session.jumps;
+    if (j && j.phase !== "done") {
+      const a = visualApproach();
+      const gh = TUNE.gatePx.far + (TUNE.gatePx.near - TUNE.gatePx.far) * a;
+      const gw = 48 + 150 * a;
+      const base = horizon + 8 + a * Math.max(24, (h - horizon) * 0.22);
+      const top = base - gh;
+      const x = w / 2;
+      ctx.fillStyle = WOOD;
+      ctx.fillRect(x - gw / 2, top, 8, gh);
+      ctx.fillRect(x + gw / 2 - 8, top, 8, gh);
+      strokeInk();
+      ctx.strokeRect(x - gw / 2, top, 8, gh);
+      ctx.strokeRect(x + gw / 2 - 8, top, 8, gh);
+      [3, 2, 1].forEach((step, i) => {
+        const y = top + 4 + i * Math.max(6, (gh - 12) / 3);
+        ctx.fillStyle = stepColor(step, j.need);
+        ctx.fillRect(x - gw / 2, y, gw, Math.max(5, gh * 0.1));
+      });
+    }
+    if (session.horse) paintEars(w, h, breedMeta(session.horse.breedId));
+  }
+
+  function paintJumps(w, h) {
+    if (session.jumps && session.jumps.view === "first") paintFirstCourse(w, h);
+    else paintSideCourse(w, h);
+  }
+
   function paint() {
     const w = window.innerWidth;
     const h = window.innerHeight;
     if (w < 2 || h < 2) return;
     ctx.clearRect(0, 0, w, h);
     if (session.place === "hoof") paintHoof(w, h);
+    else if (session.place === "jumps") paintJumps(w, h);
     else paintStable(w, h);
   }
 
@@ -1047,7 +1388,7 @@
     backBtn.hidden = false;
     let label = "Back";
     if (place === "breed" || place === "yard") label = "Back to Menu";
-    else if (place === "stable") label = "Back to the yard";
+    else if (place === "stable" || place === "jumps") label = "Back to the yard";
     backBtn.textContent = label;
     backBtn.setAttribute("aria-label", label);
   }
@@ -1059,6 +1400,7 @@
     panelYard.hidden = place !== "yard";
     dockEl.hidden = place !== "stable";
     hoofUi.hidden = place !== "hoof";
+    jumpUi.hidden = place !== "jumps";
     if (session.horse) whoEl.textContent = session.horse.name;
     const text = bannerText();
     bannerEl.textContent = text;
@@ -1085,7 +1427,87 @@
     const done = document.getElementById("hoof-done");
     done.hidden = place !== "hoof";
     placeBox(done, hoofLayout(w, h, spotCount()).done);
+    syncJumps(w, h);
     paint();
+  }
+
+  function jumpLayout(w, h) {
+    const course = courseNow();
+    const size = 72;
+    const gap = 8;
+    const boxes = [];
+    const multi = course.speeds.length > 1;
+    const speedW = 72;
+    const goW = 120;
+    const speeds = ["walk", "trot", "canter"];
+    const shownSpeeds = multi ? course.speeds : [];
+    const rowW = shownSpeeds.length * speedW + Math.max(0, shownSpeeds.length - 1) * gap + (shownSpeeds.length ? gap : 0) + goW;
+    let x = Math.round((w - rowW) / 2);
+    const y = Math.max(0, h - size - 16);
+    speeds.forEach((id) => {
+      const used = shownSpeeds.indexOf(id) >= 0;
+      boxes.push({ id: "speed-" + id, x: used ? x : 0, y: y, w: speedW, h: size, used: used });
+      if (used) x += speedW + gap;
+    });
+    boxes.push({ id: "jump-go", x: x, y: y, w: goW, h: size, used: true });
+    const ladderIds = session.levelId === "tiny"
+      ? ["jump-up"]
+      : ["jump-high", "jump-mid", "jump-low"];
+    const allLadder = ["jump-up", "jump-high", "jump-mid", "jump-low"];
+    const lw = 96;
+    const ly = 168;
+    const lx = Math.max(0, w - lw - 12);
+    allLadder.forEach((id) => {
+      const index = ladderIds.indexOf(id);
+      const used = index >= 0;
+      boxes.push({
+        id: id,
+        x: lx,
+        y: used ? ly + index * (size + gap) : 0,
+        w: lw,
+        h: size,
+        used: used
+      });
+    });
+    return boxes;
+  }
+
+  function syncJumps(w, h) {
+    const on = session.place === "jumps" && session.jumps;
+    jumpUi.hidden = !on;
+    const phase = on ? session.jumps.phase : "";
+    const showMove = phase === "ready" || phase === "miss";
+    const showLadder = phase === "choose";
+    const colors = {
+      "jump-up": [LOW_COLOR, "#fffdf6"],
+      "jump-low": [LOW_COLOR, "#fffdf6"],
+      "jump-mid": [MID_COLOR, INK],
+      "jump-high": [HIGH_COLOR, "#fffdf6"]
+    };
+    jumpLayout(w, h).forEach((box) => {
+      const el = document.getElementById(box.id);
+      if (!el) return;
+      placeBox(el, box);
+      const ladder = box.id !== "jump-go" && box.id.indexOf("jump-") === 0;
+      const speed = box.id.indexOf("speed-") === 0;
+      if (box.id === "jump-go") el.hidden = !showMove;
+      else if (speed) el.hidden = !showMove || !box.used;
+      else el.hidden = !showLadder || !box.used;
+      if (speed) {
+        const name = box.id.slice(6);
+        const pressed = !!(on && session.jumps.speed === name);
+        el.setAttribute("aria-pressed", pressed ? "true" : "false");
+        el.style.background = pressed ? "#ffc857" : PAPER;
+        el.style.color = INK;
+      } else if (box.id === "jump-go") {
+        el.style.background = "#ffc857";
+        el.style.color = INK;
+      } else if (colors[box.id]) {
+        el.style.background = colors[box.id][0];
+        el.style.color = colors[box.id][1];
+      }
+      if (ladder) el.setAttribute("aria-pressed", "false");
+    });
   }
 
   function boxOf(el) {
@@ -1125,8 +1547,14 @@
     const hoof = hoofLayout(w, h, 4);
     const spots = {};
     hoof.spots.forEach((s) => { spots[s.id] = { x: s.cx, y: s.cy }; });
+    const ladder = {};
+    if (targets["jump-high"]) ladder.high = targets["jump-high"];
+    if (targets["jump-mid"]) ladder.mid = targets["jump-mid"];
+    if (targets["jump-low"]) ladder.low = targets["jump-low"];
+    if (targets["jump-up"]) ladder.up = targets["jump-up"];
     return {
       targets: targets,
+      ladder: ladder,
       samples: {
         trough: { x: parts.trough.cx, y: parts.trough.cy },
         saddle: { x: parts.saddle.cx, y: parts.saddle.cy },
@@ -1149,6 +1577,9 @@
     const hoof = hoofLayout(w, h, spotCount());
     hoof.spots.forEach((spot) => targets.push({ id: spot.id, x: spot.x, y: spot.y, w: spot.w, h: spot.h }));
     targets.push(hoof.done);
+    jumpLayout(w, h).forEach((box) => {
+      if (box.used) targets.push({ id: box.id, x: box.x, y: box.y, w: box.w, h: box.h });
+    });
     const panelW = Math.min(460, Math.max(72, w - 24));
     targets.push({ id: "lets-go", x: (w - panelW) / 2, y: 200, w: panelW, h: 76 });
     return { targets: targets };
@@ -1172,11 +1603,27 @@
       ready: ready(horse),
       needs: horse ? { drink: horse.needs.drink, shoes: horse.needs.shoes } : { drink: false, shoes: 0 },
       banner: bannerText(),
-      jumps: null,
+      jumps: jumpsPublic(),
       race: null,
       cattle: null,
       chores: null,
       vet: null
+    };
+  }
+
+  function jumpsPublic() {
+    const j = session.jumps;
+    if (!j || session.place !== "jumps") return null;
+    return {
+      view: j.view,
+      speed: j.speed,
+      index: j.index,
+      need: j.need,
+      phase: j.phase,
+      approach: j.phase === "choose" ? j.approach : 0,
+      pick: j.pick,
+      cleared: j.cleared,
+      windowMs: j.windowMs
     };
   }
 
@@ -1258,6 +1705,8 @@
   }
 
   function step(now) {
+    const prev = clock;
+    const dtSec = (now - prev) / 1000;
     clock = now;
     if (pose === "brush" && brushUntil && now >= brushUntil) pose = "stand";
     if (session.place === "hoof" && hoofReturnAt && now >= hoofReturnAt) {
@@ -1276,6 +1725,7 @@
       if (refreshHold) gazeAt = now;
     }
     stepGaze(now);
+    if (dtSec > 0 && dtSec < 120) advanceJumps(now - prev);
     render();
   }
 
@@ -1644,6 +2094,205 @@
       step(t + 660);
       if (state().hoofCleared !== 1) fail("Case 13", "leather look cleared " + state().hoofCleared);
       releaseLook();
+
+      const careSnap = {
+        breed: state().breed,
+        brushed: state().brushed,
+        trough: state().trough,
+        saddle: state().saddle,
+        hoofCleared: state().hoofCleared,
+        hoofSpots: state().hoofSpots,
+        apple: state().apple,
+        carrot: state().carrot
+      };
+      function careSame() {
+        return state().breed === careSnap.breed && state().brushed === careSnap.brushed &&
+          state().trough === careSnap.trough && state().saddle === careSnap.saddle &&
+          state().hoofCleared === careSnap.hoofCleared && state().hoofSpots === careSnap.hoofSpots &&
+          state().apple === careSnap.apple && state().carrot === careSnap.carrot;
+      }
+      function jumpFail(detail) { fail("Jumps", detail); }
+      function reachIndex(index) {
+        let guard = 0;
+        while (state().jumps && state().jumps.index < index && guard < 12) {
+          guard += 1;
+          const phase = state().jumps.phase;
+          if (phase === "ready" || phase === "miss") document.getElementById("jump-go").click();
+          if (state().jumps.phase !== "choose") {
+            jumpFail("needed choose to reach " + index + " and found " + state().jumps.phase);
+            return;
+          }
+          const before = state().jumps.index;
+          pickHeight(state().jumps.need);
+          step(clock + TUNE.jumpMs);
+          if (state().jumps.phase === "gap") step(clock + TUNE.gapMs);
+          if (state().jumps.index === before) {
+            jumpFail("index stayed " + before);
+            return;
+          }
+        }
+      }
+
+      level("tiny");
+      go("jumps");
+      if (!careSame()) jumpFail("ride rewrote care");
+      if (!state().jumps || state().jumps.phase !== "ready" || state().jumps.speed !== "walk" || state().jumps.view !== "side") {
+        jumpFail("tiny ready " + JSON.stringify(state().jumps));
+      }
+      if (centers().targets["speed-walk"] || centers().targets["jump-up"]) jumpFail("tiny ready showed a speed or a ladder");
+      if (state().banner !== "Ready.") jumpFail("ready banner " + state().banner);
+      document.getElementById("jump-go").click();
+      if (state().jumps.phase !== "choose" || state().jumps.pick !== null || state().jumps.approach !== 0) {
+        jumpFail("go did not open choose " + JSON.stringify(state().jumps));
+      }
+      if (!centers().targets["jump-up"] || centers().targets["jump-low"] || centers().targets["jump-go"]) {
+        jumpFail("tiny choose targets " + Object.keys(centers().targets).join(","));
+      }
+      step(clock + 1500);
+      if (state().jumps.phase !== "choose" || Math.abs(state().jumps.approach - 0.5) > 0.02 || state().jumps.index !== 0) {
+        jumpFail("half window " + JSON.stringify(state().jumps));
+      }
+      step(clock + 1500);
+      if (state().jumps.phase !== "miss" || state().jumps.approach !== 0 || state().jumps.index !== 0 || state().jumps.cleared !== 0) {
+        jumpFail("timeout " + JSON.stringify(state().jumps));
+      }
+      if (state().banner !== "Try again." || bannerEl.textContent !== "Try again.") jumpFail("miss banner " + state().banner);
+      document.getElementById("jump-go").click();
+      step(clock + 120000);
+      if (state().jumps.phase !== "choose" || state().jumps.approach !== 0 || state().jumps.index !== 0) {
+        jumpFail("120s step moved the window " + JSON.stringify(state().jumps));
+      }
+      step(clock + 10000);
+      if (state().jumps.phase !== "miss" || state().jumps.index !== 0) jumpFail("10s step did not expire " + JSON.stringify(state().jumps));
+      document.getElementById("jump-go").click();
+      document.getElementById("jump-up").click();
+      if (state().jumps.phase !== "jump" || state().jumps.cleared !== 1 || state().jumps.approach !== 0) {
+        jumpFail("up " + JSON.stringify(state().jumps));
+      }
+      step(clock + TUNE.jumpMs);
+      if (state().jumps.cleared !== 1 || state().jumps.phase !== "done" || state().banner !== "All the jumps.") {
+        jumpFail("after the log " + JSON.stringify(state().jumps) + " banner " + state().banner);
+      }
+      pickHeight(1);
+      if (state().jumps.phase !== "done" || state().jumps.cleared !== 1) jumpFail("pick after done changed the course");
+
+      level("shop");
+      go("jumps");
+      if (state().jumps.speed !== "walk" || state().jumps.windowMs !== 3000 || state().jumps.view !== "side") {
+        jumpFail("shop ready " + JSON.stringify(state().jumps));
+      }
+      if (!centers().targets["speed-walk"] || !centers().targets["speed-trot"] || centers().targets["speed-canter"]) {
+        jumpFail("shop speeds " + Object.keys(centers().targets).join(","));
+      }
+      document.getElementById("jump-go").click();
+      pickHeight(1);
+      step(clock + TUNE.jumpMs);
+      if (state().jumps.phase !== "gap") jumpFail("shop first jump " + state().jumps.phase);
+      step(clock + TUNE.gapMs);
+      if (state().jumps.phase !== "choose" || state().jumps.index !== 1 || state().jumps.need !== 2) {
+        jumpFail("shop middle " + JSON.stringify(state().jumps));
+      }
+      pickHeight(1);
+      if (state().jumps.phase !== "miss" || state().jumps.index !== 1 || state().jumps.approach !== 0 || state().jumps.cleared !== 1) {
+        jumpFail("low on middle " + JSON.stringify(state().jumps));
+      }
+      if (state().banner !== "Try again.") jumpFail("shop miss banner " + state().banner);
+      document.getElementById("jump-go").click();
+      pickHeight(2);
+      if (state().jumps.phase !== "jump" || state().jumps.cleared !== 2 || state().jumps.pick !== 2 || state().jumps.index !== 1) {
+        jumpFail("middle after go " + JSON.stringify(state().jumps));
+      }
+      pickHeight(1);
+      if (state().jumps.phase !== "jump" || state().jumps.pick !== 2) jumpFail("second pick replaced a clear");
+
+      level("rush");
+      go("jumps");
+      if (state().jumps.view !== "first" || state().jumps.speed !== "trot" || state().jumps.windowMs !== 2000) {
+        jumpFail("rush ready " + JSON.stringify(state().jumps));
+      }
+      document.getElementById("jump-go").click();
+      const highBox = centers().ladder.high;
+      if (!highBox || Math.min(highBox.w, highBox.h) < 72) jumpFail("high ladder " + JSON.stringify(highBox));
+      ["jump-high", "jump-mid", "jump-low"].forEach((id) => {
+        const box = centers().targets[id];
+        if (!box || Math.min(box.w, box.h) < 72) jumpFail(id + " short side");
+        if (box.left < 0 || box.top < 0 || box.left + box.w > window.innerWidth + 1 || box.top + box.h > window.innerHeight + 1) {
+          jumpFail(id + " off screen");
+        }
+      });
+      look(0.5, 0.2);
+      t = Math.max(t, clock) + 1;
+      step(t);
+      step(t + 660);
+      if (state().jumps.pick !== null || state().jumps.phase !== "choose") {
+        jumpFail("sky look " + JSON.stringify(state().jumps));
+      }
+      releaseLook();
+
+      go("jumps");
+      document.getElementById("speed-canter").click();
+      if (state().jumps.speed !== "canter" || state().jumps.windowMs !== 1600) jumpFail("canter " + JSON.stringify(state().jumps));
+      document.getElementById("jump-go").click();
+      const lowBox = centers().targets["jump-low"];
+      const highPick = centers().targets["jump-high"];
+      t = clock + 1;
+      look(lowBox.nx, lowBox.ny);
+      step(t);
+      step(t + 400);
+      if (state().jumps.phase !== "choose" || state().jumps.pick !== null) jumpFail("low dwell committed early");
+      look(highPick.nx, highPick.ny);
+      for (let i = 0; i < 8; i++) step(t + 400);
+      if (state().jumps.phase !== "choose" || state().jumps.pick !== null) jumpFail("high look committed before 650 ms");
+      step(t + 1060);
+      if (state().jumps.phase !== "jump" || state().jumps.pick !== 3 || state().jumps.need !== 1) {
+        jumpFail("corrected to high " + JSON.stringify(state().jumps));
+      }
+      releaseLook();
+
+      go("jumps");
+      reachIndex(3);
+      if (!state().jumps || state().jumps.phase !== "choose" || state().jumps.need !== 3 || state().jumps.index !== 3) {
+        jumpFail("high obstacle " + JSON.stringify(state().jumps));
+      }
+      const beforeHigh = state().jumps.cleared;
+      const lowMiss = centers().targets["jump-low"];
+      t = clock + 1;
+      look(lowMiss.nx, lowMiss.ny);
+      step(t);
+      step(t + 660);
+      if (state().jumps.phase !== "miss" || state().jumps.index !== 3 || state().jumps.cleared !== beforeHigh || state().jumps.approach !== 0) {
+        jumpFail("low on high " + JSON.stringify(state().jumps));
+      }
+      releaseLook();
+      const highAfter = centers().targets["jump-high"];
+      if (highAfter) jumpFail("ladder stayed up after a miss");
+      look(0.82, 0.45);
+      t = clock + 1;
+      step(t);
+      step(t + 660);
+      if (state().jumps.phase !== "miss" || state().jumps.cleared !== beforeHigh || state().jumps.index !== 3) {
+        jumpFail("high look cleared a miss " + JSON.stringify(state().jumps));
+      }
+      releaseLook();
+      document.getElementById("jump-go").click();
+      const highGo = centers().targets["jump-high"];
+      t = clock + 1;
+      look(highGo.nx, highGo.ny);
+      step(t);
+      step(t + 660);
+      if (state().jumps.phase !== "jump" || state().jumps.pick !== 3 || state().jumps.cleared !== beforeHigh + 1 || state().jumps.index !== 3) {
+        jumpFail("high clear " + JSON.stringify(state().jumps));
+      }
+      releaseLook();
+      if (!careSame()) jumpFail("ride rewrote care after the course");
+      if (state().race || state().cattle || state().chores || state().vet) jumpFail("later records appeared");
+      applyDeepLink(new URLSearchParams("jumps"));
+      if (state().level !== "little" || state().place !== "jumps" || !state().jumps || state().jumps.phase !== "ready" || state().jumps.view !== "side") {
+        jumpFail("jumps link " + JSON.stringify({ level: state().level, place: state().place, jumps: state().jumps }));
+      }
+      if (state().breed !== careSnap.breed || state().hoofSpots !== careSnap.hoofSpots || state().hoofCleared !== careSnap.hoofCleared) {
+        jumpFail("jumps link rebuilt the horse");
+      }
     } catch (err) {
       failures.push("Case error: " + (err && err.stack ? err.stack : err));
     }
@@ -1655,6 +2304,10 @@
       if (!session.horse) pickBreed("palomino");
       level("tiny");
       go("stable");
+    } else if (params.has("jumps")) {
+      if (!session.horse) pickBreed("palomino");
+      level("little");
+      go("jumps");
     }
   }
 
@@ -1708,6 +2361,14 @@
     document.getElementById(id).addEventListener("click", () => clearSpot(id));
   });
   document.getElementById("hoof-done").addEventListener("click", () => go("stable"));
+  document.getElementById("speed-walk").addEventListener("click", () => setSpeed("walk"));
+  document.getElementById("speed-trot").addEventListener("click", () => setSpeed("trot"));
+  document.getElementById("speed-canter").addEventListener("click", () => setSpeed("canter"));
+  document.getElementById("jump-go").addEventListener("click", startChoose);
+  document.getElementById("jump-up").addEventListener("click", () => pickHeight(1));
+  document.getElementById("jump-low").addEventListener("click", () => pickHeight(1));
+  document.getElementById("jump-mid").addEventListener("click", () => pickHeight(2));
+  document.getElementById("jump-high").addEventListener("click", () => pickHeight(3));
   muteBtn.addEventListener("click", () => {
     mute = !mute;
     muteBtn.setAttribute("aria-pressed", mute ? "true" : "false");
