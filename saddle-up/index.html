@@ -449,6 +449,7 @@
   let brushUntil = 0;
   let drinkUntil = 0;
   let eatUntil = 0;
+  let eating = null;
   let pourUntil = 0;
   let travel = null;
   const chase = { x: null, y: null, gait: "stand", face: 1, shown: 1, turnFrom: 0, turnTo: 1 };
@@ -574,6 +575,7 @@
     brushUntil = 0;
     drinkUntil = 0;
     eatUntil = 0;
+    eating = null;
     pourUntil = 0;
     travel = null;
     hoofReturnAt = 0;
@@ -1153,6 +1155,7 @@
     brushUntil = 0;
     drinkUntil = 0;
     eatUntil = 0;
+    eating = null;
     pourUntil = 0;
     travel = null;
   }
@@ -1358,6 +1361,7 @@
     if (!reduceMotion) {
       pose = "eat";
       eatUntil = clock + 2400;
+      eating = kind;
     }
     playSound("munch");
     maybeCheer();
@@ -2115,6 +2119,153 @@
     return { x: Math.sin(clock / 1700) * 0.42, y: Math.sin(clock / 2600) * 0.12, ear: Math.sin(clock / 1700) * 0.48 };
   }
 
+  function drawHorseSaddle(body, mode, sample) {
+    const cx = body.cx;
+    const cy = body.cy;
+    const rx = body.rx;
+    const ry = body.ry;
+    const leather = SADDLE;
+    const deep = shade(SADDLE, -32);
+    const stitch = shade(SADDLE, 52);
+    const pad = "#f7f1dc";
+    const gold = "#f4e2a0";
+    const seat = cx - rx * 0.1;
+    const back = cy - ry * 0.8;
+    const rear = seat - rx * 0.2;
+    const front = seat + rx * 0.14;
+
+    ctx.beginPath();
+    ctx.moveTo(rear - rx * 0.04, back + ry * 0.08);
+    ctx.quadraticCurveTo(seat, back - ry * 0.08, front + rx * 0.05, back + ry * 0.06);
+    ctx.lineTo(front + rx * 0.02, back + ry * 0.22);
+    ctx.quadraticCurveTo(seat, back + ry * 0.16, rear - rx * 0.01, back + ry * 0.2);
+    ctx.closePath();
+    ctx.fillStyle = pad;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+
+    const skirtBot = Math.max(back + ry * 0.5, sample.cy + 18);
+    ctx.beginPath();
+    ctx.moveTo(rear + rx * 0.03, back + ry * 0.08);
+    ctx.quadraticCurveTo(seat, back + ry * 0.14, front - rx * 0.02, back + ry * 0.1);
+    ctx.quadraticCurveTo(front, (back + skirtBot) / 2, seat + rx * 0.02, skirtBot);
+    ctx.quadraticCurveTo(seat - rx * 0.1, skirtBot + ry * 0.08, rear + rx * 0.02, (back + skirtBot) / 2);
+    ctx.closePath();
+    ctx.fillStyle = leather;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.strokeStyle = stitch;
+    ctx.lineWidth = 2;
+    ctx.moveTo(rear + rx * 0.06, back + ry * 0.2);
+    ctx.quadraticCurveTo(seat - rx * 0.02, (back + skirtBot) / 2, front - rx * 0.06, back + ry * 0.24);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(rear + rx * 0.02, back + ry * 0.06);
+    ctx.quadraticCurveTo(rear + rx * 0.02, back - ry * 0.24, rear + rx * 0.12, back - ry * 0.02);
+    ctx.quadraticCurveTo(seat, back + ry * 0.14, front - rx * 0.06, back + ry * 0.01);
+    ctx.quadraticCurveTo(front, back - ry * 0.1, front + rx * 0.01, back + ry * 0.08);
+    ctx.lineTo(front - rx * 0.03, back + ry * 0.2);
+    ctx.quadraticCurveTo(seat, back + ry * 0.28, rear + rx * 0.06, back + ry * 0.16);
+    ctx.closePath();
+    ctx.fillStyle = leather;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.strokeStyle = stitch;
+    ctx.lineWidth = 2;
+    ctx.moveTo(rear + rx * 0.12, back - ry * 0.02);
+    ctx.quadraticCurveTo(seat - rx * 0.02, back + ry * 0.1, front - rx * 0.05, back + ry * 0.02);
+    ctx.stroke();
+
+    const hornX = front - rx * 0.02;
+    const hornY = back - ry * 0.06;
+    ctx.beginPath();
+    ctx.ellipse(hornX, hornY, Math.max(5, rx * 0.045), Math.max(7, ry * 0.11), -0.4, 0, Math.PI * 2);
+    ctx.fillStyle = leather;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+
+    const cinchTop = skirtBot + ry * 0.04;
+    const cinchBot = Math.min(cy + ry * 0.46, cinchTop + ry * 0.34);
+    const cinchL = seat - rx * 0.12;
+    const cinchR = seat + rx * 0.1;
+    if (mode === "buckle") {
+      const strapW = Math.max(7, rx * 0.045);
+      ctx.fillStyle = leather;
+      ctx.fillRect(cinchL + rx * 0.02, cinchTop, strapW, ry * 0.22);
+      ctx.fillRect(cinchR - strapW, cinchTop, strapW, ry * 0.16);
+      strokeInk();
+      ctx.strokeRect(cinchL + rx * 0.02, cinchTop, strapW, ry * 0.22);
+      ctx.strokeRect(cinchR - strapW, cinchTop, strapW, ry * 0.16);
+      ctx.fillStyle = INK;
+      ctx.beginPath();
+      ctx.arc(cinchL + rx * 0.02 + strapW / 2, cinchTop + ry * 0.1, 2.4, 0, Math.PI * 2);
+      ctx.arc(cinchL + rx * 0.02 + strapW / 2, cinchTop + ry * 0.18, 2.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(cinchL + rx * 0.03, cinchTop);
+      ctx.quadraticCurveTo(cinchL - rx * 0.01, (cinchTop + cinchBot) / 2, cinchL + rx * 0.02, cinchBot);
+      ctx.quadraticCurveTo(seat, cinchBot + ry * 0.05, cinchR, cinchBot);
+      ctx.quadraticCurveTo(cinchR + rx * 0.01, (cinchTop + cinchBot) / 2, cinchR - rx * 0.02, cinchTop);
+      ctx.closePath();
+      ctx.fillStyle = deep;
+      ctx.fill();
+      strokeInk();
+      ctx.stroke();
+      ctx.fillStyle = leather;
+      ctx.fillRect(seat - rx * 0.03, cinchTop - ry * 0.02, Math.max(6, rx * 0.04), ry * 0.16);
+      ctx.fillRect(seat + rx * 0.03, cinchTop - ry * 0.02, Math.max(6, rx * 0.04), ry * 0.16);
+      const buckW = Math.max(16, rx * 0.12);
+      const buckH = 13;
+      const buckX = seat - buckW / 2;
+      const buckY = cinchTop + ry * 0.18;
+      ctx.fillStyle = gold;
+      ctx.fillRect(buckX, buckY, buckW, buckH);
+      ctx.strokeStyle = INK;
+      ctx.lineWidth = 2;
+      ctx.strokeRect(buckX, buckY, buckW, buckH);
+      ctx.beginPath();
+      ctx.moveTo(buckX + 3, buckY + buckH / 2);
+      ctx.lineTo(buckX + buckW - 3, buckY + buckH / 2);
+      ctx.stroke();
+    }
+
+    const stirX = front + rx * 0.01;
+    const stirTop = back + ry * 0.28;
+    const stirBot = skirtBot + ry * 0.06;
+    ctx.strokeStyle = deep;
+    ctx.lineWidth = Math.max(4, rx * 0.04);
+    ctx.beginPath();
+    ctx.moveTo(stirX, stirTop);
+    ctx.lineTo(stirX, stirBot);
+    ctx.stroke();
+    const iron = Math.max(9, Math.min(20, rx * 0.1));
+    ctx.strokeStyle = "#2a241c";
+    ctx.lineWidth = Math.max(4, rx * 0.032);
+    ctx.beginPath();
+    ctx.moveTo(stirX - iron * 0.72, stirBot);
+    ctx.lineTo(stirX + iron * 0.72, stirBot);
+    ctx.bezierCurveTo(stirX + iron * 1.05, stirBot + iron * 0.85, stirX + iron * 0.6, stirBot + iron * 1.7, stirX, stirBot + iron * 1.75);
+    ctx.bezierCurveTo(stirX - iron * 0.6, stirBot + iron * 1.7, stirX - iron * 1.05, stirBot + iron * 0.85, stirX - iron * 0.72, stirBot);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(stirX - iron * 0.5, stirBot + iron * 1.35);
+    ctx.lineTo(stirX + iron * 0.5, stirBot + iron * 1.35);
+    ctx.stroke();
+
+    ctx.fillStyle = SADDLE;
+    ctx.fillRect(sample.cx - 10, sample.cy - 8, 20, 16);
+  }
+
   function drawHorse(ctx, box, poseName, appearance, face) {
     const horse = appearance || session.horse;
     if (!horse) return;
@@ -2210,58 +2361,45 @@
         ctx.fill();
       });
     }
-    if (horse.care.saddle !== "off") {
-      ctx.fillStyle = SADDLE;
-      ctx.beginPath();
-      ctx.ellipse(parts.saddle.x + 12, parts.saddle.cy, 14, 20, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.ellipse(parts.saddle.x + parts.saddle.w - 10, parts.saddle.cy, 12, 16, 0, 0, Math.PI * 2);
-      ctx.fill();
-      roundFill(parts.saddle.x, parts.saddle.y, parts.saddle.w, parts.saddle.h, SADDLE, 10);
-      ctx.fillStyle = SADDLE;
-      ctx.fillRect(parts.saddle.cx - 10, parts.saddle.cy - 8, 20, 16);
-      const strapTop = Math.round(body.cy + body.ry * 0.55);
-      const strapX = Math.round(body.cx - 8);
-      if (horse.care.saddle === "buckle") {
-        ctx.fillStyle = SADDLE;
-        ctx.fillRect(strapX, strapTop, 12, 26);
-        ctx.fillRect(strapX + 26, strapTop, 12, 26);
-      } else {
-        ctx.fillStyle = SADDLE;
-        ctx.fillRect(strapX, strapTop, 38, 14);
-        ctx.fillStyle = "#f4e2a0";
-        ctx.fillRect(strapX + 14, strapTop + 2, 10, 10);
+    if (horse.care.saddle !== "off") drawHorseSaddle(body, horse.care.saddle, parts.saddle);
+    if (poseName === "eat" && eatUntil && clock < eatUntil) {
+      const foodX = vis.x + (parts.mouth.x - head.x);
+      const foodY = vis.y + (parts.mouth.y - head.y);
+      const bite = 1 - (eatUntil - clock) / 2400;
+      const foodScale = bite < 0.45 ? 1 : Math.max(0, 1 - (bite - 0.45) / 0.55);
+      if (foodScale > 0.04) {
+        ctx.save();
+        ctx.translate(foodX, foodY);
+        ctx.scale(foodScale, foodScale);
+        if (eating === "carrot") {
+          ctx.fillStyle = CARROT;
+          ctx.beginPath();
+          ctx.moveTo(-28, -28);
+          ctx.lineTo(-14, -8);
+          ctx.lineTo(-34, -6);
+          ctx.closePath();
+          ctx.fill();
+          ctx.strokeStyle = "#2f8a3e";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(-28, -28);
+          ctx.lineTo(-34, -38);
+          ctx.stroke();
+        }
+        if (eating === "apple") {
+          ctx.strokeStyle = "#2f8a3e";
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(-1, -12);
+          ctx.lineTo(-4, -24);
+          ctx.stroke();
+          ctx.beginPath();
+          ctx.arc(0, 0, 14, 0, Math.PI * 2);
+          ctx.fillStyle = APPLE;
+          ctx.fill();
+        }
+        ctx.restore();
       }
-    }
-    const foodX = vis.x + (parts.mouth.x - head.x);
-    const foodY = vis.y + (parts.mouth.y - head.y);
-    if (horse.care.foods.carrot) {
-      ctx.fillStyle = CARROT;
-      ctx.beginPath();
-      ctx.moveTo(foodX - 28, foodY - 28);
-      ctx.lineTo(foodX - 14, foodY - 8);
-      ctx.lineTo(foodX - 34, foodY - 6);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = "#2f8a3e";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(foodX - 28, foodY - 28);
-      ctx.lineTo(foodX - 34, foodY - 38);
-      ctx.stroke();
-    }
-    if (horse.care.foods.apple) {
-      ctx.strokeStyle = "#2f8a3e";
-      ctx.lineWidth = 3;
-      ctx.beginPath();
-      ctx.moveTo(foodX - 1, foodY - 12);
-      ctx.lineTo(foodX - 4, foodY - 24);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.arc(foodX, foodY, 14, 0, Math.PI * 2);
-      ctx.fillStyle = APPLE;
-      ctx.fill();
     }
     if (poseName === "drink" && !reduceMotion && drinkUntil && clock >= drinkUntil) {
       const pulse = (Math.sin(clock / 150) + 1) / 2;
@@ -2271,6 +2409,36 @@
       ctx.fill();
     }
     ctx.restore();
+  }
+
+  function drawRackSaddle(x, y) {
+    ctx.fillStyle = "#f7f1dc";
+    ctx.beginPath();
+    ctx.ellipse(x + 30, y + 20, 32, 12, -0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(x + 8, y + 22);
+    ctx.quadraticCurveTo(x + 12, y + 2, x + 24, y + 12);
+    ctx.quadraticCurveTo(x + 40, y + 20, x + 52, y + 8);
+    ctx.quadraticCurveTo(x + 58, y + 4, x + 56, y + 16);
+    ctx.quadraticCurveTo(x + 40, y + 30, x + 10, y + 26);
+    ctx.closePath();
+    ctx.fillStyle = SADDLE;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x + 48, y + 12);
+    ctx.quadraticCurveTo(x + 54, y - 2, x + 58, y + 6);
+    ctx.quadraticCurveTo(x + 52, y + 14, x + 46, y + 14);
+    ctx.closePath();
+    ctx.fillStyle = SADDLE;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.fillStyle = shade(SADDLE, -36);
+    ctx.fillRect(x + 24, y + 26, 8, 20);
+    ctx.fillRect(x + 36, y + 26, 8, 14);
   }
 
   function paintStable(w, h) {
@@ -2297,9 +2465,7 @@
     ctx.fillStyle = "#6b4424";
     ctx.fillRect(rackX + 16, rackY + 16, 10, 26);
     ctx.fillRect(rackX + 64, rackY + 16, 10, 26);
-    if (!session.horse || session.horse.care.saddle === "off") {
-      roundFill(rackX + 18, rackY + 28, 56, 26, SADDLE, 8);
-    }
+    if (!session.horse || session.horse.care.saddle === "off") drawRackSaddle(rackX + 16, rackY + 22);
 
     const bucketY = Math.max(parts.body.cy + parts.body.ry + 78, floorY - 36);
     drawBucket(20, bucketY, "apple");
@@ -3696,6 +3862,7 @@
     if (pose === "eat" && eatUntil && now >= eatUntil) {
       pose = "stand";
       eatUntil = 0;
+      eating = null;
     }
     if (travel && now >= travel.start + travel.ms) {
       const dest = travel.dest;
