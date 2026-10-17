@@ -7,6 +7,7 @@ Browser games we can back up and share. Each game lives in its own folder and is
 - [Pop Pals](https://calledtoconstruct.github.io/games/pop-pals/)
 - [Sugar Counter](https://calledtoconstruct.github.io/games/sugar-counter/)
 - [Sun Garden](https://calledtoconstruct.github.io/games/sun-garden/)
+- [Saddle Up!](https://calledtoconstruct.github.io/games/saddle-up/)
 
 ## Pop Pals
 
@@ -31,6 +32,14 @@ A garden for ages 2 and up. Flowers is a flower garden. Market grows food for th
 Open `sun-garden/index.html` in a browser, or play [Sun Garden](https://calledtoconstruct.github.io/games/sun-garden/).
 
 Mouse, touch, and gaze do the same work. Holding Water puts a can on the pointer and squirts the bed under it. The badge shows how grown that plant is and a Water bar. Each kind drinks at its own pace, faster in full sun and slower when the sun is far away. A dry plant wilts, and it stays wilted, a little less so, until the water comes back. Sun-loving plants still grow faster in direct sun. Each plot holds several plants of one kind. They sprout, lean a little toward the sun, and ripen on their own clocks. Palms grow far above the vines. Tomatoes run along the ground. Left alone they creep. Water and the right light make a plant finish in more than one day. Too much sun for that kind wilts it. Drag the sun along its arc to park the light, and let go to let the day continue. Look at a plant or the sun until the ring fills, then keep looking to hold. Looking away lets go. Menu buttons take twice as long. Fullscreen the page on the panel that was calibrated. An https page will not open the gaze socket.
+
+## Saddle Up!
+
+A horse farm for ages 2 and up. Pick Sunny, Patches, Cloud, or Buddy. Brush the coat, fill the trough, put the saddle on, clean the hoof, and feed an apple or a carrot. When that care is done, the banner says the horse is ready. There is no clock.
+
+Open `saddle-up/index.html` in a browser, or play [Saddle Up!](https://calledtoconstruct.github.io/games/saddle-up/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at Brush, Water, Saddle, Hooves, a dirt spot, Apples, or Carrots until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same visit. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
 ## Add a game
 
