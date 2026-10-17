@@ -37,7 +37,7 @@
     box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
   }
   #gaze[hidden], #eyes[hidden], .panel[hidden], #back[hidden],
-  #dock[hidden], #hoof-ui[hidden], #jump-ui[hidden], #race-ui[hidden], #banner[hidden] { display: none !important; }
+  #dock[hidden], #hoof-ui[hidden], #jump-ui[hidden], #race-ui[hidden], #cattle-ui[hidden], #banner[hidden] { display: none !important; }
   #eyes {
     position: fixed; z-index: 46;
     top: calc(18px + env(safe-area-inset-top));
@@ -145,6 +145,12 @@
     font-weight: 800; font-size: 22px;
     box-shadow: 0 4px 0 var(--sun-d);
   }
+  #cattle-ui { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+  #cattle-ui button {
+    position: fixed; pointer-events: auto;
+    border: none; padding: 0; border-radius: 18px;
+    background: transparent;
+  }
 </style>
 </head>
 <body>
@@ -170,9 +176,9 @@
   <p class="tag">Horse farm</p>
   <div class="stack" id="levels">
     <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Brush, water, and feed, then one jump. No clock.</small></button>
-    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. The same barn, a short ride, and a gentle race. No clock.</small></button>
-    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. The same barn, jumps, and a race.</small></button>
-    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Faster jumps from the saddle, and a race.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. The same barn, a short ride, a gentle race, and two cows. No clock.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. The same barn, jumps, a race, and cattle.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Faster jumps from the saddle, a race, and cattle.</small></button>
   </div>
   <div class="stack" style="margin-top:12px">
     <button id="lets-go" class="big" type="button">Let's go</button>
@@ -219,6 +225,16 @@
 
 <div id="race-ui" hidden>
   <button id="faster" type="button" data-play="true">Faster</button>
+</div>
+
+<div id="cattle-ui" hidden>
+  <button id="field" type="button" data-play="true" aria-label="Grass"></button>
+  <button id="cow-1" type="button" data-play="true" aria-label="Cow"></button>
+  <button id="cow-2" type="button" data-play="true" aria-label="Cow"></button>
+  <button id="cow-3" type="button" data-play="true" aria-label="Cow"></button>
+  <button id="cow-4" type="button" data-play="true" aria-label="Cow"></button>
+  <button id="cow-5" type="button" data-play="true" aria-label="Cow"></button>
+  <button id="cow-6" type="button" data-play="true" aria-label="Cow"></button>
 </div>
 
 <script>
@@ -295,7 +311,8 @@
   const ACTIVITIES = [
     { id: "stable", label: "Stable", levels: ["tiny", "little", "shop", "rush"] },
     { id: "jumps", label: "Ride", levels: ["tiny", "little", "shop", "rush"] },
-    { id: "race", label: "Race", levels: ["little", "shop", "rush"] }
+    { id: "race", label: "Race", levels: ["little", "shop", "rush"] },
+    { id: "cattle", label: "Cattle", levels: ["little", "shop", "rush"] }
   ];
 
   const RIVALS = {
@@ -305,7 +322,7 @@
   };
 
   const PLACES = ["level", "breed", "yard", "stable", "hoof", "jumps", "race", "cattle", "chores", "vet"];
-  const LIVE = { level: true, breed: true, yard: true, stable: true, hoof: true, jumps: true, race: true };
+  const LIVE = { level: true, breed: true, yard: true, stable: true, hoof: true, jumps: true, race: true, cattle: true };
   const LOW_COLOR = "#2f8a3e";
   const MID_COLOR = "#e2a62e";
   const HIGH_COLOR = "#e07030";
@@ -326,6 +343,7 @@
   const hoofUi = document.getElementById("hoof-ui");
   const jumpUi = document.getElementById("jump-ui");
   const raceUi = document.getElementById("race-ui");
+  const cattleUi = document.getElementById("cattle-ui");
   const letsGoBtn = document.getElementById("lets-go");
 
   const session = {
@@ -334,7 +352,8 @@
     horse: null,
     cheered: false,
     jumps: null,
-    race: null
+    race: null,
+    cattle: null
   };
 
   let boostLatch = false;
@@ -413,6 +432,19 @@
       }
       return text;
     }
+    if (session.place === "cattle" && session.cattle) {
+      const cattle = session.cattle;
+      if (cattle.phase === "done") return "All in.";
+      if (cattle.notice === "drink") return "Time for a drink.";
+      if (cattle.notice === "buckle") return "The saddle needs a buckle.";
+      if (cattle.notice === "shoes") return "The shoes need a tap.";
+      if (cattle.notice === "grass") return "Try again.";
+      if (cattle.pen > 0) {
+        const left = cattle.cows.length - cattle.pen;
+        return "In the pen.\n" + countWord(left) + " to go.";
+      }
+      return "Cattle.";
+    }
     if (session.place === "hoof") {
       return horse.care.spots.every((s) => s.cleared) ? "Clean hooves." : "Hooves.";
     }
@@ -476,17 +508,20 @@
   function go(place) {
     if (PLACES.indexOf(place) < 0) return;
     if (!LIVE[place]) return;
-    if ((place === "yard" || place === "stable" || place === "hoof" || place === "jumps" || place === "race") && !session.horse) {
+    if ((place === "yard" || place === "stable" || place === "hoof" || place === "jumps" || place === "race" || place === "cattle") && !session.horse) {
       if (place === "yard") place = "breed";
       else return;
     }
     if (place === "race" && !rivalNames().length) return;
+    if (place === "cattle" && !herdNow()) return;
     if (place !== "hoof") hoofReturnAt = 0;
     if (place !== "jumps") endJumps();
     if (place !== "race") endRace();
+    if (place !== "cattle") endCattle();
     session.place = place;
     if (place === "jumps") beginJumps();
     if (place === "race") beginRace();
+    if (place === "cattle") beginCattle();
     maybeCheer();
     render();
   }
@@ -523,6 +558,214 @@
     boostOffSince = 0;
     tapBoostUntil = 0;
     fasterPointer = false;
+  }
+
+  function herdNow() {
+    return TUNE.herds[session.levelId] || null;
+  }
+
+  function countWord(n) {
+    return ["Zero", "One", "Two", "Three", "Four", "Five", "Six"][n] || String(n);
+  }
+
+  function beginCattle() {
+    const herd = herdNow();
+    if (!herd || !session.horse) return;
+    const cows = [];
+    for (let i = 0; i < herd.cows; i++) {
+      const shown = i < TUNE.field.onScreen;
+      const lane = shown ? i : -1;
+      cows.push({
+        id: "cow-" + (i + 1),
+        state: "out",
+        lane: lane,
+        shown: shown,
+        xFrac: shown ? TUNE.field.patrolX[0] : TUNE.field.waitXFrac,
+        yFrac: shown ? TUNE.field.lanes[lane] : TUNE.field.lanes[0],
+        dir: 1,
+        entering: false,
+        enterLeft: 0,
+        loopMs: 0
+      });
+    }
+    session.cattle = { phase: "run", pen: 0, cows: cows, notice: null };
+  }
+
+  function endCattle() {
+    session.cattle = null;
+  }
+
+  function herdBlock() {
+    const horse = session.horse;
+    if (!horse) return "drink";
+    if (horse.needs.drink) return "drink";
+    if (horse.care.saddle === "buckle") return "buckle";
+    if (horse.needs.shoes > 0) return "shoes";
+    return null;
+  }
+
+  function loopCow(id) {
+    if (session.place !== "cattle") go("cattle");
+    const cattle = session.cattle;
+    if (!cattle || cattle.phase === "done") return;
+    const block = herdBlock();
+    if (block) {
+      cattle.notice = block;
+      playSound("miss");
+      render();
+      return;
+    }
+    if (id == null) {
+      cattle.notice = "grass";
+      playSound("miss");
+      render();
+      return;
+    }
+    const cow = cattle.cows.find((c) => c.id === id);
+    if (!cow || cow.state !== "out" || !cow.shown) {
+      render();
+      return;
+    }
+    cow.state = "loop";
+    cow.loopMs = 0;
+    cattle.notice = null;
+    playSound("loop");
+    render();
+  }
+
+  function penRect(w, h) {
+    const pen = TUNE.field.pen;
+    return { x: pen.x * w, y: pen.y * h, w: pen.w * w, h: pen.h * h };
+  }
+
+  function insidePen(x, y, pen) {
+    return x >= pen.x && x <= pen.x + pen.w && y >= pen.y && y <= pen.y + pen.h;
+  }
+
+  function promoteWaiter(lane) {
+    const cattle = session.cattle;
+    if (!cattle || lane < 0) return;
+    const waiter = cattle.cows.find((c) => !c.shown && c.state === "out");
+    if (!waiter) return;
+    waiter.shown = true;
+    waiter.lane = lane;
+    waiter.entering = true;
+    waiter.enterLeft = TUNE.field.enterMs;
+    waiter.xFrac = TUNE.field.waitXFrac;
+    waiter.yFrac = TUNE.field.lanes[lane];
+    waiter.dir = 1;
+    waiter.state = "out";
+  }
+
+  function arriveCow(cow) {
+    const cattle = session.cattle;
+    if (!cattle || cow.state === "in") return;
+    const lane = cow.lane;
+    cow.state = "in";
+    cow.entering = false;
+    cow.shown = true;
+    cattle.pen += 1;
+    const pen = TUNE.field.pen;
+    cow.xFrac = pen.x + pen.w * 0.5;
+    cow.yFrac = pen.y + pen.h * (cattle.pen / (cattle.cows.length + 1));
+    cattle.notice = null;
+    if (cattle.pen >= cattle.cows.length) {
+      cattle.phase = "done";
+      playSound("cheer");
+    } else {
+      promoteWaiter(lane);
+    }
+  }
+
+  function patrolCow(cow, dt, w) {
+    const herd = herdNow();
+    if (!herd) return;
+    const lo = TUNE.field.patrolX[0] * w;
+    const hi = TUNE.field.patrolX[1] * w;
+    let x = cow.xFrac * w + cow.dir * herd.pxPerSec * dt;
+    let guard = 0;
+    while (guard < 8 && (x < lo || x > hi)) {
+      if (x > hi) {
+        x = hi - (x - hi);
+        cow.dir = -1;
+      } else {
+        x = lo + (lo - x);
+        cow.dir = 1;
+      }
+      guard += 1;
+    }
+    cow.xFrac = Math.max(lo, Math.min(hi, x)) / w;
+    if (cow.lane >= 0) cow.yFrac = TUNE.field.lanes[cow.lane];
+  }
+
+  function walkToPen(cow, dt, w, h) {
+    const pen = penRect(w, h);
+    const tx = pen.x + pen.w / 2;
+    const ty = pen.y + pen.h / 2;
+    let x = cow.xFrac * w;
+    let y = cow.yFrac * h;
+    const dx = tx - x;
+    const dy = ty - y;
+    const dist = Math.hypot(dx, dy);
+    const stepPx = TUNE.field.walkToPenPxPerSec * dt;
+    if (dist <= stepPx) {
+      x = tx;
+      y = ty;
+    } else if (dist > 0) {
+      x += (dx / dist) * stepPx;
+      y += (dy / dist) * stepPx;
+    }
+    if (insidePen(x, y, pen)) {
+      arriveCow(cow);
+      return;
+    }
+    cow.xFrac = x / w;
+    cow.yFrac = y / h;
+  }
+
+  function advanceOneCow(cow, dtMs, w, h, frozen) {
+    if (cow.state === "in" || !cow.shown) return;
+    if (cow.state === "loop") {
+      cow.loopMs += dtMs;
+      walkToPen(cow, dtMs / 1000, w, h);
+      return;
+    }
+    if (frozen) return;
+    if (cow.entering) {
+      const use = Math.min(dtMs, cow.enterLeft);
+      cow.enterLeft -= use;
+      const span = TUNE.field.enterMs;
+      const done = span <= 0 ? 1 : 1 - cow.enterLeft / span;
+      const wait = TUNE.field.waitXFrac;
+      const start = TUNE.field.patrolX[0];
+      cow.xFrac = wait + (start - wait) * done;
+      if (cow.lane >= 0) cow.yFrac = TUNE.field.lanes[cow.lane];
+      if (cow.enterLeft <= 0) {
+        cow.entering = false;
+        cow.xFrac = start;
+        cow.dir = 1;
+        const rest = (dtMs - use) / 1000;
+        if (rest > 0) patrolCow(cow, rest, w);
+      }
+      return;
+    }
+    patrolCow(cow, dtMs / 1000, w);
+  }
+
+  function gazedCowId() {
+    const target = gazeTarget();
+    if (!target || !target.key || !target.key.id) return null;
+    return target.key.id.indexOf("cow-") === 0 ? target.key.id : null;
+  }
+
+  function advanceCattle(dtMs) {
+    const cattle = session.cattle;
+    if (!cattle || session.place !== "cattle" || cattle.phase !== "run") return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (w < 2 || h < 2) return;
+    const freezeId = gazedCowId();
+    cattle.cows.forEach((cow) => advanceOneCow(cow, dtMs, w, h, cow.id === freezeId));
   }
 
   function raceLeader() {
@@ -875,7 +1118,7 @@
 
   function onBack() {
     if (session.place === "breed" || session.place === "yard") go("level");
-    else if (session.place === "stable" || session.place === "jumps" || session.place === "race") go("yard");
+    else if (session.place === "stable" || session.place === "jumps" || session.place === "race" || session.place === "cattle") go("yard");
     else if (session.place === "hoof") go("stable");
   }
 
@@ -1536,6 +1779,7 @@
     if (session.place === "hoof") paintHoof(w, h);
     else if (session.place === "jumps") paintJumps(w, h);
     else if (session.place === "race") paintRace(w, h);
+    else if (session.place === "cattle") paintCattle(w, h);
     else paintStable(w, h);
   }
 
@@ -1633,6 +1877,100 @@
     });
   }
 
+  function paintCow(cow, w, h) {
+    const x = cow.xFrac * w;
+    const y = cow.yFrac * h;
+    ctx.fillStyle = "#6b3a22";
+    ctx.fillRect(x - 46, y + 10, 8, 22);
+    ctx.fillStyle = "#f7f1dc";
+    ctx.beginPath();
+    ctx.ellipse(x, y, 42, 26, 0, 0, Math.PI * 2);
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.fillStyle = "#6b3a22";
+    ctx.beginPath();
+    ctx.ellipse(x - 8, y - 2, 16, 11, -0.3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#f7f1dc";
+    ctx.beginPath();
+    ctx.ellipse(x + 36, y - 10, 16, 14, 0.1, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#f7f1dc";
+    ctx.beginPath();
+    ctx.ellipse(x + 28, y - 22, 6, 8, -0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#fffdf8";
+    ctx.beginPath();
+    ctx.arc(x + 42, y - 12, 3, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(x + 43, y - 12, 1.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.moveTo(x - 30, y + 18);
+    ctx.lineTo(x - 34, y + 36);
+    ctx.moveTo(x - 12, y + 22);
+    ctx.lineTo(x - 10, y + 38);
+    ctx.moveTo(x + 10, y + 22);
+    ctx.lineTo(x + 14, y + 38);
+    ctx.moveTo(x + 24, y + 18);
+    ctx.lineTo(x + 30, y + 36);
+    ctx.stroke();
+    if (cow.state === "loop" && cow.loopMs < 350 && !reduceMotion) {
+      ctx.beginPath();
+      ctx.arc(x - 4, y - 28, 18, 0, Math.PI * 2);
+      ctx.strokeStyle = "#e2a62e";
+      ctx.lineWidth = 4;
+      ctx.stroke();
+    }
+  }
+
+  function paintCattle(w, h) {
+    ctx.fillStyle = "#9fd4f2";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = GRASS;
+    ctx.fillRect(0, Math.round(h * 0.2), w, h);
+    const pen = penRect(w, h);
+    ctx.fillStyle = "#c4a574";
+    ctx.fillRect(pen.x, pen.y, pen.w, pen.h);
+    strokeInk();
+    ctx.strokeRect(pen.x + 2, pen.y + 2, pen.w - 4, pen.h - 4);
+    ctx.strokeStyle = WOOD;
+    ctx.lineWidth = 8;
+    [0.22, 0.5, 0.78].forEach((frac) => {
+      const y = pen.y + pen.h * frac;
+      ctx.beginPath();
+      ctx.moveTo(pen.x, y);
+      ctx.lineTo(pen.x + pen.w, y);
+      ctx.stroke();
+    });
+    ctx.fillStyle = WOOD;
+    ctx.fillRect(pen.x - 6, pen.y, 12, pen.h);
+    ctx.fillRect(pen.x + pen.w - 6, pen.y, 12, pen.h);
+    if (session.horse) {
+      const unit = w < 520 ? 150 : 190;
+      drawHorse(ctx, {
+        x: 0,
+        y: 0,
+        w: unit,
+        h: unit * 0.72,
+        anchorX: TUNE.field.horseXFrac * w,
+        anchorY: h * 0.84
+      }, "stand", null);
+    }
+    const cattle = session.cattle;
+    if (!cattle) return;
+    const drawn = cattle.cows.filter((cow) => cow.shown);
+    drawn.sort((a, b) => a.yFrac - b.yFrac);
+    drawn.forEach((cow) => paintCow(cow, w, h));
+  }
+
   function placeBox(el, box) {
     el.style.left = box.x + "px";
     el.style.top = box.y + "px";
@@ -1668,7 +2006,7 @@
     backBtn.hidden = false;
     let label = "Back";
     if (place === "breed" || place === "yard") label = "Back to Menu";
-    else if (place === "stable" || place === "jumps" || place === "race") label = "Back to the yard";
+    else if (place === "stable" || place === "jumps" || place === "race" || place === "cattle") label = "Back to the yard";
     backBtn.textContent = label;
     backBtn.setAttribute("aria-label", label);
   }
@@ -1682,6 +2020,7 @@
     hoofUi.hidden = place !== "hoof";
     jumpUi.hidden = place !== "jumps" && place !== "race";
     raceUi.hidden = place !== "race";
+    cattleUi.hidden = place !== "cattle";
     if (session.horse) whoEl.textContent = session.horse.name;
     const text = bannerText();
     bannerEl.textContent = text;
@@ -1709,7 +2048,29 @@
     done.hidden = place !== "hoof";
     placeBox(done, hoofLayout(w, h, spotCount()).done);
     syncJumps(w, h);
+    syncCattle(w, h);
     paint();
+  }
+
+  function syncCattle(w, h) {
+    const on = session.place === "cattle" && session.cattle;
+    const field = document.getElementById("field");
+    placeBox(field, { x: 0, y: 0, w: w, h: h });
+    field.hidden = !on;
+    const size = TUNE.cowBoxPx;
+    for (let i = 1; i <= 6; i++) {
+      const el = document.getElementById("cow-" + i);
+      const cow = on ? session.cattle.cows.find((c) => c.id === el.id) : null;
+      const show = !!(cow && cow.shown && cow.state !== "wait");
+      el.hidden = !show;
+      if (!show) continue;
+      placeBox(el, {
+        x: Math.round(cow.xFrac * w - size / 2),
+        y: Math.round(cow.yFrac * h - size / 2),
+        w: size,
+        h: size
+      });
+    }
   }
 
   function jumpLayout(w, h) {
@@ -1868,6 +2229,12 @@
       if (box.used) targets.push({ id: box.id, x: box.x, y: box.y, w: box.w, h: box.h });
     });
     targets.push({ id: "faster", x: Math.round((w - 160) / 2), y: Math.max(0, h - 88), w: 160, h: 72 });
+    const cow = TUNE.cowBoxPx;
+    TUNE.field.lanes.forEach((lane, i) => {
+      const cx = TUNE.field.patrolX[0] * w;
+      const cy = lane * h;
+      targets.push({ id: "cow-" + (i + 1), x: Math.round(cx - cow / 2), y: Math.round(cy - cow / 2), w: cow, h: cow });
+    });
     const panelW = Math.min(460, Math.max(72, w - 24));
     targets.push({ id: "lets-go", x: (w - panelW) / 2, y: 200, w: panelW, h: 76 });
     return { targets: targets };
@@ -1893,7 +2260,7 @@
       banner: bannerText(),
       jumps: jumpsPublic(),
       race: racePublic(),
-      cattle: null,
+      cattle: cattlePublic(),
       chores: null,
       vet: null
     };
@@ -1925,6 +2292,16 @@
       rivals: race.rivals.map((v) => ({ name: v.name, progress: v.progress })),
       place: race.place,
       boost: !!race.boost
+    };
+  }
+
+  function cattlePublic() {
+    const cattle = session.cattle;
+    if (!cattle || session.place !== "cattle") return null;
+    return {
+      phase: cattle.phase,
+      pen: cattle.pen,
+      cows: cattle.cows.map((cow) => ({ id: cow.id, state: cow.state }))
     };
   }
 
@@ -2030,6 +2407,7 @@
       gazePoint = smoothed;
       if (refreshHold) gazeAt = now;
     }
+    if (dtSec > 0 && dtSec < 120) advanceCattle(now - prev);
     stepGaze(now);
     if (dtSec > 0 && dtSec < 120) {
       advanceJumps(now - prev);
@@ -2712,6 +3090,180 @@
         raceFail("race link " + JSON.stringify({ level: state().level, place: state().place, race: state().race }));
       }
       if (state().breed !== careSnap.breed || state().hoofSpots !== careSnap.hoofSpots) raceFail("race link rebuilt the horse");
+
+      function cattleFail(detail) { fail("Cattle", detail); }
+      function cowCenter(id) {
+        const box = centers().targets[id];
+        return box ? { x: box.x, y: box.y } : null;
+      }
+      function dwellCow(id) {
+        const box = centers().targets[id];
+        if (!box) {
+          cattleFail("missing " + id);
+          return null;
+        }
+        const before = { x: box.x, y: box.y };
+        look(box.nx, box.ny);
+        const t0 = clock + 1;
+        step(t0);
+        step(t0 + 660);
+        return before;
+      }
+      function walkPen(id) {
+        releaseLook();
+        let guard = 0;
+        while (guard < 20) {
+          const cow = state().cattle && state().cattle.cows.find((c) => c.id === id);
+          if (!cow || cow.state === "in") return cow;
+          step(clock + 1000);
+          guard += 1;
+        }
+        return state().cattle && state().cattle.cows.find((c) => c.id === id);
+      }
+      level("tiny");
+      go("yard");
+      if (document.getElementById("act-cattle")) cattleFail("tiny shows cattle");
+      go("cattle");
+      if (state().place !== "yard" || state().cattle) cattleFail("tiny entered the field");
+      level("little");
+      go("cattle");
+      if (!careSame()) cattleFail("cattle rewrote care");
+      if (!state().cattle || state().cattle.phase !== "run" || state().cattle.pen !== 0 || state().cattle.cows.length !== 2) {
+        cattleFail("little herd " + JSON.stringify(state().cattle));
+      }
+      if (state().banner !== "Cattle.") cattleFail("open banner " + JSON.stringify(state().banner));
+      const cowBox = centers().targets["cow-1"];
+      if (!cowBox || Math.min(cowBox.w, cowBox.h) < 96) cattleFail("cow size " + JSON.stringify(cowBox));
+      if (centers().targets["cow-3"]) cattleFail("little showed a waiter");
+      const still = cowCenter("cow-1");
+      step(clock + 120000);
+      const heldStill = cowCenter("cow-1");
+      if (!still || !heldStill || Math.hypot(heldStill.x - still.x, heldStill.y - still.y) > 1.5) {
+        cattleFail("120s step moved a cow");
+      }
+      step(clock + 10000);
+      const moved = cowCenter("cow-1");
+      if (!moved || Math.hypot(moved.x - heldStill.x, moved.y - heldStill.y) < 20) {
+        cattleFail("10s step did not move a cow");
+      }
+      go("cattle");
+      const otherBefore = cowCenter("cow-2");
+      const beforeLoop = dwellCow("cow-1");
+      const afterLoop = cowCenter("cow-1");
+      const otherAfter = cowCenter("cow-2");
+      const looped = state().cattle.cows.find((c) => c.id === "cow-1");
+      if (!looped || looped.state === "out" || state().cattle.pen !== 0) {
+        cattleFail("dwell left the cow out " + JSON.stringify(state().cattle));
+      }
+      if (!beforeLoop || !afterLoop || Math.hypot(afterLoop.x - beforeLoop.x, afterLoop.y - beforeLoop.y) > 1.5) {
+        cattleFail("cow moved during the dwell");
+      }
+      if (!otherBefore || !otherAfter || Math.hypot(otherAfter.x - otherBefore.x, otherAfter.y - otherBefore.y) < 5) {
+        cattleFail("the other cow froze");
+      }
+      const arrived = walkPen("cow-1");
+      if (!arrived || arrived.state !== "in" || state().cattle.pen !== 1) {
+        cattleFail("pen after one " + JSON.stringify(state().cattle));
+      }
+      if (state().banner.indexOf("In the pen.") !== 0 || state().banner.indexOf("One to go.") < 0) {
+        cattleFail("pen banner " + JSON.stringify(state().banner));
+      }
+      dwellCow("cow-1");
+      releaseLook();
+      if (state().cattle.pen !== 1 || state().cattle.cows.find((c) => c.id === "cow-1").state !== "in") {
+        cattleFail("second dwell counted " + JSON.stringify(state().cattle));
+      }
+      const grassX = 0.9 * window.innerWidth;
+      const grassY = 0.22 * window.innerHeight;
+      const grassHit = document.elementFromPoint(grassX, grassY);
+      const grassBtn = grassHit && grassHit.closest("button");
+      if (!grassBtn || grassBtn.id !== "field") cattleFail("grass point hit " + (grassBtn && grassBtn.id));
+      look(0.9, 0.22);
+      const grassT = clock + 1;
+      step(grassT);
+      step(grassT + 660);
+      releaseLook();
+      if (state().cattle.pen !== 1 || state().banner !== "Try again.") {
+        cattleFail("grass " + state().cattle.pen + " " + JSON.stringify(state().banner));
+      }
+      if (state().banner.toLowerCase().indexOf("lose") >= 0) cattleFail("sad banner");
+      dwellCow("cow-2");
+      const second = walkPen("cow-2");
+      if (!second || second.state !== "in" || state().cattle.pen !== 2 || state().cattle.phase !== "done" || state().banner !== "All in.") {
+        cattleFail("all in " + JSON.stringify(state().cattle) + " " + JSON.stringify(state().banner));
+      }
+      step(clock + 3000);
+      if (state().cattle.pen !== 2 || state().cattle.phase !== "done") cattleFail("herd kept moving");
+
+      go("cattle");
+      emptyTrough();
+      dwellCow("cow-1");
+      releaseLook();
+      if (state().cattle.pen !== 0 || state().cattle.cows[0].state !== "out" || state().banner !== "Time for a drink.") {
+        cattleFail("thirst gate " + JSON.stringify(state().cattle) + " " + state().banner);
+      }
+      fillTrough();
+      session.horse.care.trough = careSnap.trough;
+      session.horse.needs.drink = false;
+      openBuckle();
+      dwellCow("cow-1");
+      releaseLook();
+      if (state().cattle.cows[0].state !== "out" || state().banner !== "The saddle needs a buckle.") {
+        cattleFail("buckle gate " + state().banner);
+      }
+      fixBuckle();
+      session.horse.care.saddle = careSnap.saddle;
+      askShoes();
+      dwellCow("cow-1");
+      releaseLook();
+      if (state().cattle.cows[0].state !== "out" || state().cattle.pen !== 0 || state().banner !== "The shoes need a tap.") {
+        cattleFail("shoe gate " + state().banner);
+      }
+      tapShoe();
+      tapShoe();
+      tapShoe();
+      tapShoe();
+      if (session.horse.needs.shoes !== 0) cattleFail("shoes left " + session.horse.needs.shoes);
+      dwellCow("cow-1");
+      const afterGate = walkPen("cow-1");
+      if (!afterGate || afterGate.state !== "in" || state().cattle.pen !== 1) {
+        cattleFail("loop after the gate " + JSON.stringify(state().cattle));
+      }
+
+      level("shop");
+      go("cattle");
+      if (!state().cattle || state().cattle.cows.length !== 4 || centers().targets["cow-3"]) {
+        cattleFail("shop herd " + JSON.stringify(state().cattle));
+      }
+      dwellCow("cow-1");
+      walkPen("cow-1");
+      if (state().cattle.pen !== 1) cattleFail("shop pen " + state().cattle.pen);
+      const waiter = centers().targets["cow-3"];
+      const waiterState = state().cattle.cows.find((c) => c.id === "cow-3");
+      if (!waiter || !waiterState || waiterState.state !== "out") cattleFail("waiter did not enter");
+      step(clock + 500);
+      const entered = cowCenter("cow-3");
+      const wantX = TUNE.field.patrolX[0] * window.innerWidth;
+      if (!entered || Math.abs(entered.x - wantX) > 40) cattleFail("waiter x " + JSON.stringify(entered));
+
+      level("rush");
+      go("cattle");
+      if (!state().cattle || state().cattle.cows.length !== 6 || centers().targets["cow-3"]) {
+        cattleFail("rush herd " + JSON.stringify(state().cattle));
+      }
+      const rushBefore = cowCenter("cow-1");
+      dwellCow("cow-1");
+      const rushAfter = cowCenter("cow-1");
+      releaseLook();
+      if (state().cattle.cows[0].state === "out" || !rushBefore || !rushAfter || Math.hypot(rushAfter.x - rushBefore.x, rushAfter.y - rushBefore.y) > 1.5) {
+        cattleFail("rush dwell moved " + JSON.stringify(state().cattle.cows[0]));
+      }
+      if (!careSame()) cattleFail("cattle rewrote care after the herd");
+      applyDeepLink(new URLSearchParams("cattle"));
+      if (state().level !== "little" || state().place !== "cattle" || !state().cattle || state().cattle.phase !== "run" || state().cattle.cows.length !== 2) {
+        cattleFail("cattle link " + JSON.stringify({ level: state().level, place: state().place, cattle: state().cattle }));
+      }
+      if (state().breed !== careSnap.breed || state().hoofSpots !== careSnap.hoofSpots) cattleFail("cattle link rebuilt the horse");
     } catch (err) {
       failures.push("Case error: " + (err && err.stack ? err.stack : err));
     }
@@ -2731,6 +3283,10 @@
       if (!session.horse) pickBreed("palomino");
       level("shop");
       go("race");
+    } else if (params.has("cattle")) {
+      if (!session.horse) pickBreed("palomino");
+      level("little");
+      go("cattle");
     }
   }
 
@@ -2792,6 +3348,11 @@
     else startChoose();
   });
   document.getElementById("faster").addEventListener("click", pressFaster);
+  document.getElementById("field").addEventListener("click", () => loopCow(null));
+  for (let i = 1; i <= 6; i++) {
+    const cowId = "cow-" + i;
+    document.getElementById(cowId).addEventListener("click", () => loopCow(cowId));
+  }
   document.getElementById("jump-up").addEventListener("click", () => pickHeight(1));
   document.getElementById("jump-low").addEventListener("click", () => pickHeight(1));
   document.getElementById("jump-mid").addEventListener("click", () => pickHeight(2));
