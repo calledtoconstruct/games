@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Saddle Up!</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  #view { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border: none; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #gaze[hidden], #eyes[hidden], .panel[hidden], #back[hidden],
+  #dock[hidden], #hoof-ui[hidden], #banner[hidden] { display: none !important; }
+  #eyes {
+    position: fixed; z-index: 46;
+    top: calc(18px + env(safe-area-inset-top));
+    left: 172px;
+    background: var(--card); border-radius: 999px; padding: 7px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 40; pointer-events: none;
+    left: 50%; top: calc(92px + env(safe-area-inset-top));
+    transform: translateX(-50%);
+    max-width: min(520px, calc(100% - 24px));
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 8px 18px; font-size: 22px; font-weight: 800;
+    text-align: center; white-space: nowrap;
+  }
+  .panel {
+    position: fixed; z-index: 50; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    width: min(460px, calc(100% - 24px));
+    max-height: calc(100dvh - 24px); overflow: auto;
+    background: var(--card); border-radius: 28px;
+    padding: 22px 16px 16px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.28);
+  }
+  h1 { font-size: 48px; line-height: 0.95; margin: 4px 0 10px; text-align: center; letter-spacing: -1px; }
+  .tag { text-align: center; margin: 0 0 12px; font-size: 18px; }
+  .stack { display: flex; flex-direction: column; gap: 10px; }
+  .choice, .breed, .big {
+    border: none; border-radius: 18px; min-height: 76px;
+    font-weight: 800; color: var(--ink);
+  }
+  .choice {
+    background: #fffdf6; text-align: left; padding: 8px 14px;
+    box-shadow: 0 4px 0 #e2d0b4; border: 3px solid transparent;
+  }
+  .choice b { display: block; font-size: 26px; }
+  .choice small { display: block; font-size: 14px; color: #5c4e3a; }
+  .choice[aria-pressed="true"] { border-color: var(--ink); background: #fff6df; }
+  .breed {
+    min-height: 84px; padding: 8px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .chip {
+    display: flex; flex-direction: column; align-items: center;
+    background: #f4f0d8; color: #2c2416;
+    border-radius: 14px; padding: 4px 14px 6px; line-height: 1.05;
+  }
+  .chip b { font-size: 28px; }
+  .chip small { font-size: 14px; font-weight: 800; }
+  .big {
+    background: var(--sun); box-shadow: 0 5px 0 var(--sun-d);
+    font-size: 32px; width: 100%;
+  }
+  .big:active, .choice:active, .breed:active { transform: translateY(2px); }
+  #mute, #full, #back {
+    position: fixed; z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1;
+    top: calc(10px + env(safe-area-inset-top));
+    height: 72px; font-size: 16px;
+  }
+  #mute, #full { width: 72px; }
+  #mute { left: 10px; display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; }
+  #mute svg[hidden] { display: none !important; }
+  #full { left: 90px; }
+  #back { right: 10px; width: auto; min-width: 72px; padding: 0 14px; }
+  #dock, #hoof-ui { position: fixed; inset: 0; z-index: 44; pointer-events: none; }
+  #dock button, #hoof-ui button { position: fixed; pointer-events: auto; }
+  #dock button {
+    width: 72px; height: 72px; padding: 4px;
+    border: none; border-radius: 16px;
+    background: var(--paper); color: var(--ink);
+    font-weight: 800; font-size: 15px; line-height: 1.05;
+    box-shadow: 0 4px 0 #c8b48a;
+  }
+  #hoof-ui .spot {
+    width: 72px; height: 72px; padding: 0;
+    border: none; border-radius: 50%;
+    background: transparent;
+  }
+  #hoof-done {
+    width: 180px; height: 72px;
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink);
+    font-weight: 800; font-size: 28px;
+    box-shadow: 0 5px 0 var(--sun-d);
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 9l5 6M21 9l-5 6"/>
+  </svg>
+</button>
+<button id="full" type="button" aria-label="Fullscreen">Full</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<p id="banner" role="status" hidden></p>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+
+<section id="panel-level" class="panel">
+  <h1>Saddle Up!</h1>
+  <p class="tag">Horse farm</p>
+  <div class="stack" id="levels">
+    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Brush, water, and feed. No clock.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. The same barn. A few more spots on the hoof.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. The same barn. More spots on the hoof.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. The same barn. More spots on the hoof.</small></button>
+  </div>
+  <div class="stack" style="margin-top:12px">
+    <button id="lets-go" class="big" type="button">Let's go</button>
+  </div>
+</section>
+
+<section id="panel-breed" class="panel" hidden>
+  <h1>Pick a horse.</h1>
+  <div class="stack" id="breeds"></div>
+</section>
+
+<section id="panel-yard" class="panel" hidden>
+  <h1 id="who">Sunny</h1>
+  <div class="stack" id="activities"></div>
+</section>
+
+<div id="dock" hidden>
+  <button id="brush" type="button" data-play="true">Brush</button>
+  <button id="water" type="button" data-play="true">Water</button>
+  <button id="saddle" type="button" data-play="true">Saddle</button>
+  <button id="hooves" type="button" data-play="true">Hooves</button>
+  <button id="apples" type="button" data-play="true">Apples</button>
+  <button id="carrots" type="button" data-play="true">Carrots</button>
+</div>
+
+<div id="hoof-ui" hidden>
+  <button id="spot-1" class="spot" type="button" data-play="true" aria-label="Dirt"></button>
+  <button id="spot-2" class="spot" type="button" data-play="true" aria-label="Dirt"></button>
+  <button id="spot-3" class="spot" type="button" data-play="true" aria-label="Dirt"></button>
+  <button id="spot-4" class="spot" type="button" data-play="true" aria-label="Dirt"></button>
+  <button id="hoof-done" type="button">Done</button>
+</div>
+
+<script>
+(function () {
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+
+  const INK = "#2c2416";
+  const PAPER = "#f4f0d8";
+  const GRASS = "#7dae4a";
+  const WOOD = "#a56b3c";
+  const WATER = "#3d8fd4";
+  const SADDLE = "#8c3b2a";
+  const DIRT = "#6b4a2a";
+  const HOOF = "#f0d2b0";
+  const APPLE = "#d6453d";
+  const CARROT = "#e07a1f";
+  const TROUGH_EMPTY = "#c4a574";
+  const FONT = '"Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif';
+
+  const TUNE = {
+    minTargetPx: 72,
+    hoofSpots: { tiny: 2, little: 3, shop: 4, rush: 4 },
+    hoofReturnMs: 800,
+    brushMs: 700,
+    drinkMs: 600,
+    jumpMs: 700,
+    gapMs: 1500,
+    windowsMs: { walk: 3000, trot: 2000, canter: 1600 },
+    gateXFrac: { far: 0.92, near: 0.46 },
+    gatePx: { far: 24, near: 180 },
+    courses: {
+      tiny: { view: "side", speeds: ["walk"], needs: [1] },
+      little: { view: "side", speeds: ["walk"], needs: [1, 1, 2] },
+      shop: { view: "side", speeds: ["walk", "trot"], needs: [1, 2, 1, 2, 3] },
+      rush: { view: "first", speeds: ["walk", "trot", "canter"], needs: [1, 2, 2, 3, 2, 3] }
+    },
+    raceRates: { walk: 0.08, trot: 0.11, canter: 0.14, boost: 0.06, pip: 0.10, dot: 0.13, hank: 0.17 },
+    tapBoostMs: 400,
+    field: {
+      scroll: false,
+      horseXFrac: 0.18,
+      pen: { x: 0.02, y: 0.08, w: 0.24, h: 0.84 },
+      lanes: [0.38, 0.72],
+      patrolX: [0.48, 0.78],
+      waitXFrac: 1.15,
+      onScreen: 2,
+      enterMs: 400,
+      walkToPenPxPerSec: 120
+    },
+    herds: {
+      little: { cows: 2, pxPerSec: 18 },
+      shop: { cows: 4, pxPerSec: 32 },
+      rush: { cows: 6, pxPerSec: 48 }
+    },
+    cowBoxPx: 96,
+    chores: {
+      shop: { budgetMs: 240000, drinkMs: 20000, buckleMs: 50000, shoesMs: 80000 },
+      rush: { budgetMs: 180000, drinkMs: 15000, buckleMs: 35000, shoesMs: 55000 }
+    },
+    shoeTaps: 4
+  };
+
+  const BREEDS = [
+    { id: "palomino", name: "Sunny", parent: "Gold", coat: "#e2b84a", mane: "#f3e2a0", ribbon: "#e23b3b" },
+    { id: "pinto", name: "Patches", parent: "Spots", coat: "#8a4b2a", mane: "#2a2118", ribbon: "#ffc857" },
+    { id: "gray", name: "Cloud", parent: "Gray", coat: "#d5d8de", mane: "#f7f7f5", ribbon: "#6eb5e8" },
+    { id: "bay", name: "Buddy", parent: "Brown", coat: "#6b3a22", mane: "#1c140f", ribbon: "#2f8a3e" }
+  ];
+
+  const ACTIVITIES = [
+    { id: "stable", label: "Stable", levels: ["tiny", "little", "shop", "rush"] }
+  ];
+
+  const PLACES = ["level", "breed", "yard", "stable", "hoof", "jumps", "race", "cattle", "chores", "vet"];
+  const LIVE = { level: true, breed: true, yard: true, stable: true, hoof: true };
+
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const bannerEl = document.getElementById("banner");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const panelLevel = document.getElementById("panel-level");
+  const panelBreed = document.getElementById("panel-breed");
+  const panelYard = document.getElementById("panel-yard");
+  const whoEl = document.getElementById("who");
+  const dockEl = document.getElementById("dock");
+  const hoofUi = document.getElementById("hoof-ui");
+  const letsGoBtn = document.getElementById("lets-go");
+
+  const session = {
+    levelId: "tiny",
+    place: "level",
+    horse: null,
+    cheered: false
+  };
+
+  let pose = "stand";
+  let brushUntil = 0;
+  let drinkUntil = 0;
+  let hoofReturnAt = 0;
+  let clock = 0;
+  let reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let mute = false;
+  let ac = null;
+  let master = null;
+  let yardKey = "";
+  let checking = false;
+  let suppressReconnect = false;
+  let pointerActive = false;
+  let activePointer = null;
+
+  let gazeSock = null;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeTimer = 0;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+
+  function breedMeta(id) {
+    for (let i = 0; i < BREEDS.length; i++) if (BREEDS[i].id === id) return BREEDS[i];
+    return null;
+  }
+
+  function ready(horse) {
+    if (!horse) return false;
+    const care = horse.care;
+    return care.brushed && care.trough === "full" && care.saddle === "on" &&
+      care.spots.every((s) => s.cleared) && (care.foods.apple || care.foods.carrot);
+  }
+
+  function bannerText() {
+    const horse = session.horse;
+    if (session.place === "breed" || (session.place !== "level" && !horse)) return "Pick a horse.";
+    if (session.place === "level") return "Let's go.";
+    if (!horse) return "Pick a horse.";
+    if (session.place === "yard") return horse.name;
+    if (session.place === "hoof") {
+      return horse.care.spots.every((s) => s.cleared) ? "Clean hooves." : "Hooves.";
+    }
+    if (session.place === "stable") {
+      if (!horse.care.brushed) return "Brush.";
+      if (horse.care.trough !== "full") return "Water.";
+      if (horse.care.saddle !== "on") return "Saddle.";
+      if (!horse.care.spots.every((s) => s.cleared)) return "Hooves.";
+      if (!horse.care.foods.apple && !horse.care.foods.carrot) return "Apples or carrots.";
+      return horse.name + " is ready.";
+    }
+    return horse.name;
+  }
+
+  function maybeCheer() {
+    if (!session.horse || session.cheered) return;
+    if (session.place === "stable" && ready(session.horse)) {
+      session.cheered = true;
+      playSound("cheer");
+    }
+  }
+
+  function pickBreed(id) {
+    const meta = breedMeta(id);
+    if (!meta) return false;
+    if (session.horse && session.horse.breedId === id) return false;
+    const n = TUNE.hoofSpots[session.levelId] || 2;
+    const spots = [];
+    for (let i = 1; i <= n; i++) spots.push({ id: "spot-" + i, cleared: false });
+    session.horse = {
+      breedId: meta.id,
+      name: meta.name,
+      care: {
+        brushed: false,
+        trough: "empty",
+        saddle: "off",
+        spots: spots,
+        foods: { apple: false, carrot: false }
+      },
+      needs: { drink: false, shoes: 0 }
+    };
+    session.cheered = false;
+    pose = "stand";
+    brushUntil = 0;
+    drinkUntil = 0;
+    hoofReturnAt = 0;
+    return true;
+  }
+
+  function breed(id) {
+    if (!pickBreed(id)) return;
+    go("yard");
+  }
+
+  function level(id) {
+    if (!TUNE.hoofSpots[id]) return;
+    session.levelId = id;
+    render();
+  }
+
+  function go(place) {
+    if (PLACES.indexOf(place) < 0) return;
+    if (!LIVE[place]) return;
+    if ((place === "yard" || place === "stable" || place === "hoof") && !session.horse) {
+      if (place === "yard") place = "breed";
+      else return;
+    }
+    if (place !== "hoof") hoofReturnAt = 0;
+    session.place = place;
+    maybeCheer();
+    render();
+  }
+
+  function brushHorse() {
+    const horse = session.horse;
+    if (!horse || horse.care.brushed) return;
+    horse.care.brushed = true;
+    pose = reduceMotion ? "stand" : "brush";
+    brushUntil = reduceMotion ? 0 : clock + TUNE.brushMs;
+    playSound("brush");
+    maybeCheer();
+    render();
+  }
+
+  function fillTrough() {
+    const horse = session.horse;
+    if (!horse) return;
+    if (horse.care.trough === "full" && !horse.needs.drink) return;
+    horse.care.trough = "full";
+    horse.needs.drink = false;
+    pose = "drink";
+    drinkUntil = reduceMotion ? clock : clock + TUNE.drinkMs;
+    playSound("water");
+    maybeCheer();
+    render();
+  }
+
+  function emptyTrough() {
+    const horse = session.horse;
+    if (!horse) return;
+    if (horse.care.trough === "empty" && horse.needs.drink) return;
+    horse.care.trough = "empty";
+    horse.needs.drink = true;
+    render();
+  }
+
+  function putSaddle() {
+    const horse = session.horse;
+    if (!horse || horse.care.saddle !== "off") return;
+    horse.care.saddle = "on";
+    playSound("saddle");
+    maybeCheer();
+    render();
+  }
+
+  function openBuckle() {
+    const horse = session.horse;
+    if (!horse || horse.care.saddle === "buckle") return;
+    horse.care.saddle = "buckle";
+    playSound("buckle");
+    render();
+  }
+
+  function fixBuckle() {
+    const horse = session.horse;
+    if (!horse || horse.care.saddle !== "buckle") return;
+    horse.care.saddle = "on";
+    playSound("buckle");
+    maybeCheer();
+    render();
+  }
+
+  function clearSpot(id) {
+    const horse = session.horse;
+    if (!horse) return;
+    const spot = horse.care.spots.find((s) => s.id === id);
+    if (!spot || spot.cleared) return;
+    spot.cleared = true;
+    playSound("hoof");
+    if (horse.care.spots.every((s) => s.cleared) && session.place === "hoof") {
+      const wait = reduceMotion ? 0 : TUNE.hoofReturnMs;
+      if (wait === 0) {
+        hoofReturnAt = 0;
+        go("stable");
+        return;
+      }
+      hoofReturnAt = clock + wait;
+    }
+    maybeCheer();
+    render();
+  }
+
+  function feed(kind) {
+    const horse = session.horse;
+    if (!horse) return;
+    if (kind !== "apple" && kind !== "carrot") return;
+    if (horse.care.foods[kind]) return;
+    horse.care.foods[kind] = true;
+    playSound("munch");
+    maybeCheer();
+    render();
+  }
+
+  function askShoes() {
+    const horse = session.horse;
+    if (!horse || horse.needs.shoes === 4) return;
+    horse.needs.shoes = 4;
+    render();
+  }
+
+  function tapShoe() {
+    const horse = session.horse;
+    if (!horse || horse.needs.shoes <= 0) return;
+    horse.needs.shoes -= 1;
+    playSound("hoof");
+    render();
+  }
+
+  function letsGo() {
+    go(session.horse ? "yard" : "breed");
+  }
+
+  function onBack() {
+    if (session.place === "breed" || session.place === "yard") go("level");
+    else if (session.place === "stable") go("yard");
+    else if (session.place === "hoof") go("stable");
+  }
+
+  function playSound(name) {
+    if (!ac || mute) return;
+    const t = ac.currentTime + 0.01;
+    if (name === "brush") osc(t, 0.12, "triangle", 320, 480, 0.06);
+    else if (name === "water") osc(t, 0.2, "sine", 220, 160, 0.06);
+    else if (name === "saddle") osc(t, 0.1, "triangle", 180, 120, 0.06);
+    else if (name === "hoof") osc(t, 0.08, "triangle", 160, 110, 0.05);
+    else if (name === "munch") osc(t, 0.1, "sine", 260, 180, 0.05);
+    else if (name === "cheer") {
+      osc(t, 0.12, "triangle", 523, 659, 0.06);
+      osc(t + 0.12, 0.16, "sine", 659, 784, 0.05);
+    } else if (name === "jump") osc(t, 0.16, "triangle", 300, 520, 0.06);
+    else if (name === "miss") osc(t, 0.16, "sine", 200, 140, 0.05);
+    else if (name === "race") osc(t, 0.1, "triangle", 440, 660, 0.05);
+    else if (name === "loop") osc(t, 0.14, "sine", 360, 280, 0.05);
+    else if (name === "buckle") osc(t, 0.08, "triangle", 240, 180, 0.05);
+    else if (name === "vet") osc(t, 0.12, "sine", 480, 520, 0.04);
+  }
+
+  function ensureAudio() {
+    try {
+      if (!ac) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return;
+        ac = new AC();
+        master = ac.createGain();
+        master.gain.value = mute ? 0 : 0.5;
+        master.connect(ac.destination);
+      }
+      if (ac.state === "suspended") ac.resume();
+    } catch (e) { /* a headless check has no audio device */ }
+  }
+
+  function envGain(t, dur, peak) {
+    const g = ac.createGain();
+    g.connect(master);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, peak), t + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(0.03, dur));
+    return g;
+  }
+
+  function osc(t, dur, type, f0, f1, peak) {
+    const o = ac.createOscillator();
+    o.type = type;
+    o.frequency.setValueAtTime(Math.max(40, f0), t);
+    if (f1 && Math.abs(f1 - f0) > 1) o.frequency.exponentialRampToValueAtTime(Math.max(40, f1), t + dur);
+    o.connect(envGain(t, dur, peak));
+    o.start(t);
+    o.stop(t + dur + 0.02);
+  }
+
+  function dockLayout(w, h) {
+    const gap = 8;
+    const size = 72;
+    const narrow = w < 480;
+    const cols = narrow ? 3 : 6;
+    const rows = narrow ? 2 : 1;
+    const rowW = cols * size + (cols - 1) * gap;
+    const left = Math.round((w - rowW) / 2);
+    const totalH = rows * size + (rows - 1) * gap;
+    const top = h - totalH - 16;
+    const ids = ["brush", "water", "saddle", "hooves", "apples", "carrots"];
+    return ids.map((id, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const x = left + col * (size + gap);
+      const y = top + row * (size + gap);
+      return { id: id, x: x, y: y, w: size, h: size };
+    });
+  }
+
+  function hoofLayout(w, h, n) {
+    const cx = w / 2;
+    const cy = Math.min(Math.max(h * 0.42, 330), h - 280);
+    const offsets = {
+      "spot-1": [-100, -80],
+      "spot-2": [100, -80],
+      "spot-3": [-100, 70],
+      "spot-4": [100, 70]
+    };
+    const ids = ["spot-1", "spot-2", "spot-3", "spot-4"].slice(0, n);
+    const spots = ids.map((id) => {
+      const off = offsets[id];
+      const sx = cx + off[0];
+      const sy = cy + off[1];
+      return { id: id, x: sx - 36, y: sy - 36, w: 72, h: 72, cx: sx, cy: sy };
+    });
+    const done = { id: "hoof-done", x: w / 2 - 90, y: h - 96, w: 180, h: 72 };
+    return { cx: cx, cy: cy, spots: spots, done: done };
+  }
+
+  function spotCount() {
+    if (session.horse) return session.horse.care.spots.length;
+    return TUNE.hoofSpots[session.levelId] || 2;
+  }
+
+  function horseBox(w, h) {
+    const dockTop = dockLayout(w, h)[0].y;
+    const y = 118;
+    const bottom = Math.max(y + 220, dockTop - 24);
+    return { x: 12, y: y, w: Math.max(200, w - 24), h: bottom - y };
+  }
+
+  function horseParts(box, poseName) {
+    const shown = poseName === "drink" || poseName === "brush" ? poseName : "stand";
+    const rx = Math.round(Math.min(140, box.w * 0.22, box.h * 0.28));
+    const ry = Math.round(rx * 0.62);
+    const groupW = rx * 2 + 18 + 96;
+    const cx = Math.round(box.x + Math.max(0, (box.w - groupW) / 2) + rx);
+    const cy = Math.round(box.y + box.h * 0.48);
+    const body = { cx: cx, cy: cy, rx: rx, ry: ry };
+    const trough = {
+      x: Math.round(body.cx + body.rx + 18),
+      y: Math.round(body.cy + body.ry * 0.35),
+      w: 96,
+      h: 52
+    };
+    if (trough.x + trough.w > box.x + box.w - 4) trough.x = Math.round(box.x + box.w - 4 - trough.w);
+    trough.cx = trough.x + trough.w / 2;
+    trough.cy = trough.y + trough.h / 2;
+    const saddle = {
+      x: Math.round(body.cx - body.rx * 0.15 - 36),
+      y: Math.round(body.cy - body.ry * 0.55),
+      w: 72,
+      h: 34
+    };
+    saddle.cx = saddle.x + saddle.w / 2;
+    saddle.cy = saddle.y + saddle.h / 2;
+    const mark = {
+      x: Math.round(body.cx + body.rx * 0.18),
+      y: Math.round(body.cy + body.ry * 0.30)
+    };
+    const marks = [
+      { x: mark.x - 28, y: mark.y },
+      { x: mark.x, y: mark.y },
+      { x: mark.x + 28, y: mark.y }
+    ];
+    const patch = {
+      x: Math.round(body.cx - body.rx * 0.42),
+      y: Math.round(body.cy + body.ry * 0.05),
+      rx: 22,
+      ry: 14
+    };
+    const hr = Math.round(Math.min(38, Math.max(22, ry * 0.55)));
+    const standHead = {
+      x: Math.round(body.cx + body.rx * 0.72),
+      y: Math.round(body.cy - ry * 1.05),
+      r: hr
+    };
+    const drinkHead = {
+      x: Math.round(trough.x + 28),
+      y: Math.round(trough.y - hr - 8),
+      r: hr
+    };
+    const brushHead = { x: standHead.x - 6, y: standHead.y + 10, r: hr };
+    let head = standHead;
+    if (shown === "drink") {
+      if (reduceMotion || !drinkUntil || clock >= drinkUntil) head = drinkHead;
+      else {
+        const u = Math.max(0, Math.min(1, 1 - (drinkUntil - clock) / TUNE.drinkMs));
+        head = {
+          x: Math.round(standHead.x + (drinkHead.x - standHead.x) * u),
+          y: Math.round(standHead.y + (drinkHead.y - standHead.y) * u),
+          r: hr
+        };
+      }
+    } else if (shown === "brush") head = brushHead;
+    const mouth = {
+      x: Math.round(head.x + head.r * 0.2),
+      y: Math.round(head.y + head.r * 0.35)
+    };
+    return { body: body, trough: trough, saddle: saddle, marks: marks, patch: patch, head: head, mouth: mouth };
+  }
+
+  function strokeInk() {
+    ctx.strokeStyle = INK;
+    ctx.lineWidth = 4;
+  }
+
+  function roundFill(x, y, w, h, fill, radius) {
+    ctx.beginPath();
+    ctx.roundRect(x, y, w, h, radius);
+    ctx.fillStyle = fill;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+  }
+
+  function drawHorse(ctx, box, poseName) {
+    const horse = session.horse;
+    if (!horse) return;
+    const meta = breedMeta(horse.breedId);
+    const parts = horseParts(box, poseName);
+    const body = parts.body;
+    const head = parts.head;
+    strokeInk();
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+
+    ctx.fillStyle = meta.mane;
+    ctx.beginPath();
+    ctx.ellipse(body.cx - body.rx + 8, body.cy + 6, 22, 46, -0.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    const legTop = body.cy + body.ry * 0.45;
+    const legBot = body.cy + body.ry + Math.min(70, box.h * 0.16);
+    const legW = 22;
+    const legXs = [body.cx - body.rx * 0.55, body.cx - body.rx * 0.22, body.cx + body.rx * 0.18, body.cx + body.rx * 0.48];
+    legXs.forEach((lx) => {
+      const x = Math.round(lx);
+      ctx.fillStyle = meta.coat;
+      ctx.fillRect(x, legTop, legW, legBot - legTop);
+      ctx.strokeRect(x + 1, legTop, legW - 2, legBot - legTop);
+      ctx.fillStyle = HOOF;
+      ctx.fillRect(x - 2, legBot - 8, legW + 4, 12);
+      ctx.strokeRect(x - 2, legBot - 8, legW + 4, 12);
+    });
+
+    ctx.beginPath();
+    ctx.ellipse(body.cx, body.cy, body.rx, body.ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = meta.coat;
+    ctx.fill();
+    ctx.stroke();
+
+    if (meta.id === "pinto") {
+      ctx.beginPath();
+      ctx.ellipse(parts.patch.x, parts.patch.y, parts.patch.rx, parts.patch.ry, -0.4, 0, Math.PI * 2);
+      ctx.fillStyle = "#fff6ea";
+      ctx.fill();
+    }
+
+    ctx.fillStyle = meta.coat;
+    ctx.beginPath();
+    ctx.moveTo(body.cx + body.rx * 0.35, body.cy - body.ry * 0.2);
+    ctx.quadraticCurveTo(body.cx + body.rx * 0.7, body.cy - body.ry * 0.8, head.x - head.r * 0.2, head.y + head.r * 0.2);
+    ctx.lineTo(head.x - head.r * 0.1, head.y + head.r * 0.7);
+    ctx.quadraticCurveTo(body.cx + body.rx * 0.45, body.cy + 10, body.cx + body.rx * 0.15, body.cy + body.ry * 0.15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.ellipse(head.x, head.y, head.r * 1.08, head.r * 0.86, shownTilt(poseName), 0, Math.PI * 2);
+    ctx.fillStyle = meta.coat;
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(head.x - head.r * 0.15, head.y - head.r * 0.7);
+    ctx.lineTo(head.x - head.r * 0.45, head.y - head.r * 1.45);
+    ctx.lineTo(head.x + head.r * 0.15, head.y - head.r * 0.55);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(head.x + head.r * 0.25, head.y - head.r * 0.65);
+    ctx.lineTo(head.x + head.r * 0.05, head.y - head.r * 1.4);
+    ctx.lineTo(head.x + head.r * 0.55, head.y - head.r * 0.45);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = meta.mane;
+    for (let i = 0; i < 4; i++) {
+      const my = head.y + head.r * 0.1 + i * 14;
+      const mx = head.x - head.r * 0.7 - i * 4;
+      ctx.beginPath();
+      ctx.ellipse(mx, my, 10, 14, -0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    ctx.fillStyle = meta.ribbon;
+    ctx.beginPath();
+    ctx.arc(head.x - head.r * 0.85, head.y - head.r * 0.15, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = "#fffdf8";
+    ctx.beginPath();
+    ctx.arc(head.x + head.r * 0.25, head.y - head.r * 0.08, 6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = INK;
+    ctx.beginPath();
+    ctx.arc(head.x + head.r * 0.38, head.y - head.r * 0.06, 3, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (horse.care.brushed) {
+      parts.marks.forEach((m) => {
+        ctx.beginPath();
+        ctx.roundRect(m.x - 14, m.y - 4, 28, 8, 4);
+        ctx.fillStyle = INK;
+        ctx.fill();
+      });
+    }
+
+    if (poseName === "brush") {
+      const bx = parts.marks[0].x - 36;
+      const by = parts.marks[0].y - 28;
+      ctx.fillStyle = WOOD;
+      roundFill(bx, by, 14, 42, WOOD, 4);
+      ctx.fillStyle = meta.mane;
+      ctx.fillRect(bx - 4, by + 36, 22, 12);
+    }
+
+    ctx.fillStyle = "#e7b2a8";
+    ctx.beginPath();
+    ctx.arc(head.x + head.r * 0.62, head.y + head.r * 0.22, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    if (horse.care.saddle !== "off") {
+      ctx.fillStyle = SADDLE;
+      ctx.beginPath();
+      ctx.ellipse(parts.saddle.x + 12, parts.saddle.cy, 14, 20, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.ellipse(parts.saddle.x + parts.saddle.w - 10, parts.saddle.cy, 12, 16, 0, 0, Math.PI * 2);
+      ctx.fill();
+      roundFill(parts.saddle.x, parts.saddle.y, parts.saddle.w, parts.saddle.h, SADDLE, 10);
+      ctx.fillStyle = SADDLE;
+      ctx.fillRect(parts.saddle.cx - 10, parts.saddle.cy - 8, 20, 16);
+      const strapTop = Math.round(body.cy + body.ry * 0.55);
+      const strapX = Math.round(body.cx - 8);
+      if (horse.care.saddle === "buckle") {
+        ctx.fillStyle = SADDLE;
+        ctx.fillRect(strapX, strapTop, 12, 26);
+        ctx.fillRect(strapX + 26, strapTop, 12, 26);
+      } else {
+        ctx.fillStyle = SADDLE;
+        ctx.fillRect(strapX, strapTop, 38, 14);
+        ctx.fillStyle = "#f4e2a0";
+        ctx.fillRect(strapX + 14, strapTop + 2, 10, 10);
+      }
+    }
+
+    if (horse.care.foods.carrot) {
+      ctx.fillStyle = CARROT;
+      ctx.beginPath();
+      ctx.moveTo(parts.mouth.x - 28, parts.mouth.y - 28);
+      ctx.lineTo(parts.mouth.x - 14, parts.mouth.y - 8);
+      ctx.lineTo(parts.mouth.x - 34, parts.mouth.y - 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = "#2f8a3e";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(parts.mouth.x - 28, parts.mouth.y - 28);
+      ctx.lineTo(parts.mouth.x - 34, parts.mouth.y - 38);
+      ctx.stroke();
+    }
+    if (horse.care.foods.apple) {
+      ctx.strokeStyle = "#2f8a3e";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(parts.mouth.x - 1, parts.mouth.y - 12);
+      ctx.lineTo(parts.mouth.x - 4, parts.mouth.y - 24);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(parts.mouth.x, parts.mouth.y, 14, 0, Math.PI * 2);
+      ctx.fillStyle = APPLE;
+      ctx.fill();
+    }
+  }
+
+  function shownTilt(poseName) {
+    if (poseName === "drink") return 0.5;
+    return 0.15;
+  }
+
+  function paintStable(w, h) {
+    ctx.fillStyle = "#9fd4f2";
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = WOOD;
+    ctx.fillRect(0, 78, w, h);
+    ctx.fillStyle = "#8d5a32";
+    for (let x = 0; x < w; x += 46) ctx.fillRect(x, 78, 4, h);
+    const floorY = Math.round(h * 0.78);
+    ctx.fillStyle = GRASS;
+    ctx.fillRect(0, floorY, w, h - floorY);
+    ctx.fillStyle = "#6b4a2a";
+    ctx.fillRect(Math.round(w * 0.18), floorY - 8, Math.round(w * 0.64), 18);
+
+    const box = horseBox(w, h);
+    const parts = horseParts(box, pose);
+    drawHorse(ctx, box, pose);
+
+    const rackX = 28;
+    const rackY = 150;
+    roundFill(rackX, rackY, 92, 18, "#8d5a32", 6);
+    ctx.fillStyle = "#6b4424";
+    ctx.fillRect(rackX + 16, rackY + 16, 10, 26);
+    ctx.fillRect(rackX + 64, rackY + 16, 10, 26);
+    if (!session.horse || session.horse.care.saddle === "off") {
+      roundFill(rackX + 18, rackY + 28, 56, 26, SADDLE, 8);
+    }
+
+    const bucketY = Math.max(parts.body.cy + parts.body.ry + 78, floorY - 36);
+    drawBucket(20, bucketY, "apple");
+    drawBucket(92, bucketY, "carrot");
+
+    const trough = parts.trough;
+    const troughFill = session.horse && session.horse.care.trough === "full" ? WATER : TROUGH_EMPTY;
+    roundFill(trough.x, trough.y, trough.w, trough.h, troughFill, 10);
+
+    if (session.horse) {
+      const flags = pipFlags();
+      const pipY = 168;
+      const gap = 28;
+      const x0 = w / 2 - gap * 2;
+      for (let i = 0; i < 5; i++) {
+        ctx.beginPath();
+        ctx.arc(x0 + i * gap, pipY, 8, 0, Math.PI * 2);
+        ctx.fillStyle = flags[i] ? "#2f8a3e" : PAPER;
+        ctx.fill();
+        strokeInk();
+        ctx.stroke();
+      }
+    }
+  }
+
+  function pipFlags() {
+    const horse = session.horse;
+    if (!horse) return [false, false, false, false, false];
+    return [
+      horse.care.brushed,
+      horse.care.trough === "full",
+      horse.care.saddle === "on",
+      horse.care.spots.every((s) => s.cleared),
+      horse.care.foods.apple || horse.care.foods.carrot
+    ];
+  }
+
+  function drawBucket(x, y, kind) {
+    const horse = session.horse;
+    const filled = !horse || !horse.care.foods[kind];
+    roundFill(x, y, 58, 46, "#d7b48a", 8);
+    ctx.fillStyle = WOOD;
+    ctx.fillRect(x + 6, y + 8, 46, 28);
+    if (filled) {
+      ctx.beginPath();
+      ctx.arc(x + 29, y + 18, 12, 0, Math.PI * 2);
+      ctx.fillStyle = kind === "apple" ? APPLE : CARROT;
+      ctx.fill();
+    }
+  }
+
+  function paintHoof(w, h) {
+    const horse = session.horse;
+    ctx.fillStyle = WOOD;
+    ctx.fillRect(0, 0, w, h);
+    ctx.fillStyle = "#8d5a32";
+    for (let x = 0; x < w; x += 46) ctx.fillRect(x, 0, 4, h);
+    const n = horse ? horse.care.spots.length : 0;
+    const hoof = hoofLayout(w, h, Math.max(n, 1));
+    ctx.beginPath();
+    ctx.arc(hoof.cx, hoof.cy, 160, 0, Math.PI * 2);
+    ctx.fillStyle = HOOF;
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(hoof.cx, hoof.cy + 36);
+    ctx.lineTo(hoof.cx, hoof.cy + 120);
+    strokeInk();
+    ctx.stroke();
+    if (!horse) return;
+    horse.care.spots.forEach((spot) => {
+      const s = hoof.spots.find((p) => p.id === spot.id);
+      if (!s) return;
+      ctx.beginPath();
+      ctx.arc(s.cx, s.cy, 26, 0, Math.PI * 2);
+      ctx.fillStyle = spot.cleared ? HOOF : DIRT;
+      ctx.fill();
+    });
+  }
+
+  function paint() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    if (w < 2 || h < 2) return;
+    ctx.clearRect(0, 0, w, h);
+    if (session.place === "hoof") paintHoof(w, h);
+    else paintStable(w, h);
+  }
+
+  function placeBox(el, box) {
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+
+  function syncYard() {
+    const key = session.levelId + ":" + ACTIVITIES.length;
+    if (key === yardKey) return;
+    yardKey = key;
+    const host = document.getElementById("activities");
+    host.replaceChildren();
+    ACTIVITIES.forEach((activity) => {
+      if (activity.levels.indexOf(session.levelId) < 0) return;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "big";
+      btn.id = "act-" + activity.id;
+      btn.dataset.activity = activity.id;
+      btn.textContent = activity.label;
+      btn.addEventListener("click", () => go(activity.id));
+      host.appendChild(btn);
+    });
+  }
+
+  function syncBack() {
+    const place = session.place;
+    if (place === "level") {
+      backBtn.hidden = true;
+      return;
+    }
+    backBtn.hidden = false;
+    let label = "Back";
+    if (place === "breed" || place === "yard") label = "Back to Menu";
+    else if (place === "stable") label = "Back to the yard";
+    backBtn.textContent = label;
+    backBtn.setAttribute("aria-label", label);
+  }
+
+  function render() {
+    const place = session.place;
+    panelLevel.hidden = place !== "level";
+    panelBreed.hidden = place !== "breed";
+    panelYard.hidden = place !== "yard";
+    dockEl.hidden = place !== "stable";
+    hoofUi.hidden = place !== "hoof";
+    if (session.horse) whoEl.textContent = session.horse.name;
+    const text = bannerText();
+    bannerEl.textContent = text;
+    bannerEl.hidden = place === "level" || place === "breed";
+    document.querySelectorAll("[data-level]").forEach((btn) => {
+      btn.setAttribute("aria-pressed", btn.dataset.level === session.levelId ? "true" : "false");
+    });
+    syncYard();
+    syncBack();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    dockLayout(w, h).forEach((box) => {
+      const el = document.getElementById(box.id);
+      if (el) placeBox(el, box);
+    });
+    const hoof = hoofLayout(w, h, 4);
+    hoof.spots.forEach((spot) => {
+      const el = document.getElementById(spot.id);
+      if (!el) return;
+      const live = session.horse && session.horse.care.spots.some((s) => s.id === spot.id);
+      el.hidden = place !== "hoof" || !live;
+      placeBox(el, spot);
+    });
+    const done = document.getElementById("hoof-done");
+    done.hidden = place !== "hoof";
+    placeBox(done, hoofLayout(w, h, spotCount()).done);
+    paint();
+  }
+
+  function boxOf(el) {
+    const r = el.getBoundingClientRect();
+    const x = r.left + r.width / 2;
+    const y = r.top + r.height / 2;
+    return {
+      x: x, y: y,
+      nx: x / window.innerWidth,
+      ny: y / window.innerHeight,
+      w: r.width, h: r.height,
+      left: r.left, top: r.top
+    };
+  }
+
+  function buttonVisible(btn) {
+    if (!btn || btn.disabled) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+
+  function centers() {
+    const targets = {};
+    document.querySelectorAll("button").forEach((btn) => {
+      if (!buttonVisible(btn)) return;
+      const key = btn.id || btn.dataset.level || btn.dataset.breed || btn.textContent;
+      targets[key] = boxOf(btn);
+    });
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const parts = horseParts(horseBox(w, h), pose);
+    const hoof = hoofLayout(w, h, 4);
+    const spots = {};
+    hoof.spots.forEach((s) => { spots[s.id] = { x: s.cx, y: s.cy }; });
+    return {
+      targets: targets,
+      samples: {
+        trough: { x: parts.trough.cx, y: parts.trough.cy },
+        saddle: { x: parts.saddle.cx, y: parts.saddle.cy },
+        hoof: spots["spot-1"],
+        mouth: { x: parts.mouth.x, y: parts.mouth.y },
+        coat: { x: parts.marks[1].x, y: parts.marks[1].y },
+        spots: spots,
+        leather: { x: hoof.cx, y: hoof.cy }
+      }
+    };
+  }
+
+  function targetsAt(w, h) {
+    const targets = [
+      { id: "mute", x: 10, y: 10, w: 72, h: 72 },
+      { id: "full", x: 90, y: 10, w: 72, h: 72 },
+      { id: "back", x: Math.max(172, w - 168), y: 10, w: Math.min(158, Math.max(72, w - 182)), h: 72 }
+    ];
+    dockLayout(w, h).forEach((box) => targets.push(box));
+    const hoof = hoofLayout(w, h, spotCount());
+    hoof.spots.forEach((spot) => targets.push({ id: spot.id, x: spot.x, y: spot.y, w: spot.w, h: spot.h }));
+    targets.push(hoof.done);
+    const panelW = Math.min(460, Math.max(72, w - 24));
+    targets.push({ id: "lets-go", x: (w - panelW) / 2, y: 200, w: panelW, h: 76 });
+    return { targets: targets };
+  }
+
+  function state() {
+    const horse = session.horse;
+    const cleared = horse ? horse.care.spots.filter((s) => s.cleared).length : 0;
+    return {
+      level: session.levelId,
+      place: session.place,
+      breed: horse ? horse.breedId : null,
+      name: horse ? horse.name : null,
+      brushed: horse ? horse.care.brushed : false,
+      trough: horse ? horse.care.trough : "empty",
+      saddle: horse ? horse.care.saddle : "off",
+      hoofCleared: cleared,
+      hoofSpots: horse ? horse.care.spots.length : 0,
+      apple: horse ? horse.care.foods.apple : false,
+      carrot: horse ? horse.care.foods.carrot : false,
+      ready: ready(horse),
+      needs: horse ? { drink: horse.needs.drink, shoes: horse.needs.shoes } : { drink: false, shoes: 0 },
+      banner: bannerText(),
+      jumps: null,
+      race: null,
+      cattle: null,
+      chores: null,
+      vet: null
+    };
+  }
+
+  function tap(nx, ny) {
+    const x = nx * window.innerWidth;
+    const y = ny * window.innerHeight;
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest("button");
+    if (btn) btn.click();
+    render();
+  }
+
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+
+  function eyesLive(now) {
+    return !!(gazePoint && now - gazeAt < GAZE_FRESH_MS && eyesOn());
+  }
+
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const el = document.elementFromPoint(gazePoint.x, gazePoint.y);
+    const btn = el && el.closest("button");
+    if (btn && buttonVisible(btn)) {
+      const play = btn.getAttribute("data-play") === "true";
+      return {
+        key: btn,
+        ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS,
+        fire: () => { ensureAudio(); btn.click(); }
+      };
+    }
+    return null;
+  }
+
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      dwellKey = null;
+      dwellFired = false;
+      dwellProgress = 0;
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    if (pointerActive) {
+      dwellKey = null;
+      dwellFired = false;
+      dwellProgress = 0;
+      gazeEl.hidden = false;
+      gazeEl.style.left = gazePoint.x + "px";
+      gazeEl.style.top = gazePoint.y + "px";
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    const target = gazeTarget();
+    const key = target ? target.key : null;
+    if (key !== dwellKey) {
+      dwellKey = key;
+      dwellStart = now;
+      dwellFired = false;
+    }
+    let p = 0;
+    if (target && !dwellFired) {
+      p = Math.min(1, (now - dwellStart) / target.ms);
+      if (now - dwellStart >= target.ms) {
+        dwellFired = true;
+        p = 1;
+        target.fire();
+      }
+    } else if (target) p = 1;
+    dwellProgress = target ? p : 0;
+    gazeEl.style.setProperty("--p", Math.round((target ? p : 0) * 100) + "%");
+  }
+
+  function step(now) {
+    clock = now;
+    if (pose === "brush" && brushUntil && now >= brushUntil) pose = "stand";
+    if (session.place === "hoof" && hoofReturnAt && now >= hoofReturnAt) {
+      hoofReturnAt = 0;
+      go("stable");
+    }
+    if (gazeHold) {
+      if (!haveSmooth) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed.x += (gazeHold.x - smoothed.x) * 0.45;
+        smoothed.y += (gazeHold.y - smoothed.y) * 0.45;
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    render();
+  }
+
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (!haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+  }
+
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    dwellKey = null;
+    dwellFired = false;
+    dwellProgress = 0;
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(() => { gazeTimer = 0; connectGaze(); }, 2000);
+  }
+
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (e) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = () => {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = (ev) => {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = () => {};
+    sock.onclose = () => {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed.x += (raw.x - smoothed.x) * 0.45;
+      smoothed.y += (raw.y - smoothed.y) * 0.45;
+    }
+    gazePoint = smoothed;
+    gazeAt = clock || performance.now();
+  }
+
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+
+  function warpPoint(x, y) {
+    const h = gazeWarp;
+    if (!h) return { x: x, y: y };
+    const w = h[6] * x + h[7] * y + h[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (h[0] * x + h[1] * y + h[2]) / w,
+      y: (h[3] * x + h[4] * y + h[5]) / w
+    };
+  }
+
+  function pixelAt(x, y) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const px = Math.max(0, Math.min(canvas.width - 1, Math.round(x * dpr)));
+    const py = Math.max(0, Math.min(canvas.height - 1, Math.round(y * dpr)));
+    const data = ctx.getImageData(px, py, 1, 1).data;
+    return { r: data[0], g: data[1], b: data[2] };
+  }
+
+  function hexRgb(hex) {
+    return {
+      r: parseInt(hex.slice(1, 3), 16),
+      g: parseInt(hex.slice(3, 5), 16),
+      b: parseInt(hex.slice(5, 7), 16)
+    };
+  }
+
+  function colorDist(px, hex) {
+    const c = hexRgb(hex);
+    return Math.hypot(px.r - c.r, px.g - c.g, px.b - c.b);
+  }
+
+  function nearColor(px, hex, tol) {
+    const c = hexRgb(hex);
+    return Math.abs(px.r - c.r) <= tol && Math.abs(px.g - c.g) <= tol && Math.abs(px.b - c.b) <= tol;
+  }
+
+  function rgbChannels(css) {
+    const m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(css || "");
+    if (!m) return null;
+    return { r: +m[1], g: +m[2], b: +m[3] };
+  }
+
+  function visibleHeading() {
+    const list = document.querySelectorAll("h1");
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].getClientRects().length > 0) return list[i].textContent.trim();
+    }
+    return "";
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    try {
+      if (window.innerWidth < 320 || window.innerHeight < 320) {
+        fail("Case 12", "window is too small (" + window.innerWidth + "x" + window.innerHeight + ")");
+        return { ok: false, failures: failures };
+      }
+      let t = 10000;
+      step(t);
+
+      go("breed");
+      const pat = centers().targets.pinto;
+      tap(pat.nx, pat.ny);
+      if (state().name !== "Patches" || visibleHeading() !== "Patches") {
+        fail("Case 1", "name " + state().name + " heading " + JSON.stringify(visibleHeading()) + " place " + state().place);
+      }
+
+      go("stable");
+      const brush = centers().targets.brush;
+      tap(brush.nx, brush.ny);
+      const coat = pixelAt(centers().samples.coat.x, centers().samples.coat.y);
+      const coatHex = breedMeta("pinto").coat;
+      if (!state().brushed || state().banner === "Brush." || bannerEl.textContent === "Brush." || nearColor(coat, coatHex, 12)) {
+        fail("Case 2", "brushed " + state().brushed + " banner " + state().banner + " coat " + coat.r + "," + coat.g + "," + coat.b);
+      }
+
+      const water = centers().targets.water;
+      tap(water.nx, water.ny);
+      const wet = pixelAt(centers().samples.trough.x, centers().samples.trough.y);
+      if (state().trough !== "full" || wet.b < wet.r + 30) {
+        fail("Case 3", "trough " + state().trough + " pixel " + wet.r + "," + wet.g + "," + wet.b);
+      }
+
+      tap(water.nx, water.ny);
+      const wet2 = pixelAt(centers().samples.trough.x, centers().samples.trough.y);
+      if (state().trough !== "full" || wet2.b < wet2.r + 30) {
+        fail("Case 4", "trough " + state().trough + " pixel " + wet2.r + "," + wet2.g + "," + wet2.b);
+      }
+
+      const beforeSaddle = pixelAt(centers().samples.saddle.x, centers().samples.saddle.y);
+      const beforeDist = colorDist(beforeSaddle, SADDLE);
+      tap(centers().targets.saddle.nx, centers().targets.saddle.ny);
+      const afterSaddle = pixelAt(centers().samples.saddle.x, centers().samples.saddle.y);
+      const afterDist = colorDist(afterSaddle, SADDLE);
+      if (!(afterDist < beforeDist)) {
+        fail("Case 5", "saddle did not move toward the leather " + beforeDist.toFixed(1) + " -> " + afterDist.toFixed(1) + " at " + Math.round(centers().samples.saddle.x) + "," + Math.round(centers().samples.saddle.y));
+      }
+      tap(centers().targets.saddle.nx, centers().targets.saddle.ny);
+      if (state().saddle !== "on") fail("Case 5", "second saddle is " + state().saddle);
+
+      go("hoof");
+      const spot1 = centers().targets["spot-1"];
+      tap(spot1.nx, spot1.ny);
+      if (state().hoofCleared !== 1 || state().ready) {
+        fail("Case 6", "cleared " + state().hoofCleared + " ready " + state().ready);
+      }
+      tap(spot1.nx, spot1.ny);
+      const dirt = pixelAt(centers().samples.spots["spot-2"].x, centers().samples.spots["spot-2"].y);
+      if (state().hoofCleared !== 1 || !nearColor(dirt, DIRT, 2)) {
+        fail("Case 6", "count " + state().hoofCleared + " dirt " + dirt.r + "," + dirt.g + "," + dirt.b);
+      }
+
+      tap(centers().targets["spot-2"].nx, centers().targets["spot-2"].ny);
+      const clean = pixelAt(centers().samples.spots["spot-2"].x, centers().samples.spots["spot-2"].y);
+      if (state().hoofCleared !== state().hoofSpots || !nearColor(clean, HOOF, 2)) {
+        fail("Case 7", "cleared " + state().hoofCleared + "/" + state().hoofSpots + " pixel " + clean.r + "," + clean.g + "," + clean.b + " place " + state().place);
+      }
+      step(clock + TUNE.hoofReturnMs + 50);
+      t = clock;
+      if (state().place !== "stable") fail("Case 7", "place after return " + state().place);
+
+      const mouthBefore = pixelAt(centers().samples.mouth.x, centers().samples.mouth.y);
+      const mouthBeforeDist = colorDist(mouthBefore, APPLE);
+      tap(centers().targets.apples.nx, centers().targets.apples.ny);
+      const mouth = pixelAt(centers().samples.mouth.x, centers().samples.mouth.y);
+      if (!state().apple || !(colorDist(mouth, APPLE) < mouthBeforeDist)) {
+        fail("Case 8", "apple " + state().apple + " mouth " + mouth.r + "," + mouth.g + "," + mouth.b + " at " + Math.round(centers().samples.mouth.x) + "," + Math.round(centers().samples.mouth.y));
+      }
+      tap(centers().targets.apples.nx, centers().targets.apples.ny);
+      if (!state().apple) fail("Case 8", "second apple cleared the flag");
+      tap(centers().targets.carrots.nx, centers().targets.carrots.ny);
+      if (!state().carrot || !state().apple) fail("Case 8", "foods apple " + state().apple + " carrot " + state().carrot);
+
+      if (!state().ready || state().banner !== "Patches is ready." || bannerEl.textContent !== "Patches is ready.") {
+        fail("Case 9", "ready " + state().ready + " banner " + state().banner);
+      }
+
+      releaseLook();
+      breed("gray");
+      go("stable");
+      const freshBrush = centers().targets.brush;
+      look(freshBrush.nx, freshBrush.ny);
+      t = Math.max(t, clock);
+      step(t);
+      step(t + 640);
+      if (state().brushed) fail("Case 10", "brush fired at 640 ms");
+      step(t + 660);
+      t = t + 660;
+      if (!state().brushed) fail("Case 10", "brush missed at 660 ms");
+      releaseLook();
+      tap(centers().targets.carrots.nx, centers().targets.carrots.ny);
+      if (!state().carrot) fail("Case 10", "carrot tap after gaze did not feed");
+
+      go("level");
+      releaseLook();
+      const lets = centers().targets["lets-go"];
+      look(lets.nx, lets.ny);
+      t = Math.max(t, clock);
+      step(t);
+      step(t + 600);
+      if (state().place !== "level") fail("Case 11", "left level at 600 ms to " + state().place);
+      step(t + 1300);
+      t = t + 1300;
+      if (state().place === "level") fail("Case 11", "still on level at 1300 ms");
+      if (state().place !== "yard") fail("Case 11", "horse path landed on " + state().place);
+      releaseLook();
+
+      const savedHorse = session.horse;
+      const savedPlace = session.place;
+      session.horse = null;
+      go("level");
+      releaseLook();
+      const letsEmpty = centers().targets["lets-go"];
+      look(letsEmpty.nx, letsEmpty.ny);
+      t = Math.max(t, clock) + 1;
+      step(t);
+      step(t + 1300);
+      t = t + 1300;
+      if (state().place !== "breed") fail("Case 11", "no-horse path landed on " + state().place);
+      releaseLook();
+      session.horse = savedHorse;
+      session.place = savedPlace;
+      render();
+
+      function assertShort(list, label) {
+        list.forEach((box) => {
+          const short = Math.min(box.w, box.h);
+          if (!(short >= 72)) fail("Case 12", label + " " + box.id + " is " + Math.round(box.w) + "x" + Math.round(box.h));
+        });
+      }
+      assertShort(targetsAt(390, 844).targets, "390");
+      assertShort(targetsAt(1024, 768).targets, "1024");
+      if (window.innerWidth >= 390 && window.innerHeight >= 700) {
+        ["level", "breed", "yard", "stable", "hoof"].forEach((place) => {
+          go(place);
+          document.querySelectorAll("button").forEach((btn) => {
+            if (!buttonVisible(btn)) return;
+            const r = btn.getBoundingClientRect();
+            const short = Math.min(r.width, r.height);
+            if (short < 72) {
+              fail("Case 12", place + " " + (btn.id || btn.textContent) + " is " + Math.round(r.width) + "x" + Math.round(r.height));
+            }
+          });
+        });
+      }
+
+      go("breed");
+      ["pinto", "bay"].forEach((id) => {
+        const btn = document.getElementById(id);
+        const chip = btn.querySelector(".chip");
+        const chipBg = rgbChannels(getComputedStyle(chip).backgroundColor);
+        const chipFg = rgbChannels(getComputedStyle(chip).color);
+        const btnBg = rgbChannels(getComputedStyle(btn).backgroundColor);
+        const paper = hexRgb(PAPER);
+        const ink = hexRgb(INK);
+        const coat = hexRgb(breedMeta(id).coat);
+        const chipOk = chipBg && Math.abs(chipBg.r - paper.r) <= 1 && Math.abs(chipBg.g - paper.g) <= 1 && Math.abs(chipBg.b - paper.b) <= 1;
+        const inkOk = chipFg && Math.abs(chipFg.r - ink.r) <= 1 && Math.abs(chipFg.g - ink.g) <= 1 && Math.abs(chipFg.b - ink.b) <= 1;
+        const coatOk = btnBg && Math.abs(btnBg.r - coat.r) <= 1 && Math.abs(btnBg.g - coat.g) <= 1 && Math.abs(btnBg.b - coat.b) <= 1;
+        if (!chipOk || !inkOk || !coatOk) {
+          fail("Case 13", id + " chip " + JSON.stringify(chipBg) + " ink " + JSON.stringify(chipFg) + " coat " + JSON.stringify(btnBg));
+        }
+      });
+
+      level("tiny");
+      breed("bay");
+      go("hoof");
+      releaseLook();
+      const liveSpot = centers().targets["spot-1"];
+      look(liveSpot.nx, liveSpot.ny);
+      t = Math.max(t, clock) + 1;
+      step(t);
+      step(t + 660);
+      t = t + 660;
+      if (state().hoofCleared !== 1) fail("Case 13", "spot look cleared " + state().hoofCleared);
+      releaseLook();
+      const leather = centers().samples.leather;
+      const hit = document.elementFromPoint(leather.x, leather.y);
+      const hitBtn = hit && hit.closest("button");
+      if (hitBtn) fail("Case 13", "leather point hit " + (hitBtn.id || hitBtn.textContent));
+      look(leather.x / window.innerWidth, leather.y / window.innerHeight);
+      t = Math.max(t, clock) + 1;
+      step(t);
+      step(t + 660);
+      if (state().hoofCleared !== 1) fail("Case 13", "leather look cleared " + state().hoofCleared);
+      releaseLook();
+    } catch (err) {
+      failures.push("Case error: " + (err && err.stack ? err.stack : err));
+    }
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  function applyDeepLink(params) {
+    if (params.has("play")) {
+      if (!session.horse) pickBreed("palomino");
+      level("tiny");
+      go("stable");
+    }
+  }
+
+  function resize() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    canvas.width = Math.max(1, Math.round(window.innerWidth * dpr));
+    canvas.height = Math.max(1, Math.round(window.innerHeight * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    render();
+  }
+
+  function frame(now) {
+    if (!checking) step(now);
+    requestAnimationFrame(frame);
+  }
+
+  BREEDS.forEach((meta) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "breed";
+    btn.id = meta.id;
+    btn.dataset.breed = meta.id;
+    btn.style.background = meta.coat;
+    const chip = document.createElement("span");
+    chip.className = "chip";
+    chip.style.background = PAPER;
+    chip.style.color = INK;
+    const name = document.createElement("b");
+    name.textContent = meta.name;
+    const small = document.createElement("small");
+    small.textContent = meta.parent;
+    chip.appendChild(name);
+    chip.appendChild(small);
+    btn.appendChild(chip);
+    btn.addEventListener("click", () => breed(meta.id));
+    document.getElementById("breeds").appendChild(btn);
+  });
+
+  document.querySelectorAll("[data-level]").forEach((btn) => {
+    btn.addEventListener("click", () => level(btn.dataset.level));
+  });
+  letsGoBtn.addEventListener("click", letsGo);
+  backBtn.addEventListener("click", onBack);
+  document.getElementById("brush").addEventListener("click", brushHorse);
+  document.getElementById("water").addEventListener("click", fillTrough);
+  document.getElementById("saddle").addEventListener("click", putSaddle);
+  document.getElementById("hooves").addEventListener("click", () => go("hoof"));
+  document.getElementById("apples").addEventListener("click", () => feed("apple"));
+  document.getElementById("carrots").addEventListener("click", () => feed("carrot"));
+  ["spot-1", "spot-2", "spot-3", "spot-4"].forEach((id) => {
+    document.getElementById(id).addEventListener("click", () => clearSpot(id));
+  });
+  document.getElementById("hoof-done").addEventListener("click", () => go("stable"));
+  muteBtn.addEventListener("click", () => {
+    mute = !mute;
+    muteBtn.setAttribute("aria-pressed", mute ? "true" : "false");
+    muteBtn.setAttribute("aria-label", mute ? "Turn sound on" : "Mute sound");
+    document.getElementById("sound-on").hidden = mute;
+    document.getElementById("sound-off").hidden = !mute;
+    if (master) master.gain.value = mute ? 0 : 0.5;
+  });
+  fullBtn.addEventListener("click", () => {
+    if (!document.fullscreenElement) {
+      const req = document.documentElement.requestFullscreen;
+      if (req) req.call(document.documentElement).catch(() => {});
+    } else if (document.exitFullscreen) document.exitFullscreen();
+  });
+
+  document.addEventListener("pointerdown", (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (activePointer !== null) return;
+    activePointer = e.pointerId;
+    pointerActive = true;
+    ensureAudio();
+    dwellKey = null;
+    dwellFired = false;
+    dwellProgress = 0;
+  }, true);
+  function endPointer(e) {
+    if (e.pointerId !== activePointer) return;
+    activePointer = null;
+    pointerActive = false;
+  }
+  document.addEventListener("pointerup", endPointer, true);
+  document.addEventListener("pointercancel", endPointer, true);
+
+  const motionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  if (motionQuery.addEventListener) {
+    motionQuery.addEventListener("change", () => { reduceMotion = motionQuery.matches; render(); });
+  }
+
+  window.addEventListener("resize", resize);
+  resize();
+
+  window.saddleUp = {
+    level: level,
+    breed: breed,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    dwell: () => dwellProgress,
+    eyes: () => ({ on: eyesOn(), live: eyesLive(clock) }),
+    tap: tap,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    step: step,
+    selfCheck: selfCheck
+  };
+
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    const result = selfCheck();
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    applyDeepLink(params);
+    requestAnimationFrame(frame);
+    connectGaze();
+  }
+})();
+</script>
+</body>
+</html>
