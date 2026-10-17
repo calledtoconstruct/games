@@ -35,11 +35,11 @@ Mouse, touch, and gaze do the same work. Holding Water puts a can on the pointer
 
 ## Saddle Up!
 
-A horse farm for ages 2 and up. Pick Sunny, Patches, Cloud, or Buddy. Brush the coat, fill the trough, put the saddle on, clean the hoof, and feed an apple or a carrot. When that care is done, the banner says the horse is ready. There is no clock.
+A horse farm for ages 2 and up. Pick Sunny, Patches, Cloud, or Buddy. Brush the coat, fill the trough, put the saddle on, clean the hoof, and feed an apple or a carrot. When that care is done, the banner says the horse is ready. Tiny Tots then take a short walk, with no clock. Little Pals add a ride and a gentle race, still with no clock. Shopkeeper adds jumps, a race, cattle, and a long barn day. Rush is faster jumps from the saddle, cattle, and a shorter barn day. Any band can call the vet.
 
 Open `saddle-up/index.html` in a browser, or play [Saddle Up!](https://calledtoconstruct.github.io/games/saddle-up/).
 
-If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at Brush, Water, Saddle, Hooves, a dirt spot, Apples, or Carrots until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same visit. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at Brush, Water, Saddle, Hooves, a dirt spot, Apples, or Carrots until the ring fills. The same look works on the ride, the race, the cattle, the barn day, and the vet. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same visit. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
 ## Add a game
 
