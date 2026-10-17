@@ -2723,54 +2723,130 @@
     return { scale: sign * (1 - bend * 0.28), bend: bend };
   }
 
-  function trackPoint(w, h, progress, lane) {
-    const cx = w * 0.5;
-    const cy = h * 0.46;
-    const rx = Math.min(w * 0.30, 300);
-    const ry = Math.min(h * 0.18, 150);
-    const a = Math.PI / 2 + progress * Math.PI * 2;
-    const depth = Math.sin(a);
-    const scale = 0.75 + 0.25 * ((depth + 1) / 2);
+  function trackLayout(w, h) {
+    const top = Math.max(176, Math.round(h * 0.22));
+    const bottom = h - Math.max(112, Math.round(h * 0.14));
+    const side = Math.max(16, Math.round(w * 0.025));
+    const outerRx = Math.max(80, (w - side * 2) * 0.5);
+    const availH = Math.max(80, bottom - top);
+    let outerRy = Math.min(availH * 0.5, outerRx * 0.72);
+    if (outerRy < 170) outerRy = Math.min(availH * 0.5, 170);
+    let innerRx = Math.max(36, outerRx * 0.6);
+    if (outerRx - innerRx < 120) innerRx = Math.max(36, outerRx - 120);
+    let innerRy = Math.max(16, outerRy * 0.36);
+    if (outerRy - innerRy < 120) innerRy = Math.max(16, outerRy - Math.min(120, outerRy * 0.8));
     return {
-      x: cx + Math.cos(a) * rx + lane,
-      y: cy + depth * ry,
+      cx: w * 0.5,
+      cy: top + outerRy,
+      rx: (innerRx + outerRx) / 2,
+      ry: (innerRy + outerRy) / 2,
+      outerRx: outerRx,
+      outerRy: outerRy,
+      innerRx: innerRx,
+      innerRy: innerRy
+    };
+  }
+
+  function raceUnit(g) {
+    return Math.max(96, Math.min(124, (g.outerRx - g.innerRx) * 0.48));
+  }
+
+  function raceBody(unit, scale) {
+    const rw = unit * scale;
+    const rh = unit * 0.78 * scale;
+    const rx = Math.round(Math.min(140, rw * 0.22, rh * 0.28));
+    const ry = Math.round(rx * 0.62);
+    const hr = Math.round(Math.min(38, Math.max(22, ry * 0.55)));
+    const s = ry / 78;
+    const foot = ry * 0.38 + 90 * s + 8;
+    const up = foot + ry * 1.05 + 3 * s + hr * 1.83 + 6;
+    return { ry: ry, hr: hr, foot: foot, up: up };
+  }
+
+  function dirtBand(g, x, sin) {
+    const nx = (x - g.cx) / g.outerRx;
+    if (nx * nx >= 1) return null;
+    const yo = g.outerRy * Math.sqrt(1 - nx * nx);
+    const ix = (x - g.cx) / g.innerRx;
+    if (ix * ix >= 1) return { top: g.cy - yo, bot: g.cy + yo };
+    const yi = g.innerRy * Math.sqrt(1 - ix * ix);
+    if (sin >= 0) return { top: g.cy + yi, bot: g.cy + yo };
+    return { top: g.cy - yo, bot: g.cy - yi };
+  }
+
+  function trackPoint(w, h, progress, lane) {
+    const g = trackLayout(w, h);
+    const a = Math.PI / 2 + progress * Math.PI * 2;
+    const cos = Math.cos(a);
+    const sin = Math.sin(a);
+    const depth = sin;
+    const scale = 0.75 + 0.25 * ((depth + 1) / 2);
+    const body = raceBody(raceUnit(g), scale);
+    const gx = cos / g.rx;
+    const gy = sin / g.ry;
+    const glen = Math.hypot(gx, gy) || 1;
+    const nx = gx / glen;
+    const ny = gy / glen;
+    let x = g.cx + cos * g.rx;
+    let y = g.cy + sin * g.ry;
+    const band0 = dirtBand(g, x, sin);
+    const spare = band0 ? (band0.bot - band0.top - body.up) / 2 : 0;
+    const maxLane = Math.max(0, spare - 8);
+    const used = Math.max(-maxLane, Math.min(maxLane, lane || 0));
+    x += nx * used;
+    y += ny * used + body.up / 2;
+    const band = dirtBand(g, x, sin);
+    if (band) {
+      const lo = band.top + body.up + 8;
+      const hi = band.bot - 10;
+      y = lo <= hi ? Math.max(lo, Math.min(hi, y)) : hi;
+    }
+    return {
+      x: x,
+      y: y,
       scale: scale,
       depth: depth,
-      cx: cx,
-      cy: cy,
-      rx: rx,
-      ry: ry
+      cx: g.cx,
+      cy: g.cy,
+      rx: g.rx,
+      ry: g.ry,
+      outerRx: g.outerRx,
+      outerRy: g.outerRy,
+      innerRx: g.innerRx,
+      innerRy: g.innerRy
     };
   }
 
   function paintRace(w, h) {
-    const sample = trackPoint(w, h, 0, 0);
+    const g = trackLayout(w, h);
     ctx.fillStyle = "#9fd4f2";
     ctx.fillRect(0, 0, w, h);
     ctx.fillStyle = GRASS;
-    ctx.fillRect(0, Math.round(h * 0.22), w, h);
+    ctx.fillRect(0, Math.round(h * 0.18), w, h);
     ctx.fillStyle = "#c4a574";
     ctx.beginPath();
-    ctx.ellipse(sample.cx, sample.cy, sample.rx + 46, sample.ry + 34, 0, 0, Math.PI * 2);
+    ctx.ellipse(g.cx, g.cy, g.outerRx, g.outerRy, 0, 0, Math.PI * 2);
     ctx.fill();
     strokeInk();
     ctx.stroke();
     ctx.fillStyle = GRASS;
     ctx.beginPath();
-    ctx.ellipse(sample.cx, sample.cy, Math.max(24, sample.rx - 46), Math.max(16, sample.ry - 28), 0, 0, Math.PI * 2);
+    ctx.ellipse(g.cx, g.cy, g.innerRx, g.innerRy, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
     ctx.strokeStyle = PAPER;
     ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.moveTo(sample.cx - 8, sample.cy + sample.ry + 30);
-    ctx.lineTo(sample.cx - 8, sample.cy + sample.ry - 10);
+    ctx.moveTo(g.cx - 10, g.cy + g.outerRy - 10);
+    ctx.lineTo(g.cx - 10, g.cy + g.innerRy + 8);
     ctx.stroke();
     const race = session.race;
     if (!race || !session.horse) return;
-    const spread = Math.min(84, Math.max(28, w * 0.055));
-    const lanes = { child: -1.5 * spread, Pip: -0.5 * spread, Dot: 0.5 * spread, Hank: 1.5 * spread };
-    const unit = w < 520 ? 150 : 210;
+    const unit = raceUnit(g);
+    const near = raceBody(unit, 1);
+    const spare = ((g.outerRy - g.innerRy) - near.up) / 2;
+    const gap = Math.max(5, Math.min(16, (spare - 8) / 1.5));
+    const lanes = { child: -1.5 * gap, Pip: -0.5 * gap, Dot: 0.5 * gap, Hank: 1.5 * gap };
     const horses = [{ key: "child", progress: race.child, appearance: null, label: session.horse.name }];
     race.rivals.forEach((v) => {
       const look = RIVALS[v.name];
@@ -2791,24 +2867,25 @@
       const point = trackPoint(w, h, horse.progress, lanes[horse.key] || 0);
       return { horse: horse, point: point };
     });
-    placed.sort((a, b) => a.point.depth - b.point.depth || a.point.x - b.point.x);
+    placed.sort((a, b) => a.point.y - b.point.y || a.point.x - b.point.x);
     placed.forEach((item) => {
       const point = item.point;
       const scale = point.scale;
+      const body = raceBody(unit, scale);
       const box = {
         x: 0,
         y: 0,
         w: unit * scale,
         h: unit * 0.78 * scale,
         anchorX: point.x,
-        anchorY: point.y - 46 * scale
+        anchorY: point.y - body.foot
       };
       drawHorse(ctx, box, trackGait(item.horse.key), item.horse.appearance, raceFacing(item.horse.progress));
       const label = item.horse.label;
       ctx.font = "700 16px " + FONT;
       const chipW = Math.max(72, ctx.measureText(label).width + 18);
       const chipX = point.x - chipW / 2;
-      const chipY = point.y - 92 * scale;
+      const chipY = Math.max(150, point.y - body.foot - body.ry * 1.05 - body.hr * 1.85 - 14);
       roundFill(chipX, chipY, chipW, 26, PAPER, 10);
       ctx.fillStyle = INK;
       ctx.textAlign = "center";
