@@ -452,6 +452,7 @@
   let pourUntil = 0;
   let travel = null;
   const chase = { x: null, y: null, gait: "stand", face: 1, shown: 1, turnFrom: 0, turnTo: 1 };
+  let raceWalk = null;
   let hoofReturnAt = 0;
   let phaseMs = 0;
   let clock = 0;
@@ -673,10 +674,12 @@
     tapBoostUntil = 0;
     fasterPointer = false;
     pose = "stand";
+    raceWalk = (!checking && !reduceMotion) ? { start: clock } : null;
   }
 
   function endRace() {
     session.race = null;
+    raceWalk = null;
     boostLatch = false;
     boostOffSince = 0;
     tapBoostUntil = 0;
@@ -1102,6 +1105,7 @@
     race.place = null;
     race.boost = false;
     race.rivals.forEach((v) => { v.progress = 0; });
+    raceWalk = null;
     playSound("race");
     render();
   }
@@ -2817,6 +2821,47 @@
     };
   }
 
+  function raceWalkLive() {
+    if (!raceWalk || checking || reduceMotion || session.place !== "race" || !session.race) return false;
+    return clock < raceWalk.start + 2600 + session.race.rivals.length * 340;
+  }
+
+  function paintRaceBarn(w, h, hoofY) {
+    const barnW = Math.min(240, Math.max(156, Math.round(w * 0.2)));
+    const barnH = Math.min(270, Math.max(188, Math.round(h * 0.34)));
+    const floor = Math.min(h - 96, hoofY + 14);
+    const top = Math.max(108, floor - barnH);
+    const wallH = Math.max(80, floor - top - 34);
+    ctx.fillStyle = "#8c3b2a";
+    ctx.beginPath();
+    ctx.moveTo(0, top + 40);
+    ctx.lineTo(barnW * 0.58, top);
+    ctx.lineTo(barnW + 16, top + 40);
+    ctx.closePath();
+    ctx.fill();
+    strokeInk();
+    ctx.stroke();
+    ctx.fillStyle = WOOD;
+    ctx.fillRect(0, top + 34, barnW, wallH);
+    strokeInk();
+    ctx.strokeRect(0, top + 34, barnW, wallH);
+    ctx.fillStyle = "#8d5a32";
+    for (let x = 22; x < barnW; x += 28) ctx.fillRect(x, top + 34, 4, wallH);
+    const dw = 56;
+    const dh = Math.min(92, wallH - 16);
+    const dx = barnW - dw - 8;
+    const dy = top + 34 + wallH - dh;
+    ctx.fillStyle = "#2a2118";
+    ctx.fillRect(dx, dy, dw, dh);
+    strokeInk();
+    ctx.strokeRect(dx, dy, dw, dh);
+    ctx.fillStyle = "#9fd4f2";
+    ctx.fillRect(22, top + 52, 34, 26);
+    strokeInk();
+    ctx.strokeRect(22, top + 52, 34, 26);
+    return { x: dx + dw / 2, y: hoofY };
+  }
+
   function paintRace(w, h) {
     const g = trackLayout(w, h);
     ctx.fillStyle = "#9fd4f2";
@@ -2834,26 +2879,40 @@
     ctx.ellipse(g.cx, g.cy, g.innerRx, g.innerRy, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.stroke();
+    const race = session.race;
+    const coming = !!(race && session.horse && raceWalkLive());
+    let door = null;
+    if (coming) {
+      const hoofY = trackPoint(w, h, 0, 0).y;
+      ctx.fillStyle = "#c4a574";
+      ctx.beginPath();
+      const pathX = Math.min(170, g.cx - g.outerRx + 80);
+      ctx.roundRect(pathX, hoofY - 16, Math.max(48, g.cx - pathX), 46, 16);
+      ctx.fill();
+      strokeInk();
+      ctx.stroke();
+      door = paintRaceBarn(w, h, hoofY);
+    }
     ctx.strokeStyle = PAPER;
     ctx.lineWidth = 6;
     ctx.beginPath();
     ctx.moveTo(g.cx - 10, g.cy + g.outerRy - 10);
     ctx.lineTo(g.cx - 10, g.cy + g.innerRy + 8);
     ctx.stroke();
-    const race = session.race;
     if (!race || !session.horse) return;
     const unit = raceUnit(g);
     const near = raceBody(unit, 1);
     const spare = ((g.outerRy - g.innerRy) - near.up) / 2;
     const gap = Math.max(5, Math.min(16, (spare - 8) / 1.5));
     const lanes = { child: -1.5 * gap, Pip: -0.5 * gap, Dot: 0.5 * gap, Hank: 1.5 * gap };
-    const horses = [{ key: "child", progress: race.child, appearance: null, label: session.horse.name }];
-    race.rivals.forEach((v) => {
+    const horses = [{ key: "child", progress: race.child, appearance: null, label: session.horse.name, exit: 0 }];
+    race.rivals.forEach((v, index) => {
       const look = RIVALS[v.name];
       horses.push({
         key: v.name,
         progress: v.progress,
         label: v.name,
+        exit: index + 1,
         appearance: {
           id: look.id,
           coat: look.coat,
@@ -2864,33 +2923,50 @@
       });
     });
     const placed = horses.map((horse) => {
-      const point = trackPoint(w, h, horse.progress, lanes[horse.key] || 0);
-      return { horse: horse, point: point };
-    });
-    placed.sort((a, b) => a.point.y - b.point.y || a.point.x - b.point.x);
+      const point = trackPoint(w, h, coming ? 0 : horse.progress, lanes[horse.key] || 0);
+      let hoofX = point.x;
+      let hoofY = point.y;
+      let gait = trackGait(horse.key);
+      let face = raceFacing(coming ? 0 : horse.progress);
+      let showChip = true;
+      if (coming && door) {
+        const raw = (clock - raceWalk.start - horse.exit * 340) / 2600;
+        if (raw < 0) return null;
+        const u = Math.min(1, raw);
+        const move = Math.min(1, u / 0.72);
+        const eased = move * move * (3 - 2 * move);
+        hoofX = door.x + (point.x - door.x) * eased;
+        hoofY = door.y + (point.y - door.y) * eased;
+        gait = "walk";
+        face = u < 0.72 ? { scale: 1, bend: 0 } : haunchFacing(1, -1, (u - 0.72) / 0.28);
+        showChip = move > 0.42;
+      }
+      return { horse: horse, x: hoofX, y: hoofY, scale: point.scale, gait: gait, face: face, showChip: showChip };
+    }).filter((item) => item);
+    placed.sort((a, b) => a.y - b.y || a.x - b.x);
     placed.forEach((item) => {
-      const point = item.point;
-      const scale = point.scale;
+      const scale = item.scale;
       const body = raceBody(unit, scale);
       const box = {
         x: 0,
         y: 0,
         w: unit * scale,
         h: unit * 0.78 * scale,
-        anchorX: point.x,
-        anchorY: point.y - body.foot
+        anchorX: item.x,
+        anchorY: item.y - body.foot
       };
-      drawHorse(ctx, box, trackGait(item.horse.key), item.horse.appearance, raceFacing(item.horse.progress));
+      drawHorse(ctx, box, item.gait, item.horse.appearance, item.face);
+      if (!item.showChip) return;
       const label = item.horse.label;
       ctx.font = "700 16px " + FONT;
       const chipW = Math.max(72, ctx.measureText(label).width + 18);
-      const chipX = point.x - chipW / 2;
-      const chipY = Math.max(150, point.y - body.foot - body.ry * 1.05 - body.hr * 1.85 - 14);
+      const chipX = item.x - chipW / 2;
+      const chipY = Math.max(150, item.y - body.foot - body.ry * 1.05 - body.hr * 1.85 - 14);
       roundFill(chipX, chipY, chipW, 26, PAPER, 10);
       ctx.fillStyle = INK;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
-      ctx.fillText(label, point.x, chipY + 13);
+      ctx.fillText(label, item.x, chipY + 13);
     });
   }
 
