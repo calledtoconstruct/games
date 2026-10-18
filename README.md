@@ -2,6 +2,8 @@
 
 Browser games we can back up and share. Each game lives in its own folder and is one HTML file, so it runs with no install.
 
+Joseph Woolley made these games. The license is [MIT](LICENSE).
+
 ## Play
 
 - [Pop Pals](https://calledtoconstruct.github.io/games/pop-pals/)
