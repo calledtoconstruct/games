@@ -273,10 +273,10 @@
   <p id="tag" class="tag">Press and move on the donut to ice it.</p>
   <p class="ages">Ages 2 and up</p>
   <div class="levels" id="level-choices">
-    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Donuts and cupcakes to decorate.</small></button>
-    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. Cakes and picture orders. No clock.</small></button>
-    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. Scoops and soft serve. A long wait, and they stay.</small></button>
-    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Pack a box before the customer leaves.</small></button>
+    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Sprinkle</b><small>Ages 2 to 3. Donuts and cupcakes to decorate.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Birthday</b><small>Ages 4 to 5. Cakes and picture orders. No clock.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Scooper</b><small>Ages 6 to 8. Scoops and soft serve. A long wait, and they stay.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Lunch Rush</b><small>Ages 9 and up. Pack a box before the customer leaves.</small></button>
   </div>
   <div class="stack">
     <button id="decorate" class="big" type="button">Decorate</button>
@@ -2741,6 +2741,21 @@
     } else if (document.exitFullscreen) document.exitFullscreen();
   });
 
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      if (!backBtn.hidden) { backBtn.click(); e.preventDefault(); }
+      return;
+    }
+    const n = "123456".indexOf(e.key);
+    if (n < 0 || backBtn.hidden) return;
+    const btn = toolEls[TOOLS[n]];
+    if (!btn || btn.hidden) return;
+    btn.click();
+    e.preventDefault();
+  });
   window.addEventListener("resize", resize);
   resize();
 

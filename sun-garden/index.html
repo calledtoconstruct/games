@@ -183,10 +183,10 @@
     <button id="market" class="mid" type="button">Market</button>
   </div>
   <div class="levels" id="level-choices">
-    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Two big flowers. Water them while the sun moves.</small></button>
-    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. A flower garden, or a small food market. Move the sun.</small></button>
-    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. Flowers, or food with trees. Shade lasts half a day.</small></button>
-    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. The sun's trip is the clock. The town may ask for two foods, or more when they all grow quickly.</small></button>
+    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Sprout</b><small>Ages 2 to 3. Two big flowers. Water them while the sun moves.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Sunbeam</b><small>Ages 4 to 5. A flower garden, or a small food market. Move the sun.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Orchard</b><small>Ages 6 to 8. Flowers, or food with trees. Shade lasts half a day.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Market Day</b><small>Ages 9 and up. The sun's trip is the clock. The town may ask for two foods, or more when they all grow quickly.</small></button>
   </div>
 </div>
 <script>
@@ -2602,6 +2602,22 @@
   backBtn.addEventListener("click", showStart);
   muteBtn.addEventListener("click", toggleMute);
   fullBtn.addEventListener("click", toggleFull);
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      if (!backBtn.hidden) { backBtn.click(); e.preventDefault(); }
+      return;
+    }
+    const n = "123".indexOf(e.key);
+    const tools = [waterBtn, sunBtn, shadeBtn];
+    if (n < 0 || backBtn.hidden) return;
+    const btn = tools[n];
+    if (!btn || btn.hidden) return;
+    btn.click();
+    e.preventDefault();
+  });
   window.addEventListener("resize", () => { if (!checking) render(); });
 
   function frame(now) {

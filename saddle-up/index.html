@@ -210,10 +210,10 @@
   <h1>Saddle Up!</h1>
   <p class="tag">Horse farm</p>
   <div class="stack" id="levels">
-    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Take care of your horse, then a short walk. No clock.</small></button>
-    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. Care, a ride, and a gentle race. No clock.</small></button>
-    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Shopkeeper</b><small>Ages 6 to 8. Jumps, a race, cattle, and a long barn day.</small></button>
-    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Rush</b><small>Ages 9 and up. Faster jumps from the saddle, cattle, and a shorter barn day.</small></button>
+    <button class="choice" type="button" data-level="tiny" aria-pressed="true"><b>Pony Walk</b><small>Ages 2 to 3. Take care of your horse, then a short walk. No clock.</small></button>
+    <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Trail Ride</b><small>Ages 4 to 5. Care, a ride, and a gentle race. No clock.</small></button>
+    <button class="choice" type="button" data-level="shop" aria-pressed="false"><b>Barn Day</b><small>Ages 6 to 8. Jumps, a race, cattle, and a long barn day.</small></button>
+    <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Cross Country</b><small>Ages 9 and up. Faster jumps from the saddle, cattle, and a shorter barn day.</small></button>
   </div>
   <div class="stack" style="margin-top:12px">
     <button id="lets-go" class="big" type="button">Let's go</button>
@@ -5745,6 +5745,15 @@
       const req = document.documentElement.requestFullscreen;
       if (req) req.call(document.documentElement).catch(() => {});
     } else if (document.exitFullscreen) document.exitFullscreen();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape" && !backBtn.hidden) {
+      backBtn.click();
+      e.preventDefault();
+    }
   });
 
   document.addEventListener("pointerdown", (e) => {

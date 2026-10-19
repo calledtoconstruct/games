@@ -1,0 +1,3065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f4f0d8">
+<title>Flash Cards</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --gold: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  #view {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    display: block; pointer-events: none; z-index: 0;
+  }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border: none; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 47; pointer-events: none;
+    top: 14px; left: 176px;
+    background: var(--card); color: var(--ink);
+    border-radius: 999px; padding: 7px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 40; pointer-events: none;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 4px 12px; font-size: clamp(14px, 2vw, 20px); font-weight: 800;
+    text-align: center; overflow: hidden; line-height: 1.15;
+  }
+  #mute, #full, #back {
+    position: fixed; z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1;
+    top: 8px; height: 72px; font-size: 16px;
+  }
+  #mute, #full { width: 72px; }
+  #mute { left: 8px; display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; }
+  #mute svg[hidden] { display: none !important; }
+  #full { left: 88px; }
+  #back { padding: 0 12px; }
+  #screen-menu, #screen-rest {
+    position: fixed; inset: 0; z-index: 20; pointer-events: none;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 12px; padding: 96px 16px 24px;
+  }
+  #screen-menu {
+    justify-content: flex-start;
+    gap: 8px;
+    padding: 84px 16px 96px;
+    overflow: hidden;
+  }
+  #lets-go {
+    position: fixed; z-index: 22;
+    left: 50%; bottom: 12px;
+    transform: translateX(-50%);
+    height: 72px; min-height: 72px;
+  }
+  #screen-menu h1 { margin: 0; font-size: 48px; letter-spacing: -1px; text-align: center; }
+  #screen-menu p, #screen-rest p { margin: 0; font-size: 22px; font-weight: 800; text-align: center; }
+  #screen-menu button, #screen-rest button, #stop, .subject-btn {
+    pointer-events: auto;
+    border: 3px solid transparent; border-radius: 18px;
+    background: var(--card); color: var(--ink);
+    font-weight: 800; font-size: 28px;
+    min-height: 72px; width: min(460px, calc(100% - 32px));
+    box-shadow: 0 4px 0 #e2d0b4;
+  }
+  #screen-menu button[aria-pressed="true"] { border-color: var(--ink); background: #fff6df; }
+  #screen-menu #tiny b, #screen-menu #little b, #screen-menu #shop b, #screen-menu #rush b {
+    display: block; font-size: 18px; line-height: 20px;
+  }
+  #screen-menu #tiny small, #screen-menu #little small, #screen-menu #shop small, #screen-menu #rush small {
+    display: block; margin-top: 2px; font-size: 13px; line-height: 16px; font-weight: 700; color: #6d5a48;
+  }
+  #lets-go, #another, #stop {
+    background: var(--sun); box-shadow: 0 5px 0 var(--gold); color: var(--ink);
+  }
+  #play { position: fixed; inset: 0; z-index: 30; pointer-events: none; }
+  #prompt, .choice, #stop, .subject-btn { position: fixed; pointer-events: auto; }
+  #prompt, .choice {
+    border-radius: 22px;
+    box-shadow: 0 8px 0 #e2d0b4;
+  }
+  .face-picture {
+    background: transparent; color: transparent; border: none;
+    box-shadow: 0 8px 0 #e2d0b4; padding: 0; border-radius: 22px;
+  }
+  .face-print {
+    background: var(--card); color: var(--ink); border: none; border-radius: 22px;
+    font-weight: 800; line-height: 1;
+    display: grid; place-items: center; padding: 8px;
+    box-shadow: 0 8px 0 #e2d0b4;
+  }
+  .face-pair {
+    background: transparent; color: var(--ink); border: none; border-radius: 22px;
+    font-weight: 800; line-height: 1;
+    display: flex; align-items: flex-end; justify-content: center;
+    padding: 0 8px 10px; box-shadow: none;
+  }
+  #gaze[hidden], #eyes[hidden], #back[hidden], #screen-menu[hidden], #screen-rest[hidden], #play[hidden] {
+    display: none !important;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 9l5 6M21 9l-5 6"/>
+  </svg>
+</button>
+<button id="full" type="button" aria-label="Fullscreen">Full</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick who is playing.</p>
+<section id="screen-menu">
+  <h1>Flash Cards</h1>
+  <p>Match the card on the other side.</p>
+  <p>Ages 2 and up.</p>
+  <button id="tiny" type="button" aria-pressed="true"><b>Peek</b><small>Ages 2 to 3. Hear a word, match the picture.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Say It</b><small>Ages 4 to 5. Three cards. A few words to read.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Read It</b><small>Ages 6 to 8. Four cards. Words and pictures.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Flip</b><small>Ages 9 and up. Four cards. Half start from the word.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <button id="prompt" type="button" hidden></button>
+  <button id="choice-0" class="choice" type="button" hidden></button>
+  <button id="choice-1" class="choice" type="button" hidden></button>
+  <button id="choice-2" class="choice" type="button" hidden></button>
+  <button id="choice-3" class="choice" type="button" hidden></button>
+  <button id="stop" type="button">Stop</button>
+</div>
+<section id="screen-rest" hidden>
+  <p>We can play again.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const SHOW_MS = 800;
+
+  const INK = "#2c2416";
+  const CREAM = "#f4f0d8";
+  const PAPER = "#fffdf6";
+  const BROWN = "#8a5a2b";
+  const DBROWN = "#5c3a1e";
+  const TAN = "#d7b07a";
+  const ORANGE = "#e07a2f";
+  const YELLOW = "#f2c14e";
+  const RED = "#d64545";
+  const PINK = "#f2a3b5";
+  const BLUE = "#3a7bd5";
+  const GREEN = "#3f8f4e";
+  const PURPLE = "#7a4ea3";
+  const GRAY = "#9aa3ad";
+  const METAL = "#c5ccd6";
+  const SKIN = "#f0c9a0";
+  const BLACK = "#1b1b1b";
+
+  const CEILING = { tiny: 240000, little: 480000, shop: 720000, rush: 900000 };
+
+  const BANDS = {
+    tiny: {
+      subjects: [
+        { id: "animals", name: "Animals", words: ["dog", "cat", "bird", "fish", "cow", "duck"] },
+        { id: "food", name: "Food", words: ["milk", "apple", "banana", "bread", "cookie", "water"] },
+        { id: "body", name: "Body", words: ["eye", "nose", "mouth", "hand", "foot", "tummy"] }
+      ]
+    },
+    little: {
+      subjects: [
+        { id: "animals", name: "Animals", words: ["dog", "cat", "bird", "fish", "cow", "duck", "pig", "horse"] },
+        { id: "food", name: "Food", words: ["milk", "apple", "banana", "bread", "cookie", "water", "egg", "carrot"] },
+        { id: "body", name: "Body", words: ["eye", "nose", "mouth", "hand", "foot", "tummy", "ear", "hair"] },
+        { id: "clothing", name: "Clothes", words: ["hat", "shoe", "sock", "coat", "shirt", "pants", "dress", "boot"] },
+        { id: "toys", name: "Toys", words: ["ball", "doll", "block", "book", "drum", "kite", "top", "bell"] },
+        { id: "vehicles", name: "Vehicles", words: ["car", "bus", "bike", "boat", "plane", "train", "truck", "wagon"] },
+        { id: "colors", name: "Colors", words: ["red", "yellow", "blue", "green", "black", "white"] }
+      ]
+    },
+    shop: {
+      subjects: [
+        { id: "animals", name: "Animals", words: ["dog", "cat", "cow", "horse", "sheep", "goat", "pig", "frog", "mouse", "duck"] },
+        { id: "food", name: "Food", words: ["apple", "banana", "bread", "cheese", "egg", "carrot", "corn", "grape", "milk", "soup"] },
+        { id: "household", name: "Household", words: ["cup", "spoon", "bowl", "plate", "fork", "pan", "pot", "key", "clock", "phone"] },
+        { id: "furniture", name: "Furniture", words: ["bed", "chair", "table", "desk", "sofa", "lamp", "shelf", "rug", "door", "crib"] },
+        { id: "clothing", name: "Clothes", words: ["hat", "shoe", "sock", "coat", "shirt", "pants", "dress", "boot", "glove", "scarf"] },
+        { id: "vehicles", name: "Vehicles", words: ["car", "bus", "bike", "boat", "plane", "train", "truck", "wagon", "sled", "cart"] },
+        { id: "outside", name: "Outside", words: ["tree", "flower", "rock", "sun", "moon", "star", "rain", "cloud", "grass", "leaf"] },
+        { id: "colors", name: "Colors", words: ["red", "yellow", "blue", "green", "black", "white", "orange", "purple", "brown", "pink"] }
+      ]
+    },
+    rush: {
+      subjects: [
+        { id: "kitchen", name: "Kitchen", words: ["ladle", "whisk", "grater", "kettle", "oven", "sink", "tray", "mixer", "scoop", "sieve", "mitt", "peeler"] },
+        { id: "weather", name: "Weather", words: ["rain", "cloud", "sun", "wind", "snow", "storm", "fog", "hail", "rainbow", "puddle", "umbrella", "frost"] },
+        { id: "places", name: "Places", words: ["home", "school", "park", "farm", "store", "beach", "hill", "lake", "bridge", "road", "garden", "library"] },
+        { id: "animals", name: "Animals", words: ["owl", "fox", "whale", "crab", "ant", "bee", "seal", "toad", "hare", "moth", "crane", "dolphin"] },
+        { id: "colors", name: "Colors", words: ["red", "yellow", "blue", "green", "black", "white", "orange", "purple", "brown", "pink", "gray", "tan"] },
+        { id: "time", name: "Time", words: ["morning", "noon", "evening", "night"] }
+      ]
+    }
+  };
+
+  const CLUSTERS = {
+    tiny: {
+      animals: { dog: "pet", cat: "pet", bird: "sky", fish: "water", cow: "farm", duck: "sky" },
+      food: { milk: "drink", apple: "fruit", banana: "fruit", bread: "bake", cookie: "bake", water: "drink" },
+      body: { eye: "face", nose: "face", mouth: "face", hand: "limb", foot: "limb", tummy: "core" }
+    },
+    shop: {
+      animals: { dog: "pet", cat: "pet", cow: "farm", horse: "farm", sheep: "farm", goat: "farm", pig: "farm", frog: "pond", mouse: "small", duck: "sky" },
+      food: { apple: "fruit", banana: "fruit", grape: "fruit", carrot: "vegetable", corn: "vegetable", milk: "drink", cheese: "dairy", bread: "bake", egg: "egg", soup: "soup" },
+      household: { cup: "cup", bowl: "dish", plate: "dish", spoon: "utensil", fork: "utensil", pan: "cook", pot: "cook", key: "key", clock: "clock", phone: "phone" },
+      furniture: { bed: "sleep", crib: "sleep", chair: "seat", sofa: "seat", table: "top", desk: "top", lamp: "lamp", shelf: "shelf", rug: "rug", door: "door" },
+      clothing: { shoe: "foot", sock: "foot", boot: "foot", coat: "warm", scarf: "warm", glove: "warm", shirt: "shirt", dress: "dress", pants: "pants", hat: "hat" },
+      vehicles: { car: "road", bus: "road", truck: "road", wagon: "haul", cart: "haul", bike: "bike", boat: "boat", plane: "plane", train: "train", sled: "sled" },
+      outside: { tree: "plant", flower: "plant", grass: "plant", leaf: "plant", sun: "sky", moon: "sky", star: "sky", cloud: "sky", rock: "rock", rain: "rain" }
+    },
+    rush: {
+      kitchen: { ladle: "utensil", whisk: "utensil", scoop: "utensil", grater: "tool", peeler: "tool", sieve: "tool", kettle: "heat", oven: "heat", sink: "sink", tray: "tray", mixer: "mixer", mitt: "mitt" },
+      weather: { rain: "wet", storm: "wet", puddle: "wet", hail: "ice", snow: "ice", frost: "ice", cloud: "sky", fog: "sky", sun: "sky", rainbow: "sky", wind: "wind", umbrella: "umbrella" },
+      places: { home: "building", school: "building", store: "building", library: "building", farm: "building", park: "land", hill: "land", garden: "land", beach: "water", lake: "water", bridge: "bridge", road: "road" },
+      animals: { owl: "bird", crane: "bird", fox: "land", hare: "land", whale: "sea", seal: "sea", dolphin: "sea", ant: "bug", bee: "bug", moth: "bug", crab: "crab", toad: "toad" }
+    }
+  };
+
+  function makeRng(seed) {
+    return { state: seed >>> 0 };
+  }
+
+  function rngUint(rng) {
+    const state = (rng.state + 0x6D2B79F5) >>> 0;
+    rng.state = state;
+    let t = Math.imul(state ^ (state >>> 15), state | 1);
+    const mixed = Math.imul(t ^ (t >>> 7), t | 61);
+    const sum = (t + mixed) >>> 0;
+    t = (t ^ sum) >>> 0;
+    return (t ^ (t >>> 14)) >>> 0;
+  }
+
+  function rngInt(rng, lo, hi) {
+    return lo + (rngUint(rng) % (hi - lo + 1));
+  }
+
+  function rngShuffle(rng, items) {
+    const a = items.slice();
+    for (let i = a.length - 1; i >= 1; i--) {
+      const j = rngInt(rng, 0, i);
+      const tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+    }
+    return a;
+  }
+
+  function playSeed(clockMs, counter) {
+    return (Math.imul((clockMs >>> 0) ^ Math.imul(counter >>> 0, 0x9E3779B9), 0x85EBCA6B)) >>> 0;
+  }
+
+  function choiceSeed(seed, index) {
+    return (Math.imul(seed ^ (index + 1), 0x9E3779B1)) >>> 0;
+  }
+
+  function flashCap(band) {
+    if (band === "tiny") return 8;
+    if (band === "little") return 12;
+    if (band === "shop" || band === "rush") return 16;
+    return 0;
+  }
+
+  function flashChoices(band) {
+    if (band === "tiny" || band === "little") return 3;
+    if (band === "shop" || band === "rush") return 4;
+    return 0;
+  }
+
+  function subjectMeta(band, id) {
+    const pack = BANDS[band];
+    if (!pack) return null;
+    for (let i = 0; i < pack.subjects.length; i++) {
+      if (pack.subjects[i].id === id) return pack.subjects[i];
+    }
+    return null;
+  }
+
+  function clusterOf(band, subject, id) {
+    const table = CLUSTERS[band] && CLUSTERS[band][subject];
+    if (!table) return id;
+    return table[id] || id;
+  }
+
+  function flashPlan(band, subject, seed) {
+    const meta = subjectMeta(band, subject);
+    if (!meta) return null;
+    const rng = makeRng(seed);
+    const shuffled = rngShuffle(rng, meta.words.slice());
+    const cap = flashCap(band);
+    const order = [];
+    let i = 0;
+    while (order.length < cap) {
+      const id = shuffled[i % shuffled.length];
+      order.push(id);
+      if (order.length < cap) order.push(id);
+      i += 1;
+    }
+    let directions;
+    if (band === "tiny") {
+      directions = order.map(function () { return "hear-picture"; });
+    } else if (band === "little") {
+      directions = order.map(function () { return null; });
+    } else {
+      const nRev = band === "shop" ? Math.floor(cap / 3) : cap / 2;
+      const idx = rngShuffle(rng, order.map(function (_, n) { return n; }));
+      directions = order.map(function () { return "picture-word"; });
+      for (let k = 0; k < nRev; k++) directions[idx[k]] = "word-picture";
+    }
+    return { order: order, directions: directions };
+  }
+
+  function foilsFor(band, subject, words, answer) {
+    const need = flashChoices(band) - 1;
+    if (band === "tiny") {
+      const group = clusterOf(band, subject, answer);
+      const rest = [];
+      for (let i = 0; i < words.length; i++) {
+        if (clusterOf(band, subject, words[i]) !== group) rest.push(words[i]);
+      }
+      return rest.slice(0, need);
+    }
+    if (band === "little") {
+      const start = words.indexOf(answer);
+      const out = [];
+      let k = 1;
+      while (out.length < need && k <= words.length) {
+        const id = words[(start + k) % words.length];
+        if (id !== answer) out.push(id);
+        k += 1;
+      }
+      return out;
+    }
+    const group = clusterOf(band, subject, answer);
+    const same = [];
+    const other = [];
+    for (let i = 0; i < words.length; i++) {
+      const id = words[i];
+      if (id === answer) continue;
+      if (clusterOf(band, subject, id) === group) same.push(id);
+      else other.push(id);
+    }
+    return same.concat(other).slice(0, need);
+  }
+
+  function littleDirection(subject, index, history, answerId) {
+    let missed = 0;
+    const heard = {};
+    for (let i = 0; i < history.length; i++) {
+      const row = history[i];
+      if (row.direction === "picture-word" && row.correct === false) missed += 1;
+      if (row.direction === "hear-picture") heard[row.promptId] = true;
+    }
+    if (subject !== "colors" && index % 4 === 3 && missed < 2 && heard[answerId]) return "picture-word";
+    return "hear-picture";
+  }
+
+  function flashTrial(band, subject, plan, index, history, seed) {
+    if (!plan || index < 0 || index >= plan.order.length) return null;
+    const meta = subjectMeta(band, subject);
+    if (!meta) return null;
+    const answerId = plan.order[index];
+    let direction = plan.directions[index];
+    if (band === "little") direction = littleDirection(subject, index, history, answerId);
+    const face = direction === "picture-word" ? "print" : "picture";
+    const foil = foilsFor(band, subject, meta.words, answerId);
+    const before = [answerId].concat(foil);
+    const ids = rngShuffle(makeRng(choiceSeed(seed, index)), before);
+    const choices = ids.map(function (id) { return { id: id, face: face }; });
+    return { direction: direction, promptId: answerId, choices: choices, answerId: answerId };
+  }
+
+  function tracePaper(ctx, fill) {
+    if (fill !== PAPER) return;
+    ctx.save();
+    ctx.strokeStyle = "#7a6552";
+    ctx.lineWidth = 1.6;
+    ctx.lineJoin = "round";
+    ctx.lineCap = "round";
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function el(ctx, fill, cx, cy, rx, ry) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, Math.max(0.5, rx), Math.max(0.5, ry), 0, 0, Math.PI * 2);
+    ctx.fill();
+    tracePaper(ctx, fill);
+  }
+
+  function rc(ctx, fill, x, y, w, h) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.fill();
+    tracePaper(ctx, fill);
+  }
+
+  function pg(ctx, fill, pts) {
+    ctx.fillStyle = fill;
+    ctx.beginPath();
+    ctx.moveTo(pts[0], pts[1]);
+    for (let i = 2; i < pts.length; i += 2) ctx.lineTo(pts[i], pts[i + 1]);
+    ctx.closePath();
+    ctx.fill();
+    tracePaper(ctx, fill);
+  }
+
+  function ln(ctx, color, w, x1, y1, x2, y2) {
+    ctx.strokeStyle = color;
+    ctx.lineWidth = w;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  function nctx(ctx, x, y, w, h, draw) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.translate(x, y);
+    ctx.scale(w / 100, h / 100);
+    draw(ctx);
+    ctx.restore();
+  }
+
+  function drawItems(ctx, x, y, w, h, items) {
+    nctx(ctx, x, y, w, h, function (g) {
+      for (let i = 0; i < items.length; i++) {
+        const it = items[i];
+        if (it[0] === "e") el(g, it[1], it[2], it[3], it[4], it[5]);
+        else if (it[0] === "r") rc(g, it[1], it[2], it[3], it[4], it[5]);
+        else if (it[0] === "p") pg(g, it[1], it.slice(2));
+        else if (it[0] === "l") ln(g, it[1], it[2], it[3], it[4], it[5], it[6]);
+      }
+    });
+  }
+
+  function painter(items) {
+    return function (ctx, x, y, w, h) { drawItems(ctx, x, y, w, h, items); };
+  }
+
+  function diskPainter(hex, rim) {
+    return function (ctx, x, y, w, h) {
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      const radius = Math.min(w, h) * 0.32;
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+      ctx.fillStyle = hex;
+      ctx.fill();
+      if (rim) {
+        ctx.lineWidth = radius / 8;
+        ctx.strokeStyle = INK;
+        ctx.stroke();
+      }
+    };
+  }
+
+  const PAINT = {
+    dog: painter([
+      ["e", BROWN, 62, 58, 26, 15], ["e", BROWN, 30, 48, 14, 12],
+      ["e", BROWN, 16, 36, 8, 11], ["r", BROWN, 44, 68, 7, 18],
+      ["r", BROWN, 72, 68, 7, 18], ["e", INK, 24, 46, 1.6, 1.6]
+    ]),
+    cat: painter([
+      ["e", ORANGE, 64, 58, 24, 14], ["e", ORANGE, 32, 48, 13, 11],
+      ["p", ORANGE, 22, 40, 16, 22, 26, 28], ["p", ORANGE, 36, 38, 30, 20, 42, 34],
+      ["p", ORANGE, 86, 58, 96, 28, 92, 70], ["e", INK, 26, 46, 1.5, 1.5]
+    ]),
+    bird: painter([
+      ["e", BLUE, 48, 52, 22, 14], ["p", BLUE, 68, 46, 88, 40, 70, 58],
+      ["p", YELLOW, 22, 48, 10, 54, 22, 60], ["e", INK, 36, 48, 1.6, 1.6]
+    ]),
+    fish: painter([
+      ["e", ORANGE, 48, 52, 26, 14], ["p", ORANGE, 74, 52, 94, 34, 94, 70],
+      ["e", INK, 30, 50, 1.6, 1.6]
+    ]),
+    cow: painter([
+      ["e", PAPER, 58, 56, 28, 16], ["e", PAPER, 26, 46, 14, 12],
+      ["e", BLACK, 50, 50, 7, 5], ["e", BLACK, 70, 62, 6, 4],
+      ["r", PAPER, 40, 68, 6, 16], ["r", PAPER, 68, 68, 6, 16],
+      ["e", PINK, 16, 50, 4, 3]
+    ]),
+    duck: painter([
+      ["e", YELLOW, 52, 54, 24, 14], ["e", YELLOW, 26, 48, 12, 10],
+      ["r", ORANGE, 8, 46, 16, 6], ["e", INK, 22, 46, 1.5, 1.5]
+    ]),
+    pig: painter([
+      ["e", PINK, 58, 56, 26, 16], ["e", PINK, 28, 50, 14, 12],
+      ["e", PINK, 14, 52, 5, 4], ["p", PINK, 82, 48, 94, 36, 90, 58],
+      ["e", INK, 24, 48, 1.4, 1.4]
+    ]),
+    horse: painter([
+      ["e", BROWN, 60, 58, 26, 14], ["e", BROWN, 28, 42, 12, 10],
+      ["p", DBROWN, 20, 28, 34, 30, 30, 44, 18, 46],
+      ["r", BROWN, 42, 68, 6, 18], ["r", BROWN, 72, 68, 6, 18],
+      ["p", BROWN, 84, 52, 96, 40, 90, 62]
+    ]),
+    sheep: painter([
+      ["e", PAPER, 58, 56, 24, 16], ["e", PAPER, 34, 46, 12, 10],
+      ["e", PAPER, 74, 48, 10, 8], ["r", DBROWN, 40, 70, 5, 16],
+      ["r", DBROWN, 52, 70, 5, 16], ["r", DBROWN, 64, 70, 5, 16],
+      ["r", DBROWN, 74, 70, 5, 16], ["e", INK, 30, 44, 1.4, 1.4]
+    ]),
+    goat: painter([
+      ["e", TAN, 58, 58, 24, 14], ["e", TAN, 30, 46, 12, 10],
+      ["p", DBROWN, 24, 34, 20, 18, 28, 32], ["p", DBROWN, 34, 32, 30, 16, 38, 30],
+      ["r", TAN, 44, 68, 5, 16], ["r", TAN, 68, 68, 5, 16]
+    ]),
+    frog: painter([
+      ["e", GREEN, 58, 56, 22, 12], ["e", GREEN, 32, 50, 10, 8],
+      ["e", GREEN, 24, 70, 8, 4], ["e", GREEN, 42, 72, 8, 4],
+      ["e", GREEN, 70, 70, 8, 4], ["e", GREEN, 86, 66, 8, 4],
+      ["e", INK, 28, 48, 1.4, 1.4]
+    ]),
+    mouse: painter([
+      ["e", GRAY, 42, 56, 16, 10], ["e", GRAY, 26, 52, 8, 7],
+      ["p", GRAY, 56, 56, 94, 70, 58, 62], ["e", PINK, 18, 44, 4, 4],
+      ["e", INK, 24, 50, 1.2, 1.2]
+    ]),
+    owl: painter([
+      ["e", BROWN, 50, 56, 26, 28], ["e", PAPER, 38, 48, 10, 10],
+      ["e", PAPER, 62, 48, 10, 10], ["e", INK, 38, 48, 4, 4],
+      ["e", INK, 62, 48, 4, 4], ["p", YELLOW, 50, 60, 44, 66, 56, 66]
+    ]),
+    fox: painter([
+      ["e", ORANGE, 58, 58, 24, 13], ["e", ORANGE, 30, 48, 12, 10],
+      ["p", ORANGE, 78, 50, 96, 28, 96, 78, 74, 64],
+      ["p", ORANGE, 22, 36, 16, 20, 30, 32], ["e", INK, 24, 46, 1.4, 1.4]
+    ]),
+    whale: painter([
+      ["e", GRAY, 48, 56, 30, 16], ["p", GRAY, 78, 56, 96, 40, 96, 74],
+      ["e", INK, 28, 52, 1.6, 1.6]
+    ]),
+    crab: painter([
+      ["e", RED, 50, 54, 22, 16], ["p", RED, 22, 40, 8, 28, 18, 48],
+      ["p", RED, 78, 40, 92, 28, 82, 48], ["r", RED, 18, 62, 14, 4],
+      ["r", RED, 68, 62, 14, 4], ["e", INK, 42, 50, 2, 2], ["e", INK, 58, 50, 2, 2]
+    ]),
+    ant: painter([
+      ["e", BROWN, 28, 52, 10, 8], ["e", BROWN, 48, 54, 8, 7],
+      ["e", BROWN, 68, 54, 12, 8],
+      ["l", BROWN, 2, 24, 40, 18, 28], ["l", BROWN, 2, 24, 48, 16, 36],
+      ["l", BROWN, 2, 30, 58, 18, 70], ["l", BROWN, 2, 70, 40, 82, 28],
+      ["l", BROWN, 2, 70, 48, 84, 36], ["l", BROWN, 2, 66, 58, 82, 70]
+    ]),
+    bee: painter([
+      ["e", YELLOW, 52, 54, 22, 14], ["r", BLACK, 42, 42, 6, 24],
+      ["r", BLACK, 56, 42, 6, 24], ["e", PAPER, 38, 36, 12, 7],
+      ["e", PAPER, 66, 36, 12, 7], ["e", INK, 36, 52, 1.5, 1.5]
+    ]),
+    seal: painter([
+      ["e", GRAY, 52, 56, 28, 14], ["e", GRAY, 24, 50, 12, 10],
+      ["e", GRAY, 34, 70, 10, 5], ["e", INK, 18, 48, 1.4, 1.4]
+    ]),
+    toad: painter([
+      ["e", "#6a7a32", 52, 58, 30, 16], ["e", "#6a7a32", 24, 52, 12, 9],
+      ["e", "#6a7a32", 22, 74, 10, 5], ["e", "#6a7a32", 70, 74, 10, 5],
+      ["e", INK, 20, 50, 1.6, 1.6]
+    ]),
+    hare: painter([
+      ["e", TAN, 58, 62, 22, 12], ["e", TAN, 34, 54, 10, 8],
+      ["e", TAN, 28, 24, 4, 16], ["e", TAN, 38, 22, 4, 16],
+      ["e", INK, 30, 52, 1.3, 1.3]
+    ]),
+    moth: painter([
+      ["e", TAN, 50, 52, 8, 16], ["e", TAN, 28, 48, 18, 22],
+      ["e", TAN, 72, 48, 18, 22], ["l", INK, 1.5, 50, 20, 44, 8],
+      ["l", INK, 1.5, 50, 20, 56, 8]
+    ]),
+    crane: painter([
+      ["e", GRAY, 48, 48, 16, 10], ["r", GRAY, 40, 54, 5, 28],
+      ["r", GRAY, 54, 54, 5, 28], ["p", YELLOW, 30, 44, 8, 48, 30, 52],
+      ["e", INK, 40, 44, 1.4, 1.4]
+    ]),
+    dolphin: painter([
+      ["e", GRAY, 52, 56, 22, 12], ["p", GRAY, 28, 50, 8, 46, 18, 58],
+      ["p", GRAY, 72, 50, 92, 38, 86, 62], ["e", INK, 22, 52, 1.3, 1.3]
+    ]),
+    eye: painter([
+      ["e", PAPER, 50, 50, 28, 16], ["e", "#1d4e89", 50, 50, 12, 12],
+      ["e", INK, 50, 50, 5, 5]
+    ]),
+    nose: painter([
+      ["p", SKIN, 50, 28, 24, 62, 76, 62], ["e", SKIN, 36, 64, 10, 8],
+      ["e", SKIN, 64, 64, 10, 8]
+    ]),
+    mouth: painter([
+      ["e", RED, 50, 46, 26, 10], ["e", "#b22e3a", 50, 58, 24, 8]
+    ]),
+    hand: painter([
+      ["r", SKIN, 40, 48, 20, 36], ["r", SKIN, 18, 28, 10, 28],
+      ["r", SKIN, 32, 18, 10, 32], ["r", SKIN, 46, 12, 10, 36],
+      ["r", SKIN, 60, 18, 10, 32], ["r", SKIN, 72, 30, 10, 26]
+    ]),
+    foot: painter([
+      ["e", SKIN, 58, 58, 28, 14], ["e", SKIN, 30, 50, 12, 16],
+      ["e", SKIN, 78, 50, 6, 6]
+    ]),
+    tummy: painter([
+      ["e", SKIN, 50, 52, 28, 30], ["e", INK, 50, 58, 2.2, 2.2]
+    ]),
+    ear: painter([
+      ["e", SKIN, 58, 50, 18, 28], ["e", "#e7b48e", 58, 52, 8, 16]
+    ]),
+    hair: painter([
+      ["e", PAPER, 50, 62, 26, 28], ["e", INK, 50, 40, 28, 18],
+      ["p", INK, 24, 42, 18, 22, 40, 30]
+    ]),
+    milk: painter([
+      ["p", "#d5dde6", 42, 22, 58, 22, 64, 86, 36, 86],
+      ["r", PAPER, 40, 28, 20, 52]
+    ]),
+    water: painter([
+      ["p", "#d5dde6", 30, 18, 70, 18, 78, 88, 22, 88],
+      ["r", "#b9d4f2", 34, 36, 32, 46]
+    ]),
+    apple: painter([
+      ["e", RED, 50, 56, 24, 26], ["r", BROWN, 48, 22, 4, 14],
+      ["e", GREEN, 62, 30, 10, 6]
+    ]),
+    banana: painter([
+      ["p", YELLOW, 22, 62, 36, 30, 70, 28, 84, 48, 68, 70, 34, 74]
+    ]),
+    bread: painter([
+      ["r", TAN, 22, 28, 56, 48], ["r", BROWN, 22, 28, 56, 12],
+      ["r", BROWN, 22, 64, 56, 12]
+    ]),
+    cookie: painter([
+      ["e", TAN, 50, 52, 28, 28], ["e", DBROWN, 38, 44, 4, 4],
+      ["e", DBROWN, 58, 48, 4, 4], ["e", DBROWN, 48, 64, 4, 4]
+    ]),
+    egg: painter([["e", PAPER, 50, 52, 18, 26]]),
+    carrot: painter([
+      ["p", ORANGE, 50, 34, 28, 88, 72, 88], ["p", GREEN, 40, 30, 50, 12, 58, 32]
+    ]),
+    cheese: painter([
+      ["p", YELLOW, 18, 78, 78, 78, 48, 22]
+    ]),
+    corn: painter([
+      ["e", YELLOW, 50, 54, 14, 28], ["p", GREEN, 36, 30, 28, 70, 46, 24],
+      ["p", GREEN, 64, 30, 72, 70, 54, 24]
+    ]),
+    grape: painter([
+      ["e", PURPLE, 42, 40, 10, 10], ["e", PURPLE, 58, 40, 10, 10],
+      ["e", PURPLE, 50, 54, 10, 10], ["e", PURPLE, 36, 62, 10, 10],
+      ["e", PURPLE, 64, 62, 10, 10], ["e", PURPLE, 50, 74, 10, 10],
+      ["r", GREEN, 48, 18, 4, 14]
+    ]),
+    soup: painter([
+      ["e", PAPER, 50, 58, 32, 16], ["e", ORANGE, 50, 52, 24, 10],
+      ["p", PAPER, 18, 48, 82, 48, 74, 70, 26, 70]
+    ]),
+    ladle: painter([
+      ["e", METAL, 32, 62, 16, 16], ["r", METAL, 44, 28, 8, 40]
+    ]),
+    whisk: painter([
+      ["r", DBROWN, 46, 12, 8, 28], ["l", METAL, 2, 40, 40, 28, 78],
+      ["l", METAL, 2, 50, 40, 36, 80], ["l", METAL, 2, 60, 40, 46, 78],
+      ["l", METAL, 2, 40, 78, 60, 78]
+    ]),
+    grater: painter([
+      ["r", METAL, 34, 16, 32, 70], ["e", INK, 44, 28, 2, 2],
+      ["e", INK, 56, 28, 2, 2], ["e", INK, 44, 42, 2, 2],
+      ["e", INK, 56, 42, 2, 2], ["e", INK, 44, 56, 2, 2],
+      ["e", INK, 56, 56, 2, 2], ["e", INK, 44, 70, 2, 2],
+      ["e", INK, 56, 70, 2, 2]
+    ]),
+    kettle: painter([
+      ["e", METAL, 48, 58, 22, 18], ["p", METAL, 70, 50, 92, 42, 92, 58],
+      ["p", DBROWN, 30, 28, 66, 28, 58, 40, 38, 40]
+    ]),
+    oven: painter([
+      ["r", GRAY, 18, 16, 64, 70], ["r", INK, 28, 28, 44, 36],
+      ["r", METAL, 36, 70, 28, 8]
+    ]),
+    sink: painter([
+      ["p", GRAY, 12, 40, 88, 40, 76, 78, 24, 78], ["e", METAL, 50, 34, 4, 4]
+    ]),
+    tray: painter([
+      ["r", METAL, 12, 34, 76, 36]
+    ]),
+    mixer: painter([
+      ["e", PAPER, 50, 70, 24, 12], ["r", METAL, 46, 28, 8, 36],
+      ["e", GRAY, 50, 24, 14, 10]
+    ]),
+    scoop: painter([
+      ["e", METAL, 36, 58, 16, 12], ["r", METAL, 50, 40, 28, 8]
+    ]),
+    sieve: painter([
+      ["e", METAL, 46, 58, 24, 8], ["l", GRAY, 1, 28, 58, 64, 58],
+      ["l", GRAY, 1, 34, 54, 58, 62], ["r", DBROWN, 66, 36, 6, 24]
+    ]),
+    mitt: painter([
+      ["p", RED, 30, 78, 28, 30, 48, 18, 70, 28, 62, 78]
+    ]),
+    peeler: painter([
+      ["r", DBROWN, 18, 46, 28, 10], ["r", METAL, 46, 42, 28, 6],
+      ["r", METAL, 46, 54, 28, 6]
+    ]),
+    cup: painter([
+      ["p", BLUE, 28, 28, 64, 28, 70, 80, 22, 80], ["e", BLUE, 74, 48, 10, 8]
+    ]),
+    spoon: painter([
+      ["e", METAL, 28, 62, 12, 16], ["r", METAL, 38, 28, 8, 36]
+    ]),
+    bowl: painter([
+      ["p", PAPER, 16, 40, 84, 40, 70, 74, 30, 74], ["l", INK, 3, 20, 40, 80, 40]
+    ]),
+    plate: painter([
+      ["e", PAPER, 50, 54, 34, 34], ["e", CREAM, 50, 54, 22, 22]
+    ]),
+    fork: painter([
+      ["r", METAL, 46, 36, 8, 40], ["r", METAL, 34, 18, 5, 24],
+      ["r", METAL, 48, 14, 5, 26], ["r", METAL, 62, 18, 5, 24]
+    ]),
+    pan: painter([
+      ["e", "#4d555d", 40, 56, 24, 12], ["r", DBROWN, 64, 50, 26, 8]
+    ]),
+    pot: painter([
+      ["e", "#4d555d", 50, 60, 26, 18], ["e", "#3c444c", 50, 40, 28, 6],
+      ["r", DBROWN, 22, 36, 10, 8], ["r", DBROWN, 68, 36, 10, 8]
+    ]),
+    key: painter([
+      ["e", METAL, 32, 42, 12, 12], ["e", PAPER, 32, 42, 5, 5],
+      ["r", METAL, 44, 38, 36, 8], ["r", METAL, 66, 46, 6, 12],
+      ["r", METAL, 76, 46, 6, 10]
+    ]),
+    clock: painter([
+      ["e", PAPER, 50, 52, 30, 30], ["l", INK, 3, 50, 52, 50, 30],
+      ["l", INK, 3, 50, 52, 68, 58]
+    ]),
+    phone: painter([
+      ["r", INK, 32, 12, 36, 76], ["r", "#111111", 38, 22, 24, 48]
+    ]),
+    hat: painter([
+      ["r", YELLOW, 36, 28, 28, 36], ["e", YELLOW, 50, 66, 34, 8]
+    ]),
+    shoe: painter([
+      ["p", BROWN, 16, 58, 78, 58, 86, 74, 18, 74]
+    ]),
+    sock: painter([
+      ["p", BLUE, 36, 16, 64, 16, 64, 62, 78, 78, 30, 78, 36, 60],
+      ["r", "#2f69b8", 36, 16, 28, 12]
+    ]),
+    coat: painter([
+      ["p", BLUE, 28, 22, 72, 22, 84, 86, 16, 86], ["r", INK, 48, 28, 4, 50]
+    ]),
+    shirt: painter([
+      ["p", RED, 22, 28, 40, 22, 50, 36, 60, 22, 78, 28, 70, 86, 30, 86]
+    ]),
+    pants: painter([
+      ["p", BLUE, 28, 18, 72, 18, 78, 88, 54, 88, 50, 48, 46, 88, 22, 88]
+    ]),
+    dress: painter([
+      ["p", RED, 36, 18, 64, 18, 58, 36, 80, 88, 20, 88, 42, 36]
+    ]),
+    boot: painter([
+      ["p", DBROWN, 28, 16, 62, 16, 62, 62, 88, 62, 88, 84, 22, 84, 28, 70]
+    ]),
+    glove: painter([
+      ["p", RED, 34, 80, 30, 36, 24, 20, 36, 16, 42, 30, 48, 14, 56, 18, 58, 34, 70, 28, 66, 80]
+    ]),
+    scarf: painter([
+      ["r", RED, 18, 36, 64, 18], ["r", YELLOW, 18, 48, 64, 18],
+      ["r", RED, 18, 60, 64, 18], ["r", YELLOW, 18, 72, 64, 18],
+      ["r", RED, 62, 40, 16, 40]
+    ]),
+    ball: painter([
+      ["e", BLUE, 50, 52, 28, 28], ["r", PAPER, 22, 48, 56, 10]
+    ]),
+    doll: painter([
+      ["e", SKIN, 50, 28, 14, 14], ["p", RED, 34, 44, 66, 44, 78, 86, 22, 86]
+    ]),
+    block: painter([
+      ["p", RED, 24, 40, 58, 24, 84, 40, 50, 56], ["p", "#b43232", 24, 40, 50, 56, 50, 86, 24, 70],
+      ["p", "#e07070", 50, 56, 84, 40, 84, 70, 50, 86]
+    ]),
+    book: painter([
+      ["r", BLUE, 24, 20, 52, 64], ["r", PAPER, 30, 26, 40, 52]
+    ]),
+    drum: painter([
+      ["e", RED, 46, 58, 24, 16], ["e", TAN, 46, 48, 24, 8],
+      ["l", DBROWN, 3, 70, 30, 92, 70], ["l", DBROWN, 3, 78, 22, 96, 62]
+    ]),
+    kite: painter([
+      ["p", RED, 50, 16, 78, 48, 50, 80, 22, 48], ["l", INK, 2, 50, 80, 62, 96],
+      ["l", INK, 2, 62, 90, 74, 98]
+    ]),
+    top: painter([
+      ["p", RED, 50, 78, 24, 48, 76, 48], ["r", YELLOW, 30, 40, 40, 12],
+      ["l", INK, 2, 50, 18, 50, 36]
+    ]),
+    bell: painter([
+      ["p", YELLOW, 28, 30, 72, 30, 80, 68, 20, 68], ["e", YELLOW, 50, 26, 8, 8],
+      ["e", DBROWN, 50, 62, 4, 4]
+    ]),
+    car: painter([
+      ["r", RED, 16, 48, 68, 22], ["e", RED, 18, 40, 16, 12],
+      ["e", INK, 28, 72, 8, 8], ["e", INK, 66, 72, 8, 8],
+      ["r", "#9ec7ef", 24, 36, 22, 12]
+    ]),
+    bus: painter([
+      ["r", YELLOW, 12, 28, 76, 44], ["r", "#9ec7ef", 20, 36, 12, 12],
+      ["r", "#9ec7ef", 38, 36, 12, 12], ["r", "#9ec7ef", 56, 36, 12, 12],
+      ["e", INK, 28, 74, 7, 7], ["e", INK, 68, 74, 7, 7]
+    ]),
+    bike: painter([
+      ["e", BLUE, 28, 62, 14, 14], ["e", BLUE, 74, 62, 14, 14],
+      ["l", INK, 3, 28, 62, 50, 36], ["l", INK, 3, 50, 36, 74, 62],
+      ["l", INK, 3, 50, 36, 62, 48], ["l", INK, 3, 40, 48, 66, 48]
+    ]),
+    boat: painter([
+      ["p", BROWN, 16, 58, 84, 58, 70, 78, 30, 78], ["p", PAPER, 48, 54, 62, 18, 58, 54]
+    ]),
+    plane: painter([
+      ["e", GRAY, 50, 52, 34, 8], ["p", GRAY, 46, 40, 70, 52, 46, 64],
+      ["p", GRAY, 78, 44, 92, 52, 78, 60]
+    ]),
+    train: painter([
+      ["r", INK, 18, 36, 48, 36], ["r", INK, 66, 46, 20, 26],
+      ["e", INK, 30, 76, 8, 8], ["e", INK, 70, 76, 8, 8],
+      ["r", YELLOW, 24, 46, 16, 12]
+    ]),
+    truck: painter([
+      ["r", TAN, 40, 36, 46, 32], ["r", RED, 12, 46, 28, 22],
+      ["e", INK, 28, 74, 7, 7], ["e", INK, 62, 74, 7, 7]
+    ]),
+    wagon: painter([
+      ["r", BROWN, 22, 36, 56, 28], ["e", INK, 30, 74, 7, 7],
+      ["e", INK, 46, 74, 7, 7], ["e", INK, 62, 74, 7, 7],
+      ["e", INK, 76, 74, 7, 7]
+    ]),
+    sled: painter([
+      ["p", RED, 18, 40, 82, 40, 70, 58, 28, 58], ["l", METAL, 3, 30, 58, 24, 78],
+      ["l", METAL, 3, 66, 58, 74, 78]
+    ]),
+    cart: painter([
+      ["r", BROWN, 18, 40, 64, 12], ["l", BROWN, 4, 18, 52, 30, 74],
+      ["l", BROWN, 4, 82, 52, 70, 74], ["e", INK, 30, 74, 8, 8],
+      ["e", INK, 70, 74, 8, 8]
+    ]),
+    bed: painter([
+      ["r", BROWN, 16, 40, 8, 36], ["r", BROWN, 76, 48, 8, 28],
+      ["r", BLUE, 24, 46, 52, 22], ["r", BROWN, 20, 68, 64, 8]
+    ]),
+    chair: painter([
+      ["r", BROWN, 28, 18, 44, 36], ["r", BROWN, 28, 54, 44, 8],
+      ["r", BROWN, 30, 62, 6, 22], ["r", BROWN, 64, 62, 6, 22],
+      ["r", BROWN, 36, 62, 6, 18], ["r", BROWN, 58, 62, 6, 18]
+    ]),
+    table: painter([
+      ["r", BROWN, 14, 36, 72, 10], ["r", BROWN, 24, 46, 6, 32],
+      ["r", BROWN, 70, 46, 6, 32], ["r", BROWN, 32, 46, 6, 28],
+      ["r", BROWN, 62, 46, 6, 28]
+    ]),
+    desk: painter([
+      ["r", BROWN, 12, 32, 76, 18], ["r", BROWN, 22, 50, 7, 30],
+      ["r", BROWN, 72, 50, 7, 30], ["r", BROWN, 34, 50, 7, 26],
+      ["r", BROWN, 60, 50, 7, 26]
+    ]),
+    sofa: painter([
+      ["r", BLUE, 16, 36, 68, 28], ["r", BLUE, 10, 30, 12, 40],
+      ["r", BLUE, 78, 30, 12, 40], ["r", "#2f6fbe", 16, 48, 68, 16]
+    ]),
+    lamp: painter([
+      ["p", YELLOW, 28, 18, 72, 18, 62, 40, 38, 40], ["r", INK, 48, 40, 4, 36],
+      ["e", INK, 50, 80, 16, 4]
+    ]),
+    shelf: painter([
+      ["r", BROWN, 14, 28, 72, 8], ["r", BROWN, 14, 48, 72, 8],
+      ["r", BROWN, 14, 68, 72, 8]
+    ]),
+    rug: painter([
+      ["r", RED, 12, 28, 76, 48], ["r", "#a32424", 18, 34, 64, 36]
+    ]),
+    door: painter([
+      ["r", BROWN, 28, 12, 44, 76], ["e", YELLOW, 62, 50, 4, 4]
+    ]),
+    crib: painter([
+      ["r", BROWN, 18, 36, 64, 40], ["l", BROWN, 3, 26, 36, 26, 76],
+      ["l", BROWN, 3, 38, 36, 38, 76], ["l", BROWN, 3, 50, 36, 50, 76],
+      ["l", BROWN, 3, 62, 36, 62, 76], ["l", BROWN, 3, 74, 36, 74, 76]
+    ]),
+    tree: painter([
+      ["r", BROWN, 46, 58, 8, 28], ["e", GREEN, 50, 40, 26, 22]
+    ]),
+    flower: painter([
+      ["r", GREEN, 48, 48, 4, 36], ["e", RED, 50, 36, 8, 8],
+      ["e", RED, 38, 46, 8, 8], ["e", RED, 62, 46, 8, 8],
+      ["e", RED, 42, 28, 8, 8], ["e", RED, 58, 28, 8, 8],
+      ["e", YELLOW, 50, 38, 6, 6]
+    ]),
+    rock: painter([
+      ["e", GRAY, 50, 58, 30, 18]
+    ]),
+    sun: painter([
+      ["e", YELLOW, 50, 50, 16, 16],
+      ["l", YELLOW, 4, 50, 18, 50, 6], ["l", YELLOW, 4, 50, 82, 50, 94],
+      ["l", YELLOW, 4, 18, 50, 6, 50], ["l", YELLOW, 4, 82, 50, 94, 50],
+      ["l", YELLOW, 4, 28, 28, 16, 16], ["l", YELLOW, 4, 72, 28, 84, 16],
+      ["l", YELLOW, 4, 28, 72, 16, 84], ["l", YELLOW, 4, 72, 72, 84, 84]
+    ]),
+    moon: painter([
+      ["p", PAPER, 42, 24, 62, 20, 70, 50, 60, 80, 40, 78, 52, 50, 48, 28]
+    ]),
+    star: painter([
+      ["p", YELLOW, 50, 12, 58, 40, 88, 40, 64, 56, 74, 86, 50, 68, 26, 86, 36, 56, 12, 40, 42, 40]
+    ]),
+    rain: painter([
+      ["e", BLUE, 30, 30, 6, 10], ["e", BLUE, 50, 24, 6, 10],
+      ["e", BLUE, 70, 34, 6, 10], ["e", BLUE, 40, 58, 6, 10],
+      ["e", BLUE, 62, 64, 6, 10]
+    ]),
+    cloud: painter([
+      ["e", PAPER, 40, 56, 18, 14], ["e", PAPER, 60, 52, 20, 16],
+      ["e", PAPER, 50, 40, 16, 12]
+    ]),
+    grass: painter([
+      ["l", GREEN, 3, 30, 78, 36, 28], ["l", GREEN, 3, 50, 80, 50, 22],
+      ["l", GREEN, 3, 70, 78, 64, 30]
+    ]),
+    leaf: painter([
+      ["e", GREEN, 50, 52, 16, 28], ["l", DBROWN, 2, 50, 30, 50, 78]
+    ]),
+    wind: painter([
+      ["l", INK, 3, 12, 32, 78, 40], ["l", INK, 3, 18, 50, 88, 46],
+      ["l", INK, 3, 10, 68, 70, 60]
+    ]),
+    snow: painter([
+      ["l", PAPER, 3, 50, 14, 50, 86], ["l", PAPER, 3, 18, 32, 82, 68],
+      ["l", PAPER, 3, 18, 68, 82, 32], ["e", INK, 50, 50, 3, 3]
+    ]),
+    storm: painter([
+      ["e", INK, 40, 40, 18, 12], ["e", INK, 62, 38, 20, 14],
+      ["e", BLUE, 36, 64, 5, 9], ["e", BLUE, 52, 70, 5, 9], ["e", BLUE, 68, 62, 5, 9]
+    ]),
+    fog: painter([
+      ["r", GRAY, 14, 30, 72, 10], ["r", GRAY, 14, 48, 72, 10], ["r", GRAY, 14, 66, 72, 10]
+    ]),
+    hail: painter([
+      ["e", PAPER, 40, 48, 12, 12], ["e", PAPER, 60, 44, 12, 12], ["e", PAPER, 50, 64, 12, 12]
+    ]),
+    rainbow: function (ctx, x, y, w, h) {
+      const colors = [RED, ORANGE, YELLOW, GREEN, BLUE, PURPLE];
+      const cx = x + w / 2;
+      const cy = y + h * 0.78;
+      const base = Math.min(w, h) * 0.42;
+      for (let i = 0; i < 6; i++) {
+        ctx.beginPath();
+        ctx.strokeStyle = colors[i];
+        ctx.lineWidth = Math.max(3, Math.min(w, h) * 0.04);
+        ctx.arc(cx, cy, base - i * ctx.lineWidth * 1.2, Math.PI, 0);
+        ctx.stroke();
+      }
+    },
+    puddle: painter([
+      ["r", BROWN, 8, 62, 84, 16], ["e", BLUE, 50, 66, 28, 10]
+    ]),
+    umbrella: painter([
+      ["p", RED, 18, 48, 50, 22, 82, 48, 70, 52, 30, 52], ["l", INK, 3, 50, 48, 50, 84]
+    ]),
+    frost: painter([
+      ["p", PAPER, 50, 18, 68, 34, 84, 50, 68, 66, 50, 82, 32, 66, 16, 50, 32, 34],
+      ["l", INK, 2, 50, 18, 50, 82], ["l", INK, 2, 16, 50, 84, 50]
+    ]),
+    home: painter([
+      ["p", INK, 18, 48, 50, 22, 82, 48, 82, 84, 18, 84], ["r", INK, 62, 28, 10, 18]
+    ]),
+    school: painter([
+      ["r", INK, 16, 46, 68, 40], ["r", INK, 40, 18, 20, 28],
+      ["e", INK, 50, 16, 6, 6]
+    ]),
+    park: painter([
+      ["l", INK, 4, 30, 28, 30, 80], ["l", INK, 4, 70, 28, 70, 80],
+      ["l", INK, 4, 30, 28, 70, 28], ["l", INK, 3, 50, 28, 50, 70]
+    ]),
+    farm: painter([
+      ["r", INK, 16, 40, 68, 46], ["p", INK, 16, 40, 50, 16, 84, 40]
+    ]),
+    store: painter([
+      ["r", INK, 22, 40, 56, 46], ["r", RED, 16, 28, 22, 14],
+      ["r", PAPER, 38, 28, 22, 14], ["r", RED, 60, 28, 22, 14]
+    ]),
+    beach: painter([
+      ["e", TAN, 50, 70, 30, 12], ["p", RED, 30, 48, 50, 28, 70, 48],
+      ["l", INK, 3, 50, 30, 50, 62]
+    ]),
+    hill: painter([
+      ["e", GREEN, 50, 62, 40, 22]
+    ]),
+    lake: painter([
+      ["e", BLUE, 50, 54, 34, 18]
+    ]),
+    bridge: painter([
+      ["p", INK, 10, 58, 30, 36, 70, 36, 90, 58, 90, 70, 10, 70]
+    ]),
+    road: painter([
+      ["p", GRAY, 8, 36, 92, 36, 78, 84, 22, 84], ["r", PAPER, 46, 52, 8, 16]
+    ]),
+    garden: painter([
+      ["r", BROWN, 16, 58, 68, 22], ["e", RED, 32, 50, 6, 6],
+      ["e", RED, 50, 46, 6, 6], ["e", RED, 68, 50, 6, 6]
+    ]),
+    library: painter([
+      ["r", INK, 18, 36, 64, 50], ["p", PAPER, 40, 48, 60, 48, 58, 86, 42, 86],
+      ["r", INK, 22, 78, 56, 8]
+    ]),
+    morning: function (ctx, x, y, w, h) {
+      ctx.save();
+      ctx.globalAlpha = 0.35;
+      ctx.fillStyle = BLUE;
+      ctx.fillRect(x, y, w, h);
+      ctx.restore();
+      el(ctx, YELLOW, x + w * 0.3, y + h * 0.72, w * 0.12, h * 0.12);
+    },
+    noon: function (ctx, x, y, w, h) {
+      ctx.fillStyle = BLUE;
+      ctx.fillRect(x, y, w, h);
+      el(ctx, YELLOW, x + w * 0.5, y + h * 0.32, w * 0.12, h * 0.12);
+    },
+    evening: function (ctx, x, y, w, h) {
+      ctx.fillStyle = PURPLE;
+      ctx.fillRect(x, y, w, h);
+      el(ctx, ORANGE, x + w * 0.72, y + h * 0.7, w * 0.12, h * 0.12);
+    },
+    night: function (ctx, x, y, w, h) {
+      ctx.fillStyle = BLUE;
+      ctx.fillRect(x, y, w, h);
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = INK;
+      ctx.fillRect(x, y, w, h);
+      ctx.restore();
+      nctx(ctx, x, y, w, h, function (g) {
+        pg(g, PAPER, [30, 28, 46, 24, 50, 48, 42, 70, 28, 68, 36, 48]);
+        pg(g, YELLOW, [70, 22, 73, 30, 82, 32, 74, 36, 76, 44, 70, 38, 64, 44, 66, 36, 58, 32, 67, 30]);
+        pg(g, YELLOW, [78, 58, 80, 64, 86, 66, 81, 69, 82, 75, 78, 70, 74, 75, 75, 69, 70, 66, 76, 64]);
+      });
+    }
+  };
+
+  ["red", "yellow", "blue", "green", "orange", "purple", "brown", "pink", "gray", "tan"].forEach(function (name) {
+    const hex = {
+      red: RED, yellow: YELLOW, blue: BLUE, green: GREEN, orange: ORANGE,
+      purple: PURPLE, brown: BROWN, pink: PINK, gray: GRAY, tan: TAN
+    }[name];
+    PAINT[name] = diskPainter(hex, false);
+  });
+  PAINT.black = diskPainter(BLACK, false);
+  PAINT.white = diskPainter(PAPER, true);
+
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const playEl = document.getElementById("play");
+  const restEl = document.getElementById("screen-rest");
+  const promptBtn = document.getElementById("prompt");
+  const choiceBtns = [0, 1, 2, 3].map(function (i) { return document.getElementById("choice-" + i); });
+  const stopBtn = document.getElementById("stop");
+  const anotherBtn = document.getElementById("another");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+  const subjectHost = document.createElement("div");
+  playEl.insertBefore(subjectHost, promptBtn);
+  const subjectBtns = [];
+  for (let s = 0; s < 8; s++) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "subject-btn";
+    btn.hidden = true;
+    btn.addEventListener("click", function () {
+      if (btn.dataset.id) subject(btn.dataset.id);
+    });
+    subjectHost.appendChild(btn);
+    subjectBtns.push(btn);
+  }
+
+  let screen = "menu";
+  let highlighted = "tiny";
+  let level = null;
+  let subjectId = null;
+  let phase = null;
+  let direction = null;
+  let prompt = null;
+  let choices = [];
+  let trial = 0;
+  let cap = null;
+  let said = null;
+  let lastChoice = null;
+  let muted = false;
+  let history = [];
+  let plan = null;
+  let planSeed = 0;
+  let dealt = null;
+  let sittingMs = 0;
+  let showStart = 0;
+  let ignoreId = null;
+  let pinnedSeed = null;
+  let dealCount = 1;
+  let clock = 0;
+  let checking = false;
+  let suppressReconnect = false;
+  let pointerActive = false;
+  let activePointer = null;
+  let audioCtx = null;
+  let master = null;
+  let gazeSock = null;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazeTimer = 0;
+  let visit = null;
+  let dwellProgress = 0;
+
+  function bannerText() {
+    if (screen === "menu") return "Pick who is playing.";
+    if (screen === "subject") return "Pick a subject.";
+    if (screen === "rest") return "That was a good sitting.";
+    if (screen === "trial") {
+      if (phase === "show") return "Here they are together.";
+      if (direction === "picture-word") return "Look at the picture, then the word.";
+      if (direction === "hear-picture" || direction === "word-picture") return "Look at the word, then the picture.";
+    }
+    return "";
+  }
+
+  function state() {
+    return {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      subject: subjectId,
+      phase: phase,
+      direction: direction,
+      prompt: prompt,
+      choices: choices.map(function (c) { return { id: c.id, face: c.face }; }),
+      trial: trial,
+      cap: cap,
+      said: said,
+      lastChoice: lastChoice
+    };
+  }
+
+  function clearDealt() {
+    subjectId = null;
+    phase = null;
+    direction = null;
+    prompt = null;
+    choices = [];
+    trial = 0;
+    lastChoice = null;
+    history = [];
+    plan = null;
+    dealt = null;
+    showStart = 0;
+    ignoreId = null;
+  }
+
+  function go(screenId) {
+    if (screenId !== "menu" && screenId !== "subject" && screenId !== "trial" && screenId !== "rest") {
+      render();
+      return;
+    }
+    if (screenId === "menu") clearDealt();
+    screen = screenId;
+    render();
+  }
+
+  function selectBand(id) {
+    if (!BANDS[id]) return;
+    highlighted = id;
+    render();
+  }
+
+  function start(band) {
+    if (!BANDS[band]) {
+      render();
+      return;
+    }
+    highlighted = band;
+    level = band;
+    clearDealt();
+    cap = flashCap(band);
+    said = null;
+    sittingMs = 0;
+    go("subject");
+  }
+
+  function dealCurrent() {
+    dealt = flashTrial(level, subjectId, plan, trial, history, planSeed);
+    if (!dealt) {
+      direction = null;
+      prompt = null;
+      choices = [];
+      return;
+    }
+    direction = dealt.direction;
+    prompt = dealt.promptId;
+    choices = dealt.choices.map(function (c) { return { id: c.id, face: c.face }; });
+  }
+
+  function subject(id) {
+    const meta = level ? subjectMeta(level, id) : null;
+    if (!meta) {
+      render();
+      return;
+    }
+    let use;
+    if (pinnedSeed !== null) {
+      use = pinnedSeed >>> 0;
+      pinnedSeed = null;
+    } else {
+      use = playSeed(Date.now(), dealCount);
+    }
+    dealCount += 1;
+    subjectId = id;
+    planSeed = use;
+    plan = flashPlan(level, id, use);
+    history = [];
+    said = null;
+    sittingMs = 0;
+    trial = 0;
+    phase = "ask";
+    lastChoice = null;
+    ignoreId = null;
+    cap = flashCap(level);
+    showStart = 0;
+    dealCurrent();
+    go("trial");
+  }
+
+  function choose(id) {
+    if (screen !== "trial" || phase !== "ask" || !dealt) {
+      render();
+      return;
+    }
+    let card = null;
+    for (let i = 0; i < dealt.choices.length; i++) {
+      if (dealt.choices[i].id === id) card = dealt.choices[i];
+    }
+    if (!card) {
+      render();
+      return;
+    }
+    lastChoice = id;
+    const correct = id === dealt.promptId;
+    history.push({ promptId: dealt.promptId, direction: dealt.direction, correct: correct });
+    phase = "show";
+    showStart = clock;
+    ignoreId = correct ? null : id;
+    blip();
+    render();
+  }
+
+  function speakWord(word) {
+    if (muted) return;
+    const meta = level ? subjectMeta(level, subjectId) : null;
+    if (!meta || meta.words.indexOf(word) < 0) return;
+    said = word;
+    try {
+      const synth = window.speechSynthesis;
+      if (!synth) return;
+      synth.cancel();
+      synth.speak(new SpeechSynthesisUtterance(word));
+    } catch (err) {}
+  }
+
+  function hear() {
+    if (screen !== "trial" || !prompt) {
+      render();
+      return;
+    }
+    speakWord(prompt);
+    render();
+  }
+
+  function onChoice(id) {
+    if (ignoreId && id === ignoreId) return;
+    if (screen !== "trial" || phase !== "ask") return;
+    let card = null;
+    for (let i = 0; i < choices.length; i++) {
+      if (choices[i].id === id) card = choices[i];
+    }
+    if (!card) return;
+    if (card.face === "print") speakWord(id);
+    choose(id);
+  }
+
+  function seed(n) {
+    pinnedSeed = n >>> 0;
+    render();
+  }
+
+  function advanceTrial() {
+    clearVisit();
+    const next = trial + 1;
+    const ceiling = level ? CEILING[level] : 0;
+    if (next >= cap || sittingMs >= ceiling) {
+      trial = next;
+      go("rest");
+      return;
+    }
+    trial = next;
+    phase = "ask";
+    lastChoice = null;
+    ignoreId = null;
+    dealCurrent();
+    go("trial");
+  }
+
+  function ensureAudio() {
+    if (audioCtx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      audioCtx = new AC();
+      master = audioCtx.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(audioCtx.destination);
+    } catch (err) {
+      audioCtx = null;
+      master = null;
+    }
+  }
+
+  function blip() {
+    if (!audioCtx || !master) return;
+    try {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = "sine";
+      osc.frequency.value = 660;
+      const t0 = audioCtx.currentTime;
+      gain.gain.setValueAtTime(0.5, t0);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.08);
+      osc.connect(gain);
+      gain.connect(master);
+      osc.start(t0);
+      osc.stop(t0 + 0.08);
+    } catch (err) {}
+  }
+
+  function setMuted(next) {
+    muted = next;
+    muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    if (muted && window.speechSynthesis) {
+      try { window.speechSynthesis.cancel(); } catch (err) {}
+    }
+  }
+
+  function promptMode() {
+    if (screen !== "trial") return "none";
+    if (phase === "show") return "pair";
+    if (direction === "picture-word") return "picture";
+    if (direction === "hear-picture" || direction === "word-picture") return "word";
+    return "none";
+  }
+
+  function playTop(w) {
+    const backW = screen === "menu" ? 0 : Math.min(200, Math.max(72, w - 176));
+    const rightLimit = screen === "menu" ? w - 12 : w - 8 - backW - 8;
+    return rightLimit - 168 >= 120 ? 88 : 132;
+  }
+
+  function trialLayout(w, h, n) {
+    const inset = 12;
+    const gap = 12;
+    const top = playTop(w);
+    const stopH = 72;
+    const stopW = Math.min(240, Math.max(120, w - inset * 2));
+    const stop = { id: "stop", x: (w - stopW) / 2, y: h - 8 - stopH, w: stopW, h: stopH };
+    const contentTop = top;
+    const contentH = Math.max(48, stop.y - gap - contentTop);
+    const contentW = Math.max(48, w - inset * 2);
+    const count = Math.max(1, n);
+    const promptW = Math.floor((contentW - gap) / 2);
+    const listW = contentW - gap - promptW;
+    const prompt = { id: "prompt", x: inset, y: contentTop, w: promptW, h: contentH };
+    const cardH = (contentH - gap * (count - 1)) / count;
+    const choices = [];
+    const listX = inset + promptW + gap;
+    for (let i = 0; i < count; i++) {
+      choices.push({
+        id: "choice-" + i,
+        x: listX,
+        y: contentTop + i * (cardH + gap),
+        w: listW,
+        h: cardH
+      });
+    }
+    return { area: prompt, stop: stop, choices: choices, prompt: prompt };
+  }
+
+  function wordSize(word, box, pair) {
+    const letters = Math.max(3, String(word || "").length);
+    const byW = Math.floor((box.w - 20) / (letters * 0.62));
+    const byH = Math.floor(box.h * (pair ? 0.16 : 0.28));
+    return Math.max(20, Math.min(72, byW, byH)) + "px";
+  }
+
+  function targetsAt(w, h) {
+    const targets = [
+      { id: "mute", x: 8, y: 8, w: 72, h: 72 },
+      { id: "full", x: 88, y: 8, w: 72, h: 72 }
+    ];
+    if (screen !== "menu") {
+      const backW = Math.min(200, w - 176);
+      targets.push({ id: "back", x: w - 8 - backW, y: 8, w: backW, h: 72 });
+    }
+    if (screen === "menu") {
+      const bw = Math.min(460, w - 32);
+      const bx = (w - bw) / 2;
+      let y = 84;
+      ["tiny", "little", "shop", "rush"].forEach(function (id) {
+        targets.push({ id: id, x: bx, y: y, w: bw, h: 72 });
+        y += 80;
+      });
+      targets.push({ id: "lets-go", x: bx, y: h - 12 - 72, w: bw, h: 72 });
+    } else if (screen === "subject" && level) {
+      const subs = BANDS[level].subjects;
+      const bw = Math.min(460, w - 32);
+      const bx = (w - bw) / 2;
+      let y = 96;
+      subs.forEach(function (sub) {
+        targets.push({ id: "subject-" + sub.id, x: bx, y: y, w: bw, h: 72 });
+        y += 80;
+      });
+      targets.push({ id: "stop", x: bx, y: h - 88, w: bw, h: 72 });
+    } else if (screen === "trial") {
+      const lay = trialLayout(w, h, choices.length);
+      if (lay.prompt) targets.push(lay.prompt);
+      lay.choices.forEach(function (box) { targets.push(box); });
+      targets.push(lay.stop);
+    } else if (screen === "rest") {
+      const bw = Math.min(360, w - 32);
+      targets.push({ id: "another", x: (w - bw) / 2, y: Math.round(h * 0.55), w: bw, h: 76 });
+    }
+    return { targets: targets };
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+
+  function centers() {
+    const targets = {};
+    document.querySelectorAll("button").forEach(function (btn) {
+      if (!buttonVisible(btn)) return;
+      const r = btn.getBoundingClientRect();
+      const x = r.left + r.width / 2;
+      const y = r.top + r.height / 2;
+      targets[btn.id] = {
+        x: x, y: y,
+        nx: x / window.innerWidth,
+        ny: y / window.innerHeight,
+        w: r.width, h: r.height,
+        left: r.left, top: r.top
+      };
+    });
+    return { targets: targets };
+  }
+
+  function place(el, box) {
+    el.style.position = "fixed";
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+
+  function resizeCanvas() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = Math.max(1, window.innerWidth);
+    const h = Math.max(1, window.innerHeight);
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+
+  function roundRect(x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+
+  function paintCard(id, x, y, w, h) {
+    if (w <= 1 || h <= 1) return;
+    ctx.save();
+    roundRect(x, y, w, h, 22);
+    ctx.fillStyle = PAPER;
+    ctx.fill();
+    ctx.clip();
+    const side = Math.min(w, h) * 0.92;
+    const fn = PAINT[id];
+    if (fn) fn(ctx, x + (w - side) / 2, y + (h - side) / 2, side, side);
+    ctx.restore();
+  }
+
+  function drawHorn(x, y, w, h) {
+    nctx(ctx, x, y, w, h, function (g) {
+      pg(g, INK, [8, 28, 68, 42, 68, 58, 8, 74]);
+      rc(g, INK, 68, 40, 16, 20);
+    });
+  }
+
+  function drawScene(lay) {
+    resizeCanvas();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    ctx.fillStyle = CREAM;
+    ctx.fillRect(0, 0, w, h);
+    if (screen !== "trial" || !lay || !lay.prompt) return;
+    const box = lay.prompt;
+    if (phase === "show") {
+      const picH = Math.max(0, box.h * 0.72);
+      if (prompt) paintCard(prompt, box.x, box.y, box.w, picH);
+      ctx.fillStyle = PAPER;
+      ctx.fillRect(box.x, box.y + picH, box.w, Math.max(0, box.h - picH));
+    } else if (direction === "picture-word" && prompt) {
+      paintCard(prompt, box.x, box.y, box.w, box.h);
+    }
+    for (let i = 0; i < choices.length; i++) {
+      if (choices[i].face !== "picture") continue;
+      const card = lay.choices[i];
+      if (!card) continue;
+      paintCard(choices[i].id, card.x, card.y, card.w, card.h);
+    }
+  }
+
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+
+  function eyesLive(now) {
+    return !!(gazePoint && (now - gazeAt) < GAZE_FRESH_MS && eyesOn());
+  }
+
+  function syncGazeMark() {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(clock);
+    if (!live || !gazePoint) {
+      gazeEl.hidden = true;
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    const p = pointerActive ? 0 : dwellProgress;
+    gazeEl.style.setProperty("--p", Math.round(Math.max(0, Math.min(1, p)) * 100) + "%");
+  }
+
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    menuEl.hidden = screen !== "menu";
+    playEl.hidden = screen !== "subject" && screen !== "trial";
+    restEl.hidden = screen !== "rest";
+    backBtn.hidden = screen === "menu";
+    place(muteBtn, { x: 8, y: 8, w: 72, h: 72 });
+    place(fullBtn, { x: 88, y: 8, w: 72, h: 72 });
+    if (screen !== "menu") {
+      const backW = Math.min(200, w - 176);
+      place(backBtn, { x: w - 8 - backW, y: 8, w: backW, h: 72 });
+    }
+    ["tiny", "little", "shop", "rush"].forEach(function (id) {
+      document.getElementById(id).setAttribute("aria-pressed", highlighted === id ? "true" : "false");
+    });
+    bannerEl.textContent = bannerText();
+    const bannerBack = screen === "menu" ? 0 : Math.min(200, Math.max(72, w - 176));
+    const bannerRight = screen === "menu" ? w - 12 : w - 8 - bannerBack - 8;
+    if (bannerRight - 168 >= 120) place(bannerEl, { x: 168, y: 8, w: bannerRight - 168, h: 72 });
+    else place(bannerEl, { x: 12, y: 84, w: Math.max(40, w - 24), h: 40 });
+    const subs = level ? BANDS[level].subjects : [];
+    const onSubject = screen === "subject";
+    subjectBtns.forEach(function (btn, i) {
+      if (onSubject && i < subs.length) {
+        btn.hidden = false;
+        btn.dataset.id = subs[i].id;
+        btn.id = "subject-" + subs[i].id;
+        btn.textContent = subs[i].name;
+        btn.removeAttribute("data-play");
+        const bw = Math.min(460, w - 32);
+        place(btn, { x: (w - bw) / 2, y: 96 + i * 80, w: bw, h: 72 });
+      } else {
+        btn.hidden = true;
+      }
+    });
+    const showTrial = screen === "trial" && choices.length > 0;
+    const mode = promptMode();
+    const lay = showTrial ? trialLayout(w, h, choices.length) : null;
+    promptBtn.hidden = !showTrial || !lay;
+    if (showTrial && lay && lay.prompt) {
+      place(promptBtn, lay.prompt);
+      if (mode === "picture") {
+        promptBtn.textContent = "";
+        promptBtn.className = "face-picture";
+        promptBtn.removeAttribute("data-play");
+        promptBtn.style.pointerEvents = "none";
+        promptBtn.setAttribute("aria-label", prompt || "Picture");
+      } else if (mode === "pair") {
+        promptBtn.textContent = prompt || "";
+        promptBtn.className = "face-pair";
+        promptBtn.style.fontSize = wordSize(prompt, lay.prompt, true);
+        promptBtn.setAttribute("data-play", "true");
+        promptBtn.style.pointerEvents = "auto";
+        promptBtn.setAttribute("aria-label", prompt || "");
+      } else {
+        promptBtn.textContent = prompt || "";
+        promptBtn.className = "face-print";
+        promptBtn.style.fontSize = wordSize(prompt, lay.prompt, false);
+        promptBtn.setAttribute("data-play", "true");
+        promptBtn.style.pointerEvents = "auto";
+        promptBtn.setAttribute("aria-label", prompt || "Hear the word");
+      }
+    }
+    for (let i = 0; i < choiceBtns.length; i++) {
+      const btn = choiceBtns[i];
+      if (!showTrial || i >= choices.length) {
+        btn.hidden = true;
+        btn.textContent = "";
+        btn.removeAttribute("data-id");
+        btn.removeAttribute("data-play");
+        btn.style.outline = "none";
+        continue;
+      }
+      const card = choices[i];
+      const box = lay.choices[i];
+      btn.hidden = false;
+      place(btn, box);
+      btn.dataset.id = card.id;
+      btn.setAttribute("data-play", "true");
+      if (card.face === "print") {
+        btn.textContent = card.id;
+        btn.className = "choice face-print";
+        btn.style.fontSize = wordSize(card.id, box, false);
+        btn.removeAttribute("aria-label");
+      } else {
+        btn.textContent = "";
+        btn.className = "choice face-picture";
+        btn.setAttribute("aria-label", card.id);
+      }
+      if (phase === "show" && card.id === prompt) btn.style.outline = "6px solid #e2a62e";
+      else btn.style.outline = "none";
+    }
+    if (screen === "subject" || screen === "trial") {
+      stopBtn.hidden = false;
+      if (screen === "trial" && lay) place(stopBtn, lay.stop);
+      else {
+        const bw = Math.min(460, w - 32);
+        place(stopBtn, { x: (w - bw) / 2, y: h - 88, w: bw, h: 72 });
+      }
+    } else {
+      stopBtn.hidden = true;
+    }
+    drawScene(lay);
+    syncGazeMark();
+  }
+
+  function dwellMsFor(btn) {
+    return btn && btn.getAttribute("data-play") === "true" ? PLAY_DWELL_MS : MENU_DWELL_MS;
+  }
+
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (btn && buttonVisible(btn)) return btn;
+    return null;
+  }
+
+  function clearVisit() {
+    visit = null;
+    dwellProgress = 0;
+  }
+
+  function stepGaze(now) {
+    const live = !!(gazePoint && (now - gazeAt) < GAZE_FRESH_MS && eyesOn());
+    if (!live) {
+      clearVisit();
+      return;
+    }
+    if (pointerActive) {
+      clearVisit();
+      return;
+    }
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (ignoreId) {
+      const hitId = btn && btn.dataset ? btn.dataset.id : "";
+      if (hitId !== ignoreId) ignoreId = null;
+    }
+    if (btn && visit && visit.btn !== btn) {
+      visit = { btn: btn, elapsed: 0, last: now, fired: false, ms: dwellMsFor(btn), offSince: 0 };
+      dwellProgress = 0;
+      return;
+    }
+    if (btn && !visit) {
+      visit = { btn: btn, elapsed: 0, last: now, fired: false, ms: dwellMsFor(btn), offSince: 0 };
+      dwellProgress = 0;
+      return;
+    }
+    if (btn && visit && visit.btn === btn) {
+      if (visit.offSince) {
+        visit.offSince = 0;
+        visit.last = now;
+      }
+      const grew = now - visit.last;
+      if (grew > 0) visit.elapsed += grew;
+      visit.last = now;
+      if (!visit.fired && visit.elapsed >= visit.ms) {
+        visit.fired = true;
+        dwellProgress = 1;
+        ensureAudio();
+        visit.btn.click();
+        return;
+      }
+      dwellProgress = visit.fired ? 1 : Math.min(1, visit.elapsed / visit.ms);
+      return;
+    }
+    if (!btn && visit) {
+      if (!visit.offSince) visit.offSince = now;
+      if (now - visit.offSince >= LEAVE_MS) {
+        clearVisit();
+        return;
+      }
+      dwellProgress = visit.fired ? 1 : Math.min(1, visit.elapsed / visit.ms);
+      return;
+    }
+    dwellProgress = 0;
+  }
+
+  function step(now) {
+    const prev = clock;
+    const dt = now - prev;
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth || !smoothed) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed.x += (gazeHold.x - smoothed.x) * 0.45;
+        smoothed.y += (gazeHold.y - smoothed.y) * 0.45;
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    if (screen === "trial" && dt > 0 && dt < 120000) sittingMs += dt;
+    if (screen === "trial" && phase === "show" && now >= showStart + SHOW_MS) advanceTrial();
+    if (screen === "trial" && level && sittingMs >= CEILING[level]) go("rest");
+    else render();
+  }
+
+  function look(nx, ny) {
+    const x = nx * window.innerWidth;
+    const y = ny * window.innerHeight;
+    gazeHold = { x: x, y: y };
+    refreshHold = true;
+    smoothed = { x: x, y: y };
+    haveSmooth = true;
+    gazePoint = smoothed;
+    gazeAt = clock;
+    render();
+  }
+
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearVisit();
+    ignoreId = null;
+    render();
+  }
+
+  function hold(nx, ny) {
+    if (pointerActive) {
+      render();
+      return;
+    }
+    pointerActive = true;
+    clearVisit();
+    ensureAudio();
+    render();
+  }
+
+  function release() {
+    pointerActive = false;
+    activePointer = null;
+    render();
+  }
+
+  function tap(nx, ny) {
+    const x = nx * window.innerWidth;
+    const y = ny * window.innerHeight;
+    const btn = buttonAt(x, y);
+    if (btn) {
+      ensureAudio();
+      btn.click();
+    }
+    render();
+  }
+
+  function dwell() {
+    return pointerActive ? 0 : dwellProgress;
+  }
+
+  function eyes() {
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+
+  function pushRaw(raw) {
+    if (!haveSmooth || !smoothed) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed.x += (raw.x - smoothed.x) * 0.45;
+      smoothed.y += (raw.y - smoothed.y) * 0.45;
+    }
+    gazePoint = smoothed;
+    gazeAt = checking ? clock : (clock || performance.now());
+  }
+
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+
+  function warpPoint(x, y) {
+    const warp = gazeWarp;
+    if (!warp) return { x: x, y: y };
+    const w = warp[6] * x + warp[7] * y + warp[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (warp[0] * x + warp[1] * y + warp[2]) / w,
+      y: (warp[3] * x + warp[4] * y + warp[5]) / w
+    };
+  }
+
+  function engineSelfCheck() {
+    const failures = [];
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    const rng = makeRng(1);
+    const expect = [0xA087EAF3, 0x00B349C9, 0x8706C4EB, 0xFB2627FD];
+    for (let i = 0; i < 4; i++) {
+      const got = rngUint(rng);
+      if (got !== expect[i]) fail("engine-rng", "uint " + i + " was " + got.toString(16) + ".");
+    }
+    if (playSeed(1, 1) !== 0x3B230FE8) fail("engine-rng", "playSeed(1, 1) was not the frozen value.");
+    const fresh = makeRng(1);
+    for (let i = 0; i < 24; i++) {
+      const n = rngInt(fresh, 0, 3);
+      if (n < 0 || n > 3) fail("engine-rng", "rngInt left the range 0 to 3.");
+    }
+    function idsOf(trialRow) {
+      return trialRow.choices.map(function (c) { return c.id; });
+    }
+    function same(a, b) {
+      if (!a || !b || a.length !== b.length) return false;
+      for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+      return true;
+    }
+    const tinyPlan = flashPlan("tiny", "animals", 31);
+    const tinyOrder = ["fish", "fish", "cow", "cow", "dog", "dog", "duck", "duck"];
+    if (!tinyPlan || !same(tinyPlan.order, tinyOrder)) fail("engine-tiny", "Tiny animals order did not match seed 31.");
+    const tinyChoices = [
+      ["dog", "fish", "cat"], ["dog", "fish", "cat"], ["cat", "cow", "dog"], ["dog", "cat", "cow"],
+      ["fish", "bird", "dog"], ["dog", "fish", "bird"], ["dog", "cat", "duck"], ["dog", "cat", "duck"]
+    ];
+    if (tinyPlan) {
+      for (let i = 0; i < 8; i++) {
+        const row = flashTrial("tiny", "animals", tinyPlan, i, [], 31);
+        if (!row || row.direction !== "hear-picture") fail("engine-tiny", "Trial " + i + " was not hear-picture.");
+        if (!row || !same(idsOf(row), tinyChoices[i])) fail("engine-tiny", "Trial " + i + " choices did not match.");
+        if (row && row.choices.some(function (c) { return c.face !== "picture"; })) {
+          fail("engine-tiny", "Trial " + i + " was not a picture face.");
+        }
+        if (row) {
+          const answer = row.answerId;
+          row.choices.forEach(function (c) {
+            if (c.id !== answer && clusterOf("tiny", "animals", c.id) === clusterOf("tiny", "animals", answer)) {
+              fail("engine-tiny", "Trial " + i + " used the answer cluster as a foil.");
+            }
+          });
+        }
+      }
+      let pair = 0;
+      while (tinyPlan.order[pair] && pair < tinyPlan.order.length) {
+        if (tinyPlan.order[pair] !== tinyPlan.order[pair + 1]) fail("engine-tiny", "An id did not appear twice before a different id.");
+        if (pair + 2 < tinyPlan.order.length && tinyPlan.order[pair + 2] === tinyPlan.order[pair]) {
+          fail("engine-tiny", "An id repeated before a different id appeared.");
+        }
+        pair += 2;
+      }
+    }
+    const foodPlan = flashPlan("tiny", "food", 31);
+    const foodOrder = ["bread", "bread", "cookie", "cookie", "milk", "milk", "water", "water"];
+    if (!foodPlan || !same(foodPlan.order, foodOrder)) fail("engine-tiny", "Tiny food order did not match seed 31.");
+    const food0 = foodPlan && flashTrial("tiny", "food", foodPlan, 0, [], 31);
+    if (!food0 || !same(idsOf(food0), ["milk", "bread", "apple"])) fail("engine-tiny", "Tiny food trial 0 was not milk, bread, apple.");
+    const bodyPlan = flashPlan("tiny", "body", 31);
+    const bodyOrder = ["hand", "hand", "foot", "foot", "eye", "eye", "tummy", "tummy"];
+    if (!bodyPlan || !same(bodyPlan.order, bodyOrder)) fail("engine-tiny", "Tiny body order did not match seed 31.");
+    const body0 = bodyPlan && flashTrial("tiny", "body", bodyPlan, 0, [], 31);
+    if (!body0 || !same(idsOf(body0), ["eye", "hand", "nose"])) fail("engine-tiny", "Tiny body trial 0 was not eye, hand, nose.");
+
+    const littlePlan = flashPlan("little", "animals", 31);
+    const littleOrder = ["horse", "horse", "fish", "fish", "bird", "bird", "dog", "dog", "cow", "cow", "duck", "duck"];
+    if (!littlePlan || !same(littlePlan.order, littleOrder)) fail("engine-little", "Little animals order did not match seed 31.");
+    const empty3 = littlePlan && flashTrial("little", "animals", littlePlan, 3, [], 31);
+    if (!empty3 || empty3.direction !== "hear-picture" || !same(idsOf(empty3), ["cow", "duck", "fish"])) {
+      fail("engine-little", "Empty history at index 3 was not hear-picture with cow, duck, fish.");
+    }
+    const heard3 = littlePlan && flashTrial("little", "animals", littlePlan, 3, [{ promptId: "fish", direction: "hear-picture", correct: true }], 31);
+    if (!heard3 || heard3.direction !== "picture-word" || heard3.choices.some(function (c) { return c.face !== "print"; })) {
+      fail("engine-little", "A heard fish at index 3 did not print.");
+    }
+    if (heard3 && !same(idsOf(heard3), ["cow", "duck", "fish"])) fail("engine-little", "Heard index 3 choices changed.");
+    const twoMiss = [
+      { promptId: "x", direction: "picture-word", correct: false },
+      { promptId: "y", direction: "picture-word", correct: false }
+    ];
+    [3, 7, 11].forEach(function (index) {
+      const answer = littleOrder[index];
+      const hist = twoMiss.concat([{ promptId: answer, direction: "hear-picture", correct: true }]);
+      const row = flashTrial("little", "animals", littlePlan, index, hist, 31);
+      if (!row || row.direction !== "hear-picture") fail("engine-little", "Index " + index + " printed after two misses.");
+    });
+    if (littlePlan) {
+      const hist = [];
+      const dirs = [];
+      const printed = [];
+      for (let i = 0; i < 12; i++) {
+        const row = flashTrial("little", "animals", littlePlan, i, hist, 31);
+        dirs.push(row.direction);
+        if (row.direction === "picture-word") printed.push(row.promptId);
+        hist.push({ promptId: row.promptId, direction: row.direction, correct: true });
+      }
+      const want = ["hear-picture", "hear-picture", "hear-picture", "picture-word", "hear-picture", "hear-picture", "hear-picture", "picture-word", "hear-picture", "hear-picture", "hear-picture", "picture-word"];
+      if (!same(dirs, want)) fail("engine-little", "Correct play directions were not one print in four.");
+      if (!same(printed, ["fish", "dog", "duck"])) fail("engine-little", "Printed answers were not fish, dog, and duck.");
+    }
+    const colorPlan = flashPlan("little", "colors", 31);
+    const colorOrder = ["green", "green", "black", "black", "red", "red", "white", "white", "blue", "blue", "yellow", "yellow"];
+    if (!colorPlan || !same(colorPlan.order, colorOrder)) fail("engine-little", "Little colors order did not match seed 31.");
+    const heardColors = ["red", "yellow", "blue", "green", "black", "white"].map(function (id) {
+      return { promptId: id, direction: "hear-picture", correct: true };
+    });
+    if (colorPlan) {
+      for (let i = 0; i < 12; i++) {
+        const row = flashTrial("little", "colors", colorPlan, i, heardColors, 31);
+        if (!row || row.direction !== "hear-picture" || row.choices.some(function (c) { return c.face !== "picture"; })) {
+          fail("engine-little", "Little colors printed a word.");
+        }
+      }
+      const c0 = flashTrial("little", "colors", colorPlan, 0, [], 31);
+      if (!c0 || !same(idsOf(c0), ["black", "green", "white"])) fail("engine-little", "Little colors trial 0 choices were wrong.");
+    }
+
+    const shopPlan = flashPlan("shop", "animals", 31);
+    const shopOrder = ["sheep", "sheep", "duck", "duck", "goat", "goat", "mouse", "mouse", "frog", "frog", "cow", "cow", "pig", "pig", "cat", "cat"];
+    const shopDirs = ["picture-word", "picture-word", "picture-word", "picture-word", "word-picture", "picture-word", "word-picture", "word-picture", "picture-word", "picture-word", "picture-word", "word-picture", "picture-word", "word-picture", "picture-word", "picture-word"];
+    if (!shopPlan || !same(shopPlan.order, shopOrder) || !same(shopPlan.directions, shopDirs)) {
+      fail("engine-shop", "Shop animals plan did not match seed 31.");
+    }
+    if (shopPlan) {
+      const pw = shopPlan.directions.filter(function (d) { return d === "picture-word"; }).length;
+      const wp = shopPlan.directions.filter(function (d) { return d === "word-picture"; }).length;
+      if (pw !== 11 || wp !== 5) fail("engine-shop", "Shop reverse count was " + wp + ".");
+      const row = flashTrial("shop", "animals", shopPlan, 0, [], 31);
+      if (!row || row.direction !== "picture-word" || !same(idsOf(row), ["goat", "sheep", "cow", "horse"])) {
+        fail("engine-shop", "Shop trial 0 choices were not the farm cluster.");
+      }
+      if (row && row.choices.some(function (c) { return c.face !== "print"; })) fail("engine-shop", "Shop trial 0 did not print.");
+    }
+
+    const rushPlan = flashPlan("rush", "animals", 31);
+    const rushOrder = ["crab", "crab", "dolphin", "dolphin", "crane", "crane", "bee", "bee", "whale", "whale", "toad", "toad", "ant", "ant", "owl", "owl"];
+    const rushDirs = ["word-picture", "picture-word", "word-picture", "picture-word", "word-picture", "word-picture", "picture-word", "word-picture", "picture-word", "picture-word", "word-picture", "picture-word", "word-picture", "word-picture", "picture-word", "picture-word"];
+    if (!rushPlan || !same(rushPlan.order, rushOrder) || !same(rushPlan.directions, rushDirs)) {
+      fail("engine-rush", "Rush animals plan did not match seed 31.");
+    }
+    if (rushPlan) {
+      const wp = rushPlan.directions.filter(function (d) { return d === "word-picture"; }).length;
+      const pw = rushPlan.directions.filter(function (d) { return d === "picture-word"; }).length;
+      if (wp !== 8 || pw !== 8) fail("engine-rush", "Rush animals was not half and half.");
+      if (rushPlan.directions.every(function (d) { return d === rushPlan.directions[0]; })) {
+        fail("engine-rush", "Rush animals used only one direction.");
+      }
+      const t2 = flashTrial("rush", "animals", rushPlan, 2, [], 31);
+      if (!t2 || t2.direction !== "word-picture" || !same(idsOf(t2), ["seal", "dolphin", "owl", "whale"])) {
+        fail("engine-rush", "Rush trial 2 choices were wrong.");
+      }
+      const t0 = flashTrial("rush", "animals", rushPlan, 0, [], 31);
+      if (!t0 || !same(idsOf(t0), ["whale", "crab", "owl", "fox"])) fail("engine-rush", "Rush trial 0 choices were wrong.");
+    }
+    const timePlan = flashPlan("rush", "time", 31);
+    const timeOrder = ["evening", "evening", "night", "night", "morning", "morning", "noon", "noon", "evening", "evening", "night", "night", "morning", "morning", "noon", "noon"];
+    const timeDirs = ["word-picture", "word-picture", "picture-word", "picture-word", "word-picture", "picture-word", "word-picture", "picture-word", "word-picture", "picture-word", "word-picture", "picture-word", "word-picture", "picture-word", "word-picture", "picture-word"];
+    if (!timePlan || timePlan.order.length !== 16 || !same(timePlan.order, timeOrder) || !same(timePlan.directions, timeDirs)) {
+      fail("engine-rush", "Time plan was not 16 trials with the frozen half split.");
+    }
+    if (timePlan) {
+      const wp = timePlan.directions.filter(function (d) { return d === "word-picture"; }).length;
+      if (wp !== 8) fail("engine-rush", "Time reverse count was not 8.");
+      for (let i = 0; i < 16; i++) {
+        const row = flashTrial("rush", "time", timePlan, i, [], 31);
+        const allowed = { morning: true, noon: true, evening: true, night: true };
+        if (!row || row.choices.length !== 4 || row.choices.some(function (c) { return !allowed[c.id]; })) {
+          fail("engine-rush", "Time trial " + i + " was not the four time words.");
+        }
+      }
+    }
+    if (flashPlan("tiny", "not-a-subject", 31) !== null) fail("engine-unknown", "An unknown subject returned a plan.");
+
+    [["tiny", "animals"], ["little", "animals"], ["little", "colors"], ["shop", "animals"], ["rush", "animals"], ["rush", "time"]].forEach(function (pair) {
+      const built = flashPlan(pair[0], pair[1], 31);
+      if (!built) return;
+      const meta = subjectMeta(pair[0], pair[1]);
+      for (let i = 0; i < built.order.length; i++) {
+        const row = flashTrial(pair[0], pair[1], built, i, [], 31);
+        if (!row || row.choices.length !== flashChoices(pair[0])) {
+          fail("engine-unknown", pair[0] + " trial " + i + " had the wrong choice count.");
+          return;
+        }
+        const seen = {};
+        let hits = 0;
+        row.choices.forEach(function (c) {
+          if (seen[c.id]) fail("engine-unknown", pair[0] + " trial " + i + " repeated a choice.");
+          seen[c.id] = true;
+          if (meta.words.indexOf(c.id) < 0) fail("engine-unknown", "A choice left the subject list.");
+          if (c.id === row.answerId) hits += 1;
+        });
+        if (hits !== 1) fail("engine-unknown", pair[0] + " trial " + i + " did not contain the answer once.");
+      }
+    });
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  function selfCheck() {
+    const failures = [];
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "The check started with a socket or with reconnect armed.");
+    let popBefore = null;
+    let keysBefore = [];
+    let storageWrites = 0;
+    let storageReady = true;
+    try {
+      popBefore = localStorage.getItem("pop-pals-v1");
+      keysBefore = Object.keys(localStorage);
+    } catch (err) {
+      storageReady = false;
+    }
+    if (storageReady) {
+      try {
+        const storageProto = Object.getPrototypeOf(localStorage);
+        const origSet = storageProto.setItem;
+        const origRemove = storageProto.removeItem;
+        storageProto.setItem = function () {
+          storageWrites += 1;
+          return origSet.apply(this, arguments);
+        };
+        storageProto.removeItem = function () {
+          storageWrites += 1;
+          return origRemove.apply(this, arguments);
+        };
+      } catch (err) {}
+    }
+    const screenAtLoad = state().screen;
+    if (screenAtLoad !== "menu") fail("family-query-inert", "The screen was " + screenAtLoad + " instead of the menu.");
+    if (gazeSock) fail("family-query-inert", "A socket was opened.");
+    const params = new URLSearchParams(location.search);
+    const known = { selfcheck: true, play: true, rush: true };
+    const junk = [];
+    params.forEach(function (value, key) {
+      if (!known[key] && value) junk.push(value);
+    });
+    const pageHtml = document.documentElement.outerHTML;
+    junk.forEach(function (value) {
+      if (pageHtml.indexOf(value) >= 0) fail("family-query-inert", "A junk flag value is in the document.");
+    });
+
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, "The case stopped before it could finish."); }
+    }
+
+    function freshLook(id) {
+      releaseLook();
+      const box = centers().targets[id];
+      if (!box) throw new Error("missing " + id);
+      const t0 = clock + 50;
+      step(t0);
+      look(box.nx, box.ny);
+      step(t0);
+      return t0;
+    }
+
+    run("family-play-dwell", function () {
+      seed(31);
+      start("tiny");
+      subject("animals");
+      releaseLook();
+      const id = state().choices[0].id;
+      const t0 = freshLook("choice-0");
+      step(t0 + 640);
+      if (state().phase !== "ask" || state().lastChoice !== null) fail("family-play-dwell", "A 640 ms look committed.");
+      step(t0 + 660);
+      if (state().phase !== "show" || state().lastChoice !== id) fail("family-play-dwell", "A 660 ms look did not commit.");
+      releaseLook();
+      seed(31);
+      start("tiny");
+      subject("animals");
+      const again = state().choices[0].id;
+      const box = centers().targets["choice-0"];
+      tap(box.nx, box.ny);
+      if (state().phase !== "show" || state().lastChoice !== again) fail("family-play-dwell", "A tap did not run the choice writer.");
+    });
+
+    run("family-menu-dwell", function () {
+      go("menu");
+      releaseLook();
+      const lets = centers().targets["lets-go"];
+      const t0 = clock + 50;
+      step(t0);
+      look(lets.nx, lets.ny);
+      step(t0);
+      step(t0 + 600);
+      if (state().screen !== "menu") fail("family-menu-dwell", "A 600 ms look left the menu.");
+      step(t0 + 1300);
+      if (state().screen === "menu") fail("family-menu-dwell", "A 1300 ms look did not leave the menu.");
+      releaseLook();
+      const back = centers().targets.back;
+      const t1 = clock + 50;
+      step(t1);
+      look(back.nx, back.ny);
+      step(t1);
+      step(t1 + 600);
+      if (state().screen === "menu") fail("family-menu-dwell", "Back changed the screen at 600 ms.");
+      step(t1 + 1300);
+      if (state().screen !== "menu") fail("family-menu-dwell", "Back did not return to the menu at 1300 ms.");
+      releaseLook();
+    });
+
+    run("family-pointer-blocks", function () {
+      seed(31);
+      start("tiny");
+      subject("animals");
+      releaseLook();
+      const id = state().choices[0].id;
+      const box = centers().targets["choice-0"];
+      const t0 = clock + 50;
+      step(t0);
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(t0);
+      step(t0 + 660);
+      if (state().phase !== "ask" || state().lastChoice !== null || dwell() !== 0) {
+        fail("family-pointer-blocks", "A look committed while the pointer was down.");
+      }
+      release();
+      releaseLook();
+      const t1 = clock + 50;
+      step(t1);
+      look(box.nx, box.ny);
+      step(t1);
+      step(t1 + 660);
+      if (state().phase !== "show" || state().lastChoice !== id) fail("family-pointer-blocks", "A fresh look after release did not commit.");
+      releaseLook();
+    });
+
+    run("family-stale", function () {
+      seed(31);
+      start("tiny");
+      subject("animals");
+      releaseLook();
+      refreshHold = true;
+      const box = centers().targets["choice-0"];
+      const t0 = clock + 50;
+      step(t0);
+      look(box.nx, box.ny);
+      step(t0);
+      step(t0 + 200);
+      if (!(dwell() > 0)) fail("family-stale", "The ring did not fill while the look was fresh.");
+      refreshHold = false;
+      step(t0 + 200 + 500);
+      if (dwell() !== 0 || state().phase !== "ask" || state().lastChoice !== null) {
+        fail("family-stale", "A stale look committed or left the ring filled.");
+      }
+      refreshHold = true;
+      releaseLook();
+    });
+
+    run("family-target-size", function () {
+      seed(31);
+      start("little");
+      subject("animals");
+      function shortOf(box) { return Math.min(box.w, box.h); }
+      function assertFit(w, h, label) {
+        const list = targetsAt(w, h).targets;
+        list.forEach(function (box) {
+          if (shortOf(box) < 72) fail("family-target-size", label + " " + box.id + " is under 72.");
+        });
+        const cards = list.filter(function (box) { return box.id.indexOf("choice-") === 0; });
+        if (!cards.length) fail("family-target-size", label + " listed no choice cards.");
+        cards.forEach(function (box) {
+          if (shortOf(box) < 112) fail("family-target-size", label + " " + box.id + " is under 112.");
+        });
+      }
+      assertFit(390, 844, "390");
+      assertFit(1024, 768, "1024");
+      const narrow = targetsAt(300, 600).targets;
+      const narrowCards = narrow.filter(function (box) { return box.id.indexOf("choice-") === 0; });
+      if (narrowCards.length !== 3) fail("family-target-size", "300 by 600 did not list three answers.");
+      narrow.forEach(function (box) {
+        if (box.x < -0.5 || box.y < -0.5 || box.x + box.w > 300.5 || box.y + box.h > 600.5) {
+          fail("family-target-size", "300 by 600 " + box.id + " left the screen.");
+        }
+      });
+    });
+
+    run("family-eyes", function () {
+      releaseLook();
+      go("menu");
+      const lets = centers().targets["lets-go"];
+      look(lets.nx, lets.ny);
+      step(clock + 20);
+      const info = eyes();
+      const keys = Object.keys(info);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) {
+        fail("family-eyes", "eyes() did not return only on and live.");
+      }
+      if (typeof info.on !== "boolean" || typeof info.live !== "boolean") fail("family-eyes", "eyes() values were not booleans.");
+      if (!info.on || !info.live) fail("family-eyes", "A fresh test look was not live.");
+      if (gazeSock) fail("family-eyes", "The socket opened for a test look.");
+      if (eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed hidden.");
+      releaseLook();
+    });
+
+    run("family-mute", function () {
+      const visible = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (visible !== "") fail("family-mute", "The mute button shows text.");
+      if (/mute|sound/i.test(muteBtn.innerText || "")) fail("family-mute", "Mute or Sound is visible.");
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button does not have two speaker icons.");
+      const box = centers().targets.mute;
+      const before = state().muted;
+      tap(box.nx, box.ny);
+      if (state().muted === before) fail("family-mute", "The first tap did not change muted.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not clear muted.");
+    });
+
+    run("family-plain-state", function () {
+      let json = "";
+      try { json = JSON.stringify(state()); }
+      catch (err) { fail("family-plain-state", "state() could not be turned into JSON."); }
+      const snap = state();
+      if (!("level" in snap) || !("screen" in snap) || !("banner" in snap) || !("muted" in snap)) {
+        fail("family-plain-state", "state() is missing a required field.");
+      }
+      if (json.indexOf("ws://") >= 0) fail("family-plain-state", "state() includes the socket URL.");
+    });
+
+    const engine = engineSelfCheck();
+    engine.failures.forEach(function (row) { failures.push(row); });
+
+    function wordBound(text, word) {
+      return new RegExp("\\b" + word + "\\b", "i").test(text);
+    }
+
+    function pageHas(value) {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.parentElement && node.parentElement.closest("script")) continue;
+        if (node.nodeValue && node.nodeValue.indexOf(value) >= 0) return true;
+      }
+      const all = document.body.querySelectorAll("*");
+      for (let i = 0; i < all.length; i++) {
+        if (all[i].tagName === "SCRIPT") continue;
+        const attrs = all[i].attributes;
+        for (let a = 0; a < attrs.length; a++) {
+          if (attrs[a].value.indexOf(value) >= 0) return true;
+        }
+      }
+      return false;
+    }
+
+    run("tiny-three-pictures", function () {
+      const beforeSaid = said;
+      seed(31);
+      start("tiny");
+      subject("animals");
+      const snap = state();
+      if (snap.choices.length !== 3 || snap.direction !== "hear-picture" || snap.prompt !== "fish") {
+        fail("tiny-three-pictures", "Tiny animals did not deal three hear-picture cards for fish.");
+      }
+      if (snap.choices.some(function (c) { return c.face === "print"; })) fail("tiny-three-pictures", "A choice face was print.");
+      snap.choices.forEach(function (c, i) {
+        if (document.getElementById("choice-" + i).textContent.trim() !== "") {
+          fail("tiny-three-pictures", "A picture choice has visible text.");
+        }
+      });
+      const promptText = (document.getElementById("prompt").textContent || "").trim();
+      if (promptText !== "fish") fail("tiny-three-pictures", "The prompt card did not show the word.");
+      const boxes = targetsAt(window.innerWidth, window.innerHeight).targets;
+      const promptBox = boxes.filter(function (b) { return b.id === "prompt"; })[0];
+      const answers = boxes.filter(function (b) { return b.id.indexOf("choice-") === 0; });
+      if (!promptBox || answers.length !== 3) fail("tiny-three-pictures", "The trial did not place one prompt and three answers.");
+      answers.forEach(function (b) {
+        if (b.x <= promptBox.x) fail("tiny-three-pictures", "An answer card was not on the other side.");
+      });
+      const trialText = (document.getElementById("play").innerText || "") + " " + bannerEl.textContent;
+      if (trialText.indexOf("+") >= 0 || trialText.indexOf("=") >= 0 || trialText.indexOf("\u2212") >= 0) {
+        fail("tiny-three-pictures", "The trial shows a math sign.");
+      }
+      if (snap.said !== null || said !== beforeSaid && beforeSaid !== null) {
+        if (snap.said !== null) fail("tiny-three-pictures", "The prompt spoke when the trial appeared.");
+      }
+      if (snap.said !== null) fail("tiny-three-pictures", "said was set when the trial appeared.");
+    });
+
+    run("speech-on-dwell", function () {
+      seed(31);
+      start("tiny");
+      subject("animals");
+      releaseLook();
+      const t0 = freshLook("prompt");
+      step(t0 + 640);
+      if (state().said !== null) fail("speech-on-dwell", "A 640 ms look on the horn spoke.");
+      releaseLook();
+      const t1 = freshLook("prompt");
+      step(t1 + 660);
+      if (state().said !== "fish" || state().lastChoice !== null) fail("speech-on-dwell", "A 660 ms look did not set said to fish.");
+      releaseLook();
+      seed(31);
+      start("tiny");
+      subject("animals");
+      const t2 = freshLook("prompt");
+      step(t2 + 640);
+      const away = emptyPoint();
+      look(away.nx, away.ny);
+      step(t2 + 640);
+      step(t2 + 640 + 280);
+      if (state().said !== null) fail("speech-on-dwell", "Leaving at 640 ms still spoke.");
+      releaseLook();
+    });
+
+    run("show-clears-visit", function () {
+      seed(31);
+      start("tiny");
+      subject("animals");
+      releaseLook();
+      const saidBefore = state().said;
+      choose(state().prompt);
+      if (state().phase !== "show") fail("show-clears-visit", "The choice did not open the show beat.");
+      const showAt = clock;
+      const promptBox = centers().targets.prompt;
+      if (!promptBox) fail("show-clears-visit", "The prompt was missing during show.");
+      const entry = showAt + 160;
+      step(entry);
+      look(promptBox.nx, promptBox.ny);
+      step(entry);
+      if (state().said !== saidBefore) fail("show-clears-visit", "Looking at the prompt spoke during show.");
+      step(showAt + 800);
+      if (state().phase !== "ask" || state().screen !== "trial") fail("show-clears-visit", "The trial did not advance at 800 ms.");
+      const nextPrompt = state().prompt;
+      if (state().lastChoice !== null || state().said !== saidBefore) {
+        fail("show-clears-visit", "The advance step spoke or chose.");
+      }
+      step(showAt + 830);
+      if (state().lastChoice !== null) fail("show-clears-visit", "Leftover time chose on the next trial.");
+      if (state().said !== saidBefore) fail("show-clears-visit", "Leftover time spoke the next prompt.");
+      step(showAt + 1490);
+      if (state().said !== nextPrompt) fail("show-clears-visit", "A fresh 660 ms look did not speak the new prompt.");
+      if (state().lastChoice !== null) fail("show-clears-visit", "The prompt dwell chose a card.");
+      releaseLook();
+    });
+
+    run("picture-silent", function () {
+      seed(31);
+      start("tiny");
+      subject("animals");
+      const before = state().said;
+      choose(state().choices[0].id);
+      if (state().said !== before) fail("picture-silent", "A picture choice changed said.");
+    });
+
+    run("printed-word-speaks", function () {
+      seed(31);
+      start("shop");
+      subject("animals");
+      if (state().direction !== "picture-word") fail("printed-word-speaks", "Trial 0 was not picture-word.");
+      releaseLook();
+      const id = state().choices[0].id;
+      const others = state().choices.map(function (c) { return c.id; }).filter(function (word) { return word !== id; });
+      const t0 = freshLook("choice-0");
+      step(t0 + 660);
+      if (state().said !== id) fail("printed-word-speaks", "The committed word was not that card.");
+      others.forEach(function (word) {
+        if (state().said === word) fail("printed-word-speaks", "A different card was spoken.");
+      });
+    });
+
+    run("miss-no-tally", function () {
+      const snap = state();
+      if ("score" in snap || "wrongs" in snap || "lives" in snap || "wrong" in snap) {
+        fail("miss-no-tally", "state() gained a score, wrongs, or lives field.");
+      }
+      if (snap.banner !== "Here they are together.") fail("miss-no-tally", "The show banner changed.");
+      if (/fail|wrong/i.test(snap.banner)) fail("miss-no-tally", "The banner says fail or wrong.");
+      if (snap.phase !== "show" || snap.prompt !== "sheep" || snap.lastChoice === snap.prompt) {
+        fail("miss-no-tally", "The shown pair was not the answer.");
+      }
+      let outlined = null;
+      snap.choices.forEach(function (c, i) {
+        const el = document.getElementById("choice-" + i);
+        const style = getComputedStyle(el);
+        if (style.outlineStyle === "solid" && parseFloat(style.outlineWidth) >= 6 && /226,\s*166,\s*46/.test(style.outlineColor || "")) {
+          outlined = c.id;
+        }
+      });
+      if (outlined !== snap.prompt) fail("miss-no-tally", "The outlined card was not the answer.");
+    });
+
+    run("miss-cooldown", function () {
+      const saidBefore = state().said;
+      const choiceBefore = state().lastChoice;
+      const t0 = clock;
+      step(t0 + 660);
+      if (state().said !== saidBefore || state().lastChoice !== choiceBefore) {
+        fail("miss-cooldown", "A second look on the foil spoke again or changed the choice.");
+      }
+      releaseLook();
+    });
+
+    run("show-then-next", function () {
+      seed(31);
+      start("tiny");
+      subject("animals");
+      let T = clock + 1000;
+      step(T);
+      const first = state().trial;
+      const heard = state().prompt;
+      choose(state().choices[0].id);
+      step(T + 799);
+      if (state().trial !== first || state().screen !== "trial") fail("show-then-next", "The trial changed before 800 ms.");
+      step(T + 800);
+      if (state().trial !== first + 1 || state().phase !== "ask") fail("show-then-next", "The trial did not advance at 800 ms.");
+      if (state().said !== null && heard) {
+        /* said stays unset when the choice was a picture */
+      }
+      while (state().screen === "trial" && state().trial < state().cap - 1) {
+        choose(state().prompt);
+        T = clock + 800;
+        step(T);
+      }
+      if (state().trial !== state().cap - 1) fail("show-then-next", "The sitting did not reach the last trial.");
+      choose(state().prompt);
+      const startShow = clock;
+      step(startShow + 799);
+      if (state().screen !== "trial" || state().trial !== state().cap - 1) fail("show-then-next", "The last trial advanced before 800 ms.");
+      step(startShow + 800);
+      if (state().screen !== "rest" || state().trial !== state().cap) fail("show-then-next", "The last trial did not rest at the cap.");
+    });
+
+    run("repeat-before-new", function () {
+      seed(31);
+      start("tiny");
+      subject("animals");
+      const seen = [];
+      while (state().screen === "trial" && seen.length < 8) {
+        seen.push(state().prompt);
+        choose(state().prompt);
+        step(clock + 800);
+      }
+      const want = ["fish", "fish", "cow", "cow", "dog", "dog", "duck", "duck"];
+      for (let i = 0; i < want.length; i++) {
+        if (seen[i] !== want[i]) fail("repeat-before-new", "Prompt " + i + " was " + seen[i] + ".");
+      }
+    });
+
+    run("little-print-budget", function () {
+      seed(31);
+      start("little");
+      subject("animals");
+      const correct = [];
+      while (state().screen === "trial" && correct.length < 12) {
+        correct.push({ index: state().trial, direction: state().direction, prompt: state().prompt });
+        choose(state().prompt);
+        step(clock + 800);
+      }
+      correct.forEach(function (row) {
+        const printable = row.index === 3 || row.index === 7 || row.index === 11;
+        if (row.direction === "picture-word" && !printable) fail("little-print-budget", "A print trial was outside index 3, 7, or 11.");
+        if (!printable && row.direction !== "hear-picture") fail("little-print-budget", "A hear slot changed direction.");
+      });
+      const prints = correct.filter(function (row) { return row.direction === "picture-word"; });
+      if (prints.length > 3) fail("little-print-budget", "More than one trial in four printed.");
+      if (prints.map(function (row) { return row.prompt; }).join(",") !== "fish,dog,duck") {
+        fail("little-print-budget", "The printed words were not ones already heard.");
+      }
+      seed(31);
+      start("little");
+      subject("animals");
+      const missed = [];
+      while (state().screen === "trial" && missed.length < 12) {
+        const row = { index: state().trial, direction: state().direction, prompt: state().prompt };
+        missed.push(row);
+        const foil = state().choices.map(function (c) { return c.id; }).filter(function (id) { return id !== row.prompt; })[0];
+        const pick = (row.index === 3 || row.index === 7) ? foil : row.prompt;
+        choose(pick);
+        step(clock + 800);
+      }
+      [3, 7, 11].forEach(function (index) {
+        const row = missed[index];
+        if (!row) return;
+        if (index === 11 && row.direction !== "hear-picture") fail("little-print-budget", "Index 11 printed after two misses.");
+        if (index !== 3 && index !== 7 && index !== 11 && row.direction === "picture-word") {
+          fail("little-print-budget", "A print appeared off the budget.");
+        }
+      });
+      if (missed[3] && missed[3].direction !== "picture-word") fail("little-print-budget", "The first budget slot did not print.");
+      if (missed[7] && missed[7].direction !== "picture-word") fail("little-print-budget", "The second budget slot did not print.");
+      seed(31);
+      start("little");
+      subject("colors");
+      const colors = [];
+      while (state().screen === "trial" && colors.length < 12) {
+        colors.push(state().direction);
+        state().choices.forEach(function (c, i) {
+          if (c.face === "print" || document.getElementById("choice-" + i).textContent.trim() !== "") {
+            fail("little-print-budget", "Colors printed a word.");
+          }
+        });
+        choose(state().prompt);
+        step(clock + 800);
+      }
+      if (colors.some(function (d) { return d !== "hear-picture"; })) fail("little-print-budget", "Colors left hear-picture.");
+    });
+
+    run("shop-four", function () {
+      seed(31);
+      start("shop");
+      subject("animals");
+      if (state().choices.length !== 4 || state().direction !== "picture-word") {
+        fail("shop-four", "The first trial was not four picture-word cards.");
+      }
+      const laid = targetsAt(390, 844).targets;
+      const sized = laid.filter(function (box) { return box.id.indexOf("choice-") === 0; });
+      const promptBox = laid.filter(function (box) { return box.id === "prompt"; })[0];
+      if (sized.length !== 4 || !promptBox) fail("shop-four", "Four choices were not laid out beside the prompt.");
+      sized.forEach(function (box) {
+        if (box.w < 140 || box.h < 140) fail("shop-four", "A 390 px answer was under 140 px.");
+        if (box.x <= promptBox.x || Math.abs(box.x - sized[0].x) > 0.5) fail("shop-four", "The answers were not one list beside the prompt.");
+        if (box.x + box.w > 390.5 || box.y + box.h > 844.5) fail("shop-four", "An answer left the 390 px screen.");
+      });
+      if (promptBox.w < 140 || promptBox.h < 140) fail("shop-four", "The prompt card was under 140 px.");
+      let pictureWords = 0;
+      let wordPictures = 0;
+      let guard = 0;
+      while (state().screen === "trial" && guard < 16) {
+        guard += 1;
+        if (state().direction === "picture-word") pictureWords += 1;
+        if (state().direction === "word-picture") wordPictures += 1;
+        choose(state().prompt);
+        step(clock + 800);
+      }
+      if (pictureWords !== 11 || wordPictures !== 5) fail("shop-four", "The direction split was not 11 and 5.");
+    });
+
+    run("rush-half", function () {
+      seed(31);
+      start("rush");
+      subject("animals");
+      let wp = 0;
+      let pw = 0;
+      let guard = 0;
+      while (state().screen === "trial" && guard < 16) {
+        guard += 1;
+        if (state().direction === "word-picture") wp += 1;
+        if (state().direction === "picture-word") pw += 1;
+        choose(state().prompt);
+        step(clock + 800);
+      }
+      if (wp !== 8 || pw !== 8 || wp === 16 || pw === 16) fail("rush-half", "Rush animals was not 8 of 16.");
+      seed(31);
+      start("rush");
+      subject("time");
+      if (state().cap !== 16) fail("rush-half", "Time used a cap other than 16.");
+      wp = 0;
+      pw = 0;
+      guard = 0;
+      const allowed = { morning: true, noon: true, evening: true, night: true };
+      while (state().screen === "trial" && guard < 16) {
+        guard += 1;
+        if (!allowed[state().prompt]) fail("rush-half", "Time used a word outside morning, noon, evening, and night.");
+        if (state().choices.length !== 4) fail("rush-half", "Time did not show four choices.");
+        if (state().direction === "word-picture") wp += 1;
+        if (state().direction === "picture-word") pw += 1;
+        choose(state().prompt);
+        step(clock + 800);
+      }
+      if (wp !== 8 || pw !== 8) fail("rush-half", "Time was not 8 of 16.");
+    });
+
+    run("colors-not-print", function () {
+      seed(31);
+      start("little");
+      subject("colors");
+      const seen = {};
+      let guard = 0;
+      while (state().screen === "trial" && guard < 12) {
+        guard += 1;
+        seen[state().prompt] = true;
+        state().choices.forEach(function (c, i) {
+          seen[c.id] = true;
+          if (c.face !== "picture" || document.getElementById("choice-" + i).textContent.trim() !== "") {
+            fail("colors-not-print", "Little colors printed a color word.");
+          }
+        });
+        if (state().direction !== "hear-picture") fail("colors-not-print", "Little colors left hear-picture.");
+        choose(state().prompt);
+        step(clock + 800);
+      }
+      ["red", "yellow", "blue", "green", "black", "white"].forEach(function (id) {
+        if (!seen[id]) fail("colors-not-print", "Little colors dropped " + id + ".");
+      });
+      seed(31);
+      start("shop");
+      subject("colors");
+      let printed = false;
+      let orangeSeen = false;
+      guard = 0;
+      while (state().screen === "trial" && guard < 16) {
+        guard += 1;
+        if (state().prompt === "orange" || state().choices.some(function (c) { return c.id === "orange"; })) orangeSeen = true;
+        if (state().direction === "picture-word") {
+          printed = true;
+          state().choices.forEach(function (c, i) {
+            const el = document.getElementById("choice-" + i);
+            if (el.textContent !== c.id) fail("colors-not-print", "A shop color card did not print its id.");
+          });
+        }
+        if (state().direction === "picture-word" && state().prompt === "orange") {
+          const area = trialLayout(window.innerWidth, window.innerHeight, 4, "none").area;
+          const px = samplePixel(area.x + area.w / 2, area.y + area.h / 2);
+          if (!nearHex(px, "#e07a2f", 12)) fail("colors-not-print", "Orange was not drawn as the color disk.");
+        }
+        state().choices.forEach(function (c, i) {
+          if (c.id === "orange" && c.face === "picture") {
+            const el = document.getElementById("choice-" + i);
+            const r = el.getBoundingClientRect();
+            const px = samplePixel(r.left + r.width / 2, r.top + r.height / 2);
+            if (!nearHex(px, "#e07a2f", 18)) fail("colors-not-print", "Orange was not drawn as the color disk.");
+          }
+        });
+        choose(state().prompt);
+        step(clock + 800);
+      }
+      if (!printed) fail("colors-not-print", "Shop colors never printed a word.");
+      if (!orangeSeen) fail("colors-not-print", "Shop colors left out orange.");
+    });
+
+    run("cap-rest", function () {
+      seed(31);
+      start("tiny");
+      subject("animals");
+      let guard = 0;
+      while (state().screen === "trial" && guard < 8) {
+        guard += 1;
+        choose(state().prompt);
+        step(clock + 800);
+      }
+      if (state().screen !== "rest" || state().trial !== 8) fail("cap-rest", "The eighth show did not rest.");
+      const restText = document.getElementById("screen-rest").innerText || "";
+      ["fail", "wrong", "no", "grade", "score"].forEach(function (word) {
+        if (wordBound(restText, word) || wordBound(state().banner, word)) fail("cap-rest", "The rest card has a grade word.");
+      });
+      if (state().banner !== "That was a good sitting.") fail("cap-rest", "The rest banner changed.");
+      if (restText.indexOf("We can play again.") < 0) fail("cap-rest", "The rest card lost its sentence.");
+      let T = clock + 1000;
+      step(T);
+      seed(31);
+      start("tiny");
+      subject("animals");
+      step(T + 119000);
+      if (state().screen !== "trial") fail("cap-rest", "The first 119000 ms gap left the trial.");
+      step(T + 238000);
+      if (state().screen !== "trial") fail("cap-rest", "The second 119000 ms gap left the trial.");
+      step(T + 240000);
+      if (state().screen !== "rest") fail("cap-rest", "The following 2000 ms gap did not rest.");
+      if (/fail/i.test(state().banner)) fail("cap-rest", "The ceiling banner says fail.");
+      T = clock + 1000;
+      step(T);
+      seed(31);
+      start("tiny");
+      subject("animals");
+      step(T + 240000);
+      if (state().screen !== "trial") fail("cap-rest", "A single 240000 ms gap rested.");
+      if (/fail/i.test(state().banner)) fail("cap-rest", "The rest banner says fail.");
+    });
+
+    run("subject-reject", function () {
+      const before = state().screen;
+      subject("not-a-subject");
+      if (state().screen !== before) fail("subject-reject", "An unknown subject changed the screen.");
+      if (pageHas("not-a-subject")) fail("subject-reject", "The unknown id was written into the page.");
+    });
+
+    run("no-remote-art", function () {
+      const root = document.documentElement.cloneNode(true);
+      root.querySelectorAll("script").forEach(function (node) { node.remove(); });
+      const markup = root.outerHTML;
+      const scriptText = document.querySelector("script").textContent;
+      function has(hay, parts) { return hay.indexOf(parts.join("")) >= 0; }
+      if (has(markup.toLowerCase(), ["mul", "berry"]) || has(scriptText.toLowerCase(), ["mul", "berry"])) {
+        fail("no-remote-art", "The file names a downloaded symbol set.");
+      }
+      if (has(markup, ["ht", "tp://"]) || has(markup, ["ht", "tps://"]) || has(scriptText, ["ht", "tp://"]) || has(scriptText, ["ht", "tps://"])) {
+        fail("no-remote-art", "The document has an image, font, or script URL.");
+      }
+      if (/<img\b/i.test(markup) || /url\s*\(/i.test(markup) || /@font-face/i.test(markup) || /<script\b[^>]*\bsrc\s*=/i.test(markup) || /<link\b/i.test(markup)) {
+        fail("no-remote-art", "The document loads an image, font, or script.");
+      }
+      if (has(scriptText, ["url", "("]) || has(scriptText, ["fe", "tch("]) || has(scriptText, ["ev", "al("])) {
+        fail("no-remote-art", "The script reaches the network or evaluates a string.");
+      }
+      ["tiny", "little", "shop", "rush"].forEach(function (band) {
+        BANDS[band].subjects.forEach(function (sub) {
+          sub.words.forEach(function (id) {
+            if (typeof PAINT[id] !== "function") fail("no-remote-art", id + " has no painter.");
+          });
+        });
+      });
+    });
+
+    junk.forEach(function (value) {
+      if (document.documentElement.outerHTML.indexOf(value) >= 0) fail("family-query-inert", "A junk flag value is in the document.");
+    });
+    if (gazeSock) fail("family-query-inert", "A socket was opened.");
+
+    try {
+      if (!storageReady) fail("family-no-storage", "localStorage could not be read.");
+      else {
+        const popAfter = localStorage.getItem("pop-pals-v1");
+        const keysAfter = Object.keys(localStorage);
+        if (popAfter !== popBefore) fail("family-no-storage", "pop-pals-v1 changed.");
+        if (keysAfter.length !== keysBefore.length || keysAfter.some(function (key, i) { return key !== keysBefore[i]; })) {
+          fail("family-no-storage", "This game wrote a localStorage key.");
+        }
+        if (storageWrites !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+        if (keysAfter.some(function (key) { return /flash/i.test(key); })) fail("family-no-storage", "A flash cards key is stored.");
+      }
+    } catch (err) {
+      fail("family-no-storage", "The storage check could not finish.");
+    }
+
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  function emptyPoint() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    for (let y = 4; y < h; y += 18) {
+      for (let x = 4; x < w; x += 18) {
+        const el = document.elementFromPoint(x, y);
+        const btn = el && el.closest ? el.closest("button") : null;
+        if (!btn) return { nx: x / w, ny: y / h };
+      }
+    }
+    return { nx: 0.5, ny: 0.5 };
+  }
+
+  function samplePixel(x, y) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const px = Math.max(0, Math.min(canvas.width - 1, Math.round(x * dpr)));
+    const py = Math.max(0, Math.min(canvas.height - 1, Math.round(y * dpr)));
+    const data = ctx.getImageData(px, py, 1, 1).data;
+    return { r: data[0], g: data[1], b: data[2] };
+  }
+
+  function nearHex(px, hex, tol) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return Math.abs(px.r - r) <= tol && Math.abs(px.g - g) <= tol && Math.abs(px.b - b) <= tol;
+  }
+
+  choiceBtns.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      if (btn.dataset.id) onChoice(btn.dataset.id);
+    });
+  });
+  promptBtn.addEventListener("click", function () { hear(); });
+  stopBtn.addEventListener("click", function () { go("rest"); });
+  backBtn.addEventListener("click", function () { go("menu"); });
+  anotherBtn.addEventListener("click", function () { start(level); });
+  document.getElementById("lets-go").addEventListener("click", function () { start(highlighted); });
+  ["tiny", "little", "shop", "rush"].forEach(function (id) {
+    document.getElementById(id).addEventListener("click", function () { selectBand(id); });
+  });
+  muteBtn.addEventListener("click", function () { setMuted(!muted); render(); });
+  fullBtn.addEventListener("click", function () {
+    if (!document.fullscreenElement) {
+      const req = document.documentElement.requestFullscreen;
+      if (req) req.call(document.documentElement).catch(function () {});
+    } else if (document.exitFullscreen) document.exitFullscreen();
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (pointerActive || activePointer !== null) return;
+    activePointer = e.pointerId;
+    pointerActive = true;
+    clearVisit();
+    ensureAudio();
+  }, true);
+  function endPointer(e) {
+    if (e.pointerId !== activePointer) return;
+    activePointer = null;
+    pointerActive = false;
+  }
+  document.addEventListener("pointerup", endPointer, true);
+  document.addEventListener("pointercancel", endPointer, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      if (!backBtn.hidden) { backBtn.click(); e.preventDefault(); }
+      return;
+    }
+    const n = "1234".indexOf(e.key);
+    if (n < 0) return;
+    const choice = choiceBtns[n];
+    if (choice && !choice.hidden) { choice.click(); e.preventDefault(); return; }
+    const shown = [];
+    for (let i = 0; i < subjectBtns.length; i++) {
+      if (!subjectBtns[i].hidden) shown.push(subjectBtns[i]);
+    }
+    if (shown[n]) { shown[n].click(); e.preventDefault(); }
+  });
+  window.addEventListener("resize", function () { render(); });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  window.flashCards = {
+    start: start,
+    go: go,
+    subject: subject,
+    choose: choose,
+    hear: hear,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) { result = { ok: false, failures: ["selfCheck stopped before it could finish."] }; }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("play")) start("tiny");
+    else if (params.has("rush")) start("rush");
+    requestAnimationFrame(frame);
+    connectGaze();
+  }
+})();
+</script>
+</body>
+</html>

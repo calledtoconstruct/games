@@ -1,0 +1,2642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f4f0d8">
+<title>Sudoku</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+    --child: #fff6df;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #view {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    display: block; pointer-events: none; z-index: 0;
+  }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border: none; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 47; pointer-events: none;
+    top: 22px; left: 50%; transform: translateX(-50%);
+    background: var(--card); border-radius: 999px; padding: 6px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 45; pointer-events: none;
+    left: 168px; right: 168px; top: 22px;
+    text-align: center; font-size: 18px; font-weight: 800;
+    color: var(--ink);
+  }
+  #mute, #full, #back, #new-board {
+    position: fixed; z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1;
+    font-size: 15px;
+  }
+  #mute, #full { width: 72px; height: 72px; }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; }
+  #full { font-size: 16px; }
+  #screen-menu {
+    position: fixed; z-index: 40;
+    top: 80px; left: 8px; right: 8px; bottom: 8px;
+    overflow: auto;
+    background: var(--card); border-radius: 28px;
+    padding: 12px 16px 96px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  h1 { font-size: 40px; line-height: 0.95; margin: 0 0 6px; text-align: center; }
+  .tag { text-align: center; margin: 0 0 6px; font-size: 16px; }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  .choice {
+    background: var(--card); text-align: left; padding: 6px 12px;
+    box-shadow: 0 4px 0 #e2d0b4; border: 3px solid transparent;
+    border-radius: 18px; min-height: 72px; width: 100%;
+    font-weight: 800; color: var(--ink);
+  }
+  .choice b { display: block; font-size: 22px; }
+  .choice small { display: block; font-size: 14px; color: #5c4e3a; font-weight: 800; }
+  .choice[aria-pressed="true"] { border-color: var(--ink); background: var(--child); }
+  #lets-go {
+    position: fixed; z-index: 48;
+    left: 24px; right: 24px; bottom: 16px; height: 72px;
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink);
+    box-shadow: 0 5px 0 var(--sun-d);
+    font-size: 32px; font-weight: 800;
+  }
+  #screen-rest {
+    position: fixed; z-index: 40; left: 50%; top: 46%;
+    transform: translate(-50%, -50%);
+    width: min(460px, calc(100% - 32px));
+    background: var(--card); border-radius: 28px;
+    padding: 28px 20px; text-align: center;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #rest-line { font-size: 28px; font-weight: 800; margin: 0 0 16px; }
+  #another {
+    min-height: 72px; min-width: 180px; width: 100%;
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink);
+    box-shadow: 0 5px 0 var(--sun-d);
+    font-size: 28px; font-weight: 800;
+  }
+  .cell, .sym, .boxbtn, #undo, #hint, #boxes {
+    border: none; border-radius: 16px;
+    font-weight: 800; color: var(--ink);
+    padding: 0; overflow: hidden;
+  }
+  .hole { background: var(--card); box-shadow: inset 0 0 0 3px #e4d3b0; }
+  .given { background: var(--card); }
+  .placed { background: var(--child); }
+  .latched { outline: 4px solid var(--ink); outline-offset: -4px; }
+  .sym { background: var(--card); box-shadow: 0 4px 0 #e2d0b4; }
+  .sym.live { background: var(--sun); box-shadow: 0 4px 0 var(--sun-d); }
+  .dim { background: #efe6cf; opacity: 0.45; box-shadow: none; }
+  .boxbtn {
+    background: var(--card); box-shadow: 0 4px 0 #e2d0b4;
+  }
+  #undo, #hint, #boxes, #new-board {
+    background: var(--card); box-shadow: 0 4px 0 #d5c4a1; font-size: 20px;
+  }
+  #undo, #hint, #boxes { z-index: 32; position: fixed; }
+  canvas.mark { display: block; width: 100%; height: 100%; pointer-events: none; }
+  @media (prefers-reduced-motion: no-preference) {
+    .pulse { animation: hintpulse 900ms ease-in-out infinite; }
+  }
+  @keyframes hintpulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+</style>
+</head>
+<body>
+<canvas id="view" aria-hidden="true"></canvas>
+<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 9l5 6M21 9l-5 6"/>
+  </svg>
+</button>
+<button id="full" type="button" aria-label="Fullscreen">Full</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner" hidden></p>
+<section id="screen-menu">
+  <h1>Sudoku</h1>
+  <p class="tag">Look at an empty square, then at the symbol that belongs there.</p>
+  <p class="tag">Ages 2 and up</p>
+  <div class="stack">
+    <button id="tiny" class="choice" type="button" aria-pressed="true"><b>Picture Squares</b><small>Ages 2 to 3. Four pictures, and a very full board.</small></button>
+    <button id="little" class="choice" type="button" aria-pressed="false"><b>Open Board</b><small>Ages 4 to 5. Four pictures, and more empty squares.</small></button>
+    <button id="shop" class="choice" type="button" aria-pressed="false"><b>Number Grid</b><small>Ages 6 to 8. Digits on a six by six board.</small></button>
+    <button id="rush" class="choice" type="button" aria-pressed="false"><b>Big Board</b><small>Ages 9 and up. Digits, and a nine by nine board when it fits.</small></button>
+  </div>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <div id="board"></div>
+  <div id="tray"></div>
+  <button id="undo" type="button" data-play="true">Undo</button>
+  <button id="hint" type="button" data-play="true">Hint</button>
+  <button id="new-board" type="button">New board</button>
+  <button id="boxes" type="button" data-play="true" hidden>Boxes</button>
+</div>
+<section id="screen-rest" hidden>
+  <p id="rest-line">That board is done.</p>
+</section>
+<script>
+(function () {
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const TOP = 80;
+  const UNDO_H = 72;
+  const INK = "#2c2416";
+
+  const FALLBACK = {
+    tiny: ["1204", "3012", "2301", "4023"],
+    little: ["1004", "3002", "2301", "0003"],
+    shop: ["023056", "450103", "230560", "501230", "305610", "602340"],
+    rush6: ["020006", "450103", "200500", "501230", "305600", "002340"],
+    rush9: ["020400009", "056009023", "780123056", "204007090", "000801200", "091230067", "000608010", "608000005", "910340078"]
+  };
+
+  function geom(size) {
+    if (size === 4) return { boxRows: 2, boxCols: 2 };
+    if (size === 6) return { boxRows: 2, boxCols: 3 };
+    return { boxRows: 3, boxCols: 3 };
+  }
+  function makeRng(seed) { return { state: seed >>> 0 }; }
+  function rngUint(rng) {
+    rng.state = (rng.state + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(rng.state ^ (rng.state >>> 15), rng.state | 1);
+    t = (t ^ (t + Math.imul(t ^ (t >>> 7), t | 61))) >>> 0;
+    return (t ^ (t >>> 14)) >>> 0;
+  }
+  function rngInt(rng, lo, hi) { return lo + (rngUint(rng) % (hi - lo + 1)); }
+  function rngShuffle(rng, items) {
+    const a = items.slice();
+    for (let i = a.length - 1; i >= 1; i--) {
+      const j = rngInt(rng, 0, i);
+      const tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+    }
+    return a;
+  }
+  function playSeed(clockMs, counter) {
+    return (Math.imul(((clockMs >>> 0) ^ Math.imul(counter >>> 0, 0x9E3779B9)), 0x85EBCA6B)) >>> 0;
+  }
+  function seq(n) {
+    const a = [];
+    for (let i = 0; i < n; i++) a.push(i);
+    return a;
+  }
+  function boxIndexAt(size, r, c) {
+    const g = geom(size);
+    return Math.floor(r / g.boxRows) * (size / g.boxCols) + Math.floor(c / g.boxCols);
+  }
+  function cellsInBox(size, b) {
+    const g = geom(size);
+    const across = size / g.boxCols;
+    const br = Math.floor(b / across);
+    const bc = b % across;
+    const cells = [];
+    for (let r = br * g.boxRows; r < (br + 1) * g.boxRows; r++) {
+      for (let c = bc * g.boxCols; c < (bc + 1) * g.boxCols; c++) cells.push(r * size + c);
+    }
+    return cells;
+  }
+  function sudokuCandidates(size, grid, index) {
+    if (grid[index] !== 0) return [];
+    const r = Math.floor(index / size);
+    const c = index % size;
+    const used = new Array(size + 1).fill(false);
+    for (let i = 0; i < size; i++) {
+      used[grid[r * size + i]] = true;
+      used[grid[i * size + c]] = true;
+    }
+    const g = geom(size);
+    const br = Math.floor(r / g.boxRows) * g.boxRows;
+    const bc = Math.floor(c / g.boxCols) * g.boxCols;
+    for (let rr = br; rr < br + g.boxRows; rr++) {
+      for (let cc = bc; cc < bc + g.boxCols; cc++) used[grid[rr * size + cc]] = true;
+    }
+    const out = [];
+    for (let v = 1; v <= size; v++) if (!used[v]) out.push(v);
+    return out;
+  }
+  function sudokuCountSolutions(size, grid) {
+    const work = grid.slice();
+    let nodes = 0;
+    function search() {
+      nodes++;
+      if (nodes > 600) return 2;
+      let best = -1;
+      let bestC = null;
+      for (let i = 0; i < work.length; i++) {
+        if (work[i] !== 0) continue;
+        const cands = sudokuCandidates(size, work, i);
+        if (best < 0 || cands.length < bestC.length) {
+          best = i;
+          bestC = cands;
+          if (cands.length === 0) break;
+        }
+      }
+      if (best < 0) return 1;
+      if (bestC.length === 0) return 0;
+      let total = 0;
+      for (let k = 0; k < bestC.length; k++) {
+        work[best] = bestC[k];
+        total += search();
+        work[best] = 0;
+        if (total >= 2) return 2;
+      }
+      return total;
+    }
+    return search();
+  }
+  function findHidden(size, work) {
+    const g = geom(size);
+    const nBoxes = (size / g.boxRows) * (size / g.boxCols);
+    const units = [];
+    for (let r = 0; r < size; r++) {
+      const u = [];
+      for (let c = 0; c < size; c++) u.push(r * size + c);
+      units.push(u);
+    }
+    for (let c = 0; c < size; c++) {
+      const u = [];
+      for (let r = 0; r < size; r++) u.push(r * size + c);
+      units.push(u);
+    }
+    for (let b = 0; b < nBoxes; b++) units.push(cellsInBox(size, b));
+    for (let u = 0; u < units.length; u++) {
+      const cells = units[u];
+      for (let sym = 1; sym <= size; sym++) {
+        let present = false;
+        const spots = [];
+        for (let k = 0; k < cells.length; k++) {
+          const idx = cells[k];
+          if (work[idx] === sym) present = true;
+          else if (work[idx] === 0) {
+            const cands = sudokuCandidates(size, work, idx);
+            if (cands.indexOf(sym) >= 0) spots.push(idx);
+          }
+        }
+        if (!present && spots.length === 1) return { index: spots[0], symbol: sym };
+      }
+    }
+    return null;
+  }
+  function sudokuSolveSingles(size, grid, mode) {
+    const work = grid.slice();
+    const n = work.length;
+    let guard = 0;
+    while (guard++ < n * n + 5) {
+      let placedAt = -1;
+      let sym = 0;
+      for (let i = 0; i < n; i++) {
+        if (work[i] !== 0) continue;
+        const cands = sudokuCandidates(size, work, i);
+        if (cands.length === 1) { placedAt = i; sym = cands[0]; break; }
+      }
+      if (placedAt >= 0) { work[placedAt] = sym; continue; }
+      let empty = false;
+      for (let i = 0; i < n; i++) if (work[i] === 0) { empty = true; break; }
+      if (!empty) return work;
+      if (mode !== "both") return null;
+      const hid = findHidden(size, work);
+      if (!hid) return null;
+      work[hid.index] = hid.symbol;
+    }
+    return null;
+  }
+  function sudokuOpeningNaked(size, grid) {
+    for (let i = 0; i < grid.length; i++) {
+      if (grid[i] === 0 && sudokuCandidates(size, grid, i).length !== 1) return false;
+    }
+    return true;
+  }
+  function eqArr(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+  function baseGrid(size) {
+    const g = geom(size);
+    const grid = new Array(size * size);
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) {
+        grid[r * size + c] = (g.boxCols * (r % g.boxRows) + Math.floor(r / g.boxRows) + c) % size + 1;
+      }
+    }
+    return grid;
+  }
+  function fillComplete(size, rng) {
+    const g = geom(size);
+    let grid = baseGrid(size);
+    const symbols = [];
+    for (let v = 1; v <= size; v++) symbols.push(v);
+    const map = rngShuffle(rng, symbols);
+    for (let i = 0; i < grid.length; i++) grid[i] = map[grid[i] - 1];
+    const nBands = size / g.boxRows;
+    const rowSrc = seq(size);
+    for (let b = 0; b < nBands; b++) {
+      const idxs = [];
+      for (let i = 0; i < g.boxRows; i++) idxs.push(b * g.boxRows + i);
+      const sh = rngShuffle(rng, idxs);
+      for (let i = 0; i < g.boxRows; i++) rowSrc[b * g.boxRows + i] = sh[i];
+    }
+    const bandPerm = rngShuffle(rng, seq(nBands));
+    const finalRow = new Array(size);
+    for (let b = 0; b < nBands; b++) {
+      const srcBand = bandPerm[b];
+      for (let i = 0; i < g.boxRows; i++) finalRow[b * g.boxRows + i] = rowSrc[srcBand * g.boxRows + i];
+    }
+    const rows = [];
+    for (let r = 0; r < size; r++) rows.push(grid.slice(r * size, (r + 1) * size));
+    let next = new Array(size * size);
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) next[r * size + c] = rows[finalRow[r]][c];
+    }
+    grid = next;
+    const nStacks = size / g.boxCols;
+    const colSrc = seq(size);
+    for (let s = 0; s < nStacks; s++) {
+      const idxs = [];
+      for (let i = 0; i < g.boxCols; i++) idxs.push(s * g.boxCols + i);
+      const sh = rngShuffle(rng, idxs);
+      for (let i = 0; i < g.boxCols; i++) colSrc[s * g.boxCols + i] = sh[i];
+    }
+    const stackPerm = rngShuffle(rng, seq(nStacks));
+    const finalCol = new Array(size);
+    for (let s = 0; s < nStacks; s++) {
+      const srcStack = stackPerm[s];
+      for (let i = 0; i < g.boxCols; i++) finalCol[s * g.boxCols + i] = colSrc[srcStack * g.boxCols + i];
+    }
+    const out = new Array(size * size);
+    for (let r = 0; r < size; r++) {
+      for (let c = 0; c < size; c++) out[r * size + c] = grid[r * size + finalCol[c]];
+    }
+    return out;
+  }
+  function givenCount(grid) {
+    let n = 0;
+    for (let i = 0; i < grid.length; i++) if (grid[i]) n++;
+    return n;
+  }
+  function distinctCount(grid) {
+    const seen = [];
+    for (let i = 0; i < grid.length; i++) if (grid[i] && seen.indexOf(grid[i]) < 0) seen.push(grid[i]);
+    return seen.length;
+  }
+  function boxEmptyCounts(size, grid) {
+    const g = geom(size);
+    const n = (size / g.boxRows) * (size / g.boxCols);
+    const counts = new Array(n).fill(0);
+    for (let i = 0; i < grid.length; i++) {
+      if (grid[i] === 0) counts[boxIndexAt(size, Math.floor(i / size), i % size)]++;
+    }
+    return counts;
+  }
+  function spreadOk(size, grid) {
+    const counts = boxEmptyCounts(size, grid);
+    let mn = counts[0];
+    let mx = counts[0];
+    for (let i = 1; i < counts.length; i++) {
+      if (counts[i] < mn) mn = counts[i];
+      if (counts[i] > mx) mx = counts[i];
+    }
+    return mx - mn <= 1;
+  }
+  function rowMinOk(size, grid, min) {
+    for (let r = 0; r < size; r++) {
+      let n = 0;
+      for (let c = 0; c < size; c++) if (grid[r * size + c]) n++;
+      if (n < min) return false;
+    }
+    return true;
+  }
+  function specOf(band, size) {
+    if (band === "tiny") return { min: 12, max: 12, floor: 12, distinct: 3, row: 0 };
+    if (band === "little") return { min: 8, max: 10, floor: 8, distinct: 3, row: 0 };
+    if (band === "shop") return { min: 24, max: 28, floor: 24, distinct: 5, row: 4 };
+    if (size === 9) return { min: 40, max: 48, floor: 40, distinct: 8, row: 0 };
+    return { min: 18, max: 22, floor: 18, distinct: 5, row: 0 };
+  }
+  function techOk(band, size, grid, solution) {
+    if (band === "tiny") return sudokuOpeningNaked(size, grid);
+    if (band === "little") {
+      const solved = sudokuSolveSingles(size, grid, "naked");
+      return !!(solved && eqArr(solved, solution));
+    }
+    const solved = sudokuSolveSingles(size, grid, "both");
+    return !!(solved && eqArr(solved, solution));
+  }
+  function keepOk(band, size, grid, solution, spec) {
+    if (distinctCount(grid) < spec.distinct) return false;
+    if (spec.row && !rowMinOk(size, grid, spec.row)) return false;
+    if (!techOk(band, size, grid, solution)) return false;
+    if (sudokuCountSolutions(size, grid) !== 1) return false;
+    return true;
+  }
+  function parseRows(rows) {
+    const out = [];
+    for (let r = 0; r < rows.length; r++) {
+      for (let c = 0; c < rows[r].length; c++) out.push(rows[r].charCodeAt(c) - 48);
+    }
+    return out;
+  }
+  function fallbackPack(band, size) {
+    const key = band === "rush" ? (size === 9 ? "rush9" : "rush6") : band;
+    return { puzzle: parseRows(FALLBACK[key]), solution: baseGrid(size) };
+  }
+  function sudokuGenerate(band, size, seed) {
+    const spec = specOf(band, size);
+    const rng = makeRng(seed >>> 0);
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const solution = fillComplete(size, rng);
+      const puzzle = solution.slice();
+      const order = rngShuffle(rng, seq(size * size));
+      let stop = false;
+      while (!stop) {
+        if (givenCount(puzzle) <= spec.floor) break;
+        const empties = boxEmptyCounts(size, puzzle);
+        let minC = empties[0];
+        for (let i = 1; i < empties.length; i++) if (empties[i] < minC) minC = empties[i];
+        let cleared = false;
+        for (let oi = 0; oi < order.length; oi++) {
+          if (givenCount(puzzle) <= spec.floor) { stop = true; break; }
+          const idx = order[oi];
+          if (puzzle[idx] === 0) continue;
+          const b = boxIndexAt(size, Math.floor(idx / size), idx % size);
+          if (empties[b] !== minC) continue;
+          const saved = puzzle[idx];
+          puzzle[idx] = 0;
+          if (keepOk(band, size, puzzle, solution, spec)) {
+            empties[b]++;
+            cleared = true;
+          } else puzzle[idx] = saved;
+        }
+        if (stop) break;
+        if (!cleared) break;
+      }
+      const g = givenCount(puzzle);
+      const ok = g >= spec.min && g <= spec.max && spreadOk(size, puzzle) &&
+        distinctCount(puzzle) >= spec.distinct &&
+        (!spec.row || rowMinOk(size, puzzle, spec.row)) &&
+        techOk(band, size, puzzle, solution) &&
+        sudokuCountSolutions(size, puzzle) === 1;
+      if (ok) {
+        return { band: band, size: size, puzzle: puzzle, solution: solution, givens: g, fallbackUsed: false };
+      }
+    }
+    const fb = fallbackPack(band, size);
+    return {
+      band: band, size: size, puzzle: fb.puzzle, solution: fb.solution,
+      givens: givenCount(fb.puzzle), fallbackUsed: true
+    };
+  }
+
+  let screenId = "menu";
+  let level = "tiny";
+  let muted = false;
+  let bandStarted = false;
+  let dealt = 0;
+  let sizeN = null;
+  let puzzle = null;
+  let solution = null;
+  let clue = [];
+  let clueCount = 0;
+  let placed = [];
+  let latched = null;
+  let hintInfo = null;
+  let solved = false;
+  let zoomId = null;
+  let viewMode = null;
+  let fallbackUsed = false;
+  let pictureOrder = ["sun", "moon", "star", "heart"];
+  let pinnedSeed = null;
+  let genCounter = 1;
+  let checking = false;
+  let suppressReconnect = false;
+  let clock = 0;
+  let pointerActive = false;
+  let activePointer = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let leaveAt = 0;
+  let audioCtx = null;
+  let master = null;
+  let audioFailed = false;
+  let reduceMotion = false;
+
+  const menuEl = document.getElementById("screen-menu");
+  const playEl = document.getElementById("play");
+  const restEl = document.getElementById("screen-rest");
+  const boardEl = document.getElementById("board");
+  const trayEl = document.getElementById("tray");
+  const backBtn = document.getElementById("back");
+  const newBtn = document.getElementById("new-board");
+  const boxesBtn = document.getElementById("boxes");
+  const undoBtn = document.getElementById("undo");
+  const hintBtn = document.getElementById("hint");
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const bannerEl = document.getElementById("banner");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const letsBtn = document.getElementById("lets-go");
+
+  try {
+    reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  } catch (e) { reduceMotion = false; }
+
+  function isBand(band) {
+    return band === "tiny" || band === "little" || band === "shop" || band === "rush";
+  }
+  function picturesOn() { return level === "tiny" || level === "little"; }
+  function nameOf(value) {
+    if (!value) return "";
+    if (picturesOn()) return pictureOrder[value - 1] || "";
+    return String(value);
+  }
+  function bannerText() {
+    if (screenId === "menu") return "";
+    if (screenId === "rest") return "That board is done.";
+    if (viewMode === "symbols" || latched !== null) return "Now look at the symbol.";
+    if (viewMode === "boxes") return "Look at a box.";
+    return "Look at an empty square.";
+  }
+  function trayEntries() {
+    if (!sizeN || !puzzle) return [];
+    if (level === "tiny") {
+      let idx = latched;
+      if (idx === null) {
+        for (let i = 0; i < puzzle.length; i++) if (puzzle[i] === 0) { idx = i; break; }
+      }
+      if (idx === null) return [];
+      const cands = sudokuCandidates(sizeN, puzzle, idx);
+      if (!cands.length) return [];
+      return [{ symbol: cands[0], live: true }];
+    }
+    const all = [];
+    let cands = [];
+    if (latched !== null) cands = sudokuCandidates(sizeN, puzzle, latched);
+    for (let s = 1; s <= sizeN; s++) {
+      all.push({ symbol: s, live: latched !== null && cands.indexOf(s) >= 0 });
+    }
+    return all;
+  }
+  function clearBoard() {
+    sizeN = null;
+    puzzle = null;
+    solution = null;
+    clue = [];
+    clueCount = 0;
+    placed = [];
+    latched = null;
+    hintInfo = null;
+    solved = false;
+    zoomId = null;
+    viewMode = null;
+    fallbackUsed = false;
+  }
+  function takeSeed() {
+    if (pinnedSeed !== null) {
+      const s = pinnedSeed >>> 0;
+      pinnedSeed = null;
+      genCounter += 1;
+      return s;
+    }
+    const s = playSeed(Date.now(), genCounter);
+    genCounter += 1;
+    return s;
+  }
+  function fullCell(width, size) {
+    return Math.floor((width - 16 - 8 * (size - 1)) / size);
+  }
+  function rushSize(width) {
+    return fullCell(width, 9) >= 72 ? 9 : 6;
+  }
+  function canFlat(w, h, size) {
+    if (size === 4) return true;
+    const cell = fullCell(w, size);
+    if (cell < 112) return false;
+    const gap = 8;
+    const grid = size * cell + (size - 1) * gap;
+    function trayOk(maxW, maxH) {
+      if (maxW < 112 || maxH < 112) return false;
+      const cols = Math.max(1, Math.floor((maxW + gap) / (112 + gap)));
+      const bw = Math.floor((maxW - (cols - 1) * gap) / cols);
+      if (bw < 112) return false;
+      const rows = Math.ceil(size / cols);
+      const th = rows * 112 + (rows - 1) * gap;
+      return th <= maxH;
+    }
+    const stackedTrayH = h - TOP - grid - 8 - 8 - UNDO_H;
+    if (grid + 16 <= w && trayOk(w - 32, stackedTrayH)) return true;
+    const sideMaxW = w - 16 - grid - 16;
+    const sideMaxH = h - TOP - 8 - UNDO_H;
+    if (grid <= sideMaxH && trayOk(sideMaxW, sideMaxH)) return true;
+    return false;
+  }
+  function pretendView(w, h) {
+    if (screenId !== "board" || !sizeN) return null;
+    if (sizeN === 4) return "flat";
+    if (canFlat(w, h, sizeN)) return "flat";
+    if (viewMode === "symbols") return "symbols";
+    if (viewMode === "zoom" && zoomId) return "zoom";
+    return "boxes";
+  }
+  function reconcileView(w, h) {
+    if (screenId !== "board" || !sizeN) return;
+    viewMode = pretendView(w, h);
+    if (viewMode !== "zoom" && viewMode !== "symbols") zoomId = null;
+  }
+  function choose4(w, h) {
+    const natural = Math.floor((w - 16 - 24) / 4);
+    if (w < 320) return { mode: "stack", cell: natural, gap: 8, fit: false };
+    function stackH(cell, gap) {
+      const grid = 4 * cell + 3 * gap;
+      return TOP + grid + 8 + (112 * 2 + 8) + 8 + UNDO_H;
+    }
+    const capped = Math.min(112, natural);
+    if (natural >= 72 && stackH(capped, 8) <= h) return { mode: "stack", cell: capped, gap: 8, fit: true };
+    const availH = h - TOP - 8 - UNDO_H;
+    let gap = 8;
+    let cell = Math.min(112, Math.floor((availH - 24) / 4));
+    if (cell < 72) {
+      gap = 4;
+      cell = Math.min(112, Math.floor((availH - 12) / 4));
+    }
+    if (cell >= 72) {
+      const gridW = 4 * cell + 3 * gap;
+      if (8 + gridW + 16 + (112 * 2 + 8) + 16 <= w && 232 <= availH) {
+        return { mode: "side", cell: cell, gap: gap, fit: true };
+      }
+    }
+    const cell4 = Math.floor((w - 16 - 12) / 4);
+    if (cell4 >= 72 && stackH(72, 4) <= h) return { mode: "stack", cell: 72, gap: 4, fit: true };
+    return { mode: "stack", cell: natural, gap: 8, fit: false };
+  }
+  function pushTarget(targets, item) {
+    targets.push({ id: item.id, x: item.x, y: item.y, w: item.w, h: item.h, play: !!item.play });
+  }
+  function chromeItems(w, screen) {
+    const y = 8;
+    const items = [
+      { id: "mute", x: 8, y: y, w: 72, h: 72, play: false, button: true, role: "chrome" },
+      { id: "full", x: 88, y: y, w: 72, h: 72, play: false, button: true, role: "chrome" }
+    ];
+    if (screen === "menu") return items;
+    const edge = 8;
+    const gap = 8;
+    const right = w - edge;
+    const leftLimit = 168;
+    const space = right - leftLimit;
+    if (screen === "board") {
+      const usable = space - gap;
+      let backW = Math.max(72, Math.floor(usable * 0.55));
+      let newW = usable - backW;
+      if (newW < 72) { newW = 72; backW = usable - newW; }
+      items.push({ id: "new-board", x: leftLimit, y: y, w: newW, h: 72, play: false, button: true, role: "chrome" });
+      items.push({ id: "back", x: right - backW, y: y, w: backW, h: 72, play: false, button: true, role: "chrome" });
+    } else {
+      const backW = Math.max(72, Math.min(200, space));
+      items.push({ id: "back", x: right - backW, y: y, w: backW, h: 72, play: false, button: true, role: "chrome" });
+    }
+    return items;
+  }
+  function actionItems(w, y, withBoxes) {
+    const n = withBoxes ? 3 : 2;
+    const gap = 8;
+    const bw = Math.floor((w - 32 - (n - 1) * gap) / n);
+    const items = [
+      { id: "undo", x: 16, y: y, w: bw, h: UNDO_H, play: true, button: true, role: "action" },
+      { id: "hint", x: 16 + bw + gap, y: y, w: bw, h: UNDO_H, play: true, button: true, role: "action" }
+    ];
+    if (withBoxes) {
+      items.push({ id: "boxes", x: 16 + 2 * (bw + gap), y: y, w: bw, h: UNDO_H, play: true, button: true, role: "action" });
+    }
+    return items;
+  }
+  function addCells(items, originX, originY, cell, gap, indexes) {
+    if (!puzzle || !sizeN) return;
+    for (let k = 0; k < indexes.length; k++) {
+      const index = indexes[k];
+      const r = Math.floor(index / sizeN);
+      const c = index % sizeN;
+      const localR = indexes === null ? r : r;
+      const box = {
+        id: "cell-" + index,
+        x: originX + c * (cell + gap),
+        y: originY + r * (cell + gap),
+        w: cell,
+        h: cell,
+        index: index
+      };
+      if (puzzle[index] === 0) {
+        box.play = true;
+        box.button = true;
+        box.role = "cell";
+      } else if (clue[index]) {
+        box.play = false;
+        box.button = false;
+        box.role = "given";
+      } else {
+        box.play = false;
+        box.button = false;
+        box.role = "placed";
+      }
+      items.push(box);
+    }
+  }
+  function layoutFlat(w, h, items) {
+    if (sizeN === 4) {
+      const choice = choose4(w, h);
+      const cell = choice.cell;
+      const gap = choice.gap;
+      const gridW = 4 * cell + 3 * gap;
+      const gridH = gridW;
+      let gridX = 8;
+      let gridY = TOP;
+      let trayX;
+      let trayY;
+      let trayBW;
+      let actY;
+      if (choice.mode === "stack") {
+        trayBW = Math.floor((w - 32 - 8) / 2);
+        trayX = 16;
+        trayY = gridY + gridH + 8;
+        actY = trayY + 232 + 8;
+      } else {
+        trayX = gridX + gridW + 16;
+        trayY = TOP;
+        const remain = w - trayX - 16;
+        trayBW = Math.floor((remain - 8) / 2);
+        actY = TOP + Math.max(gridH, 232) + 8;
+      }
+      const indexes = seq(16);
+      for (let i = 0; i < indexes.length; i++) {
+        const index = indexes[i];
+        const r = Math.floor(index / 4);
+        const c = index % 4;
+        const box = {
+          id: "cell-" + index,
+          x: gridX + c * (cell + gap),
+          y: gridY + r * (cell + gap),
+          w: cell,
+          h: cell,
+          index: index
+        };
+        if (puzzle[index] === 0) { box.play = true; box.button = true; box.role = "cell"; }
+        else if (clue[index]) { box.play = false; box.button = false; box.role = "given"; }
+        else { box.play = false; box.button = false; box.role = "placed"; }
+        items.push(box);
+      }
+      const entries = trayEntries();
+      for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        const col = i % 2;
+        const row = Math.floor(i / 2);
+        items.push({
+          id: "symbol-" + e.symbol,
+          x: trayX + col * (trayBW + 8),
+          y: trayY + row * (112 + 8),
+          w: trayBW,
+          h: 112,
+          play: true,
+          button: !!e.live,
+          role: e.live ? "symbol" : "dim",
+          symbol: e.symbol
+        });
+      }
+      const actions = actionItems(w, actY, false);
+      for (let i = 0; i < actions.length; i++) items.push(actions[i]);
+      return;
+    }
+    const cell = fullCell(w, sizeN);
+    const gap = 8;
+    const grid = sizeN * cell + (sizeN - 1) * gap;
+    const entries = trayEntries();
+    const cols = Math.max(1, Math.floor((w - 32 + gap) / (112 + gap)));
+    const bw = Math.floor((w - 32 - (Math.min(cols, entries.length) - 1) * gap) / Math.max(1, Math.min(cols, Math.max(1, entries.length))));
+    const useCols = Math.min(entries.length, Math.max(1, Math.floor((w - 32 + gap) / (112 + gap))));
+    const symW = Math.max(112, Math.floor((w - 32 - (useCols - 1) * gap) / useCols));
+    const symRows = Math.ceil(entries.length / useCols);
+    const trayH = symRows * 112 + (symRows - 1) * gap;
+    const gridY = TOP;
+    const trayY = gridY + grid + 8;
+    const actY = trayY + trayH + 8;
+    for (let index = 0; index < puzzle.length; index++) {
+      const r = Math.floor(index / sizeN);
+      const c = index % sizeN;
+      const box = {
+        id: "cell-" + index,
+        x: 8 + c * (cell + gap),
+        y: gridY + r * (cell + gap),
+        w: cell,
+        h: cell,
+        index: index
+      };
+      if (puzzle[index] === 0) { box.play = true; box.button = true; box.role = "cell"; }
+      else if (clue[index]) { box.play = false; box.button = false; box.role = "given"; }
+      else { box.play = false; box.button = false; box.role = "placed"; }
+      items.push(box);
+    }
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      const col = i % useCols;
+      const row = Math.floor(i / useCols);
+      items.push({
+        id: "symbol-" + e.symbol,
+        x: 16 + col * (symW + gap),
+        y: trayY + row * (112 + gap),
+        w: symW,
+        h: 112,
+        play: true,
+        button: !!e.live,
+        role: e.live ? "symbol" : "dim",
+        symbol: e.symbol
+      });
+    }
+    const actions = actionItems(w, actY, false);
+    for (let i = 0; i < actions.length; i++) items.push(actions[i]);
+  }
+  function layoutBoxes(w, h, items) {
+    const nBoxes = sizeN === 9 ? 9 : 6;
+    const cols = 3;
+    const rows = nBoxes / 3;
+    const gap = 8;
+    const byW = Math.floor((w - 32 - (cols - 1) * gap) / cols);
+    const availH = h - TOP - gap - UNDO_H;
+    const byH = Math.floor((availH - (rows - 1) * gap) / rows);
+    const side = Math.min(byW, byH);
+    const gridW = cols * side + (cols - 1) * gap;
+    const x0 = Math.floor((w - gridW) / 2);
+    const y0 = TOP;
+    for (let b = 0; b < nBoxes; b++) {
+      const col = b % cols;
+      const row = Math.floor(b / cols);
+      items.push({
+        id: "box-" + b,
+        x: x0 + col * (side + gap),
+        y: y0 + row * (side + gap),
+        w: side,
+        h: side,
+        play: true,
+        button: true,
+        role: "box",
+        box: b
+      });
+    }
+    const actY = y0 + rows * side + (rows - 1) * gap + 8;
+    const actions = actionItems(w, actY, false);
+    for (let i = 0; i < actions.length; i++) items.push(actions[i]);
+  }
+  function zoomBoxIndex() {
+    if (!zoomId) return -1;
+    const m = /^box-(\d+)$/.exec(zoomId);
+    if (!m) return -1;
+    return +m[1];
+  }
+  function trayFitsZoom(w, h, size) {
+    const g = geom(size);
+    const gap = 8;
+    const cellByW = Math.floor((w - 32 - (g.boxCols - 1) * gap) / g.boxCols);
+    if (cellByW < 72) return false;
+    const symCols = 3;
+    const symRows = Math.ceil(size / 3);
+    const symW = Math.floor((w - 32 - (symCols - 1) * gap) / symCols);
+    const symH = size === 9 ? 112 : 160;
+    if (Math.min(symW, symH) < 88) return false;
+    const cell = Math.min(cellByW, Math.max(112, cellByW));
+    const cellBlock = g.boxRows * Math.max(72, Math.min(cell, cellByW)) + (g.boxRows - 1) * gap;
+    const trayBlock = symRows * symH + (symRows - 1) * gap;
+    const need = TOP + cellBlock + 8 + trayBlock + 8 + UNDO_H;
+    return need <= h && cellByW >= 72;
+  }
+  function layoutZoom(w, h, items) {
+    const g = geom(sizeN);
+    const gap = 8;
+    const b = zoomBoxIndex();
+    const cells = b >= 0 ? cellsInBox(sizeN, b) : [];
+    const withTray = trayFitsZoom(w, h, sizeN);
+    const symCols = 3;
+    const symRows = Math.ceil(sizeN / 3);
+    const symW = Math.floor((w - 32 - 16) / 3);
+    const symH = sizeN === 9 ? 112 : 160;
+    const trayBlock = withTray ? symRows * symH + (symRows - 1) * gap : 0;
+    const avail = h - TOP - UNDO_H - 8 - (withTray ? trayBlock + 8 : 0);
+    const byW = Math.floor((w - 32 - (g.boxCols - 1) * gap) / g.boxCols);
+    const byH = Math.floor((avail - (g.boxRows - 1) * gap) / g.boxRows);
+    const cell = Math.min(byW, byH);
+    const originR = cells.length ? Math.floor(cells[0] / sizeN) : 0;
+    const originC = cells.length ? cells[0] % sizeN : 0;
+    const x0 = 16;
+    const y0 = TOP;
+    for (let k = 0; k < cells.length; k++) {
+      const index = cells[k];
+      const r = Math.floor(index / sizeN) - originR;
+      const c = (index % sizeN) - originC;
+      const box = {
+        id: "cell-" + index,
+        x: x0 + c * (cell + gap),
+        y: y0 + r * (cell + gap),
+        w: cell,
+        h: cell,
+        index: index
+      };
+      if (puzzle[index] === 0) { box.play = true; box.button = true; box.role = "cell"; }
+      else if (clue[index]) { box.play = false; box.button = false; box.role = "given"; }
+      else { box.play = false; box.button = false; box.role = "placed"; }
+      items.push(box);
+    }
+    if (withTray) {
+      const entries = trayEntries();
+      const trayY = y0 + g.boxRows * cell + (g.boxRows - 1) * gap + 8;
+      for (let i = 0; i < entries.length; i++) {
+        const e = entries[i];
+        const col = i % symCols;
+        const row = Math.floor(i / symCols);
+        items.push({
+          id: "symbol-" + e.symbol,
+          x: 16 + col * (symW + gap),
+          y: trayY + row * (symH + gap),
+          w: symW,
+          h: symH,
+          play: true,
+          button: !!e.live,
+          role: e.live ? "symbol" : "dim",
+          symbol: e.symbol
+        });
+      }
+      const actY = trayY + trayBlock + 8;
+      const actions = actionItems(w, actY, true);
+      for (let i = 0; i < actions.length; i++) items.push(actions[i]);
+    } else {
+      const actY = y0 + g.boxRows * cell + (g.boxRows - 1) * gap + 8;
+      const actions = actionItems(w, actY, true);
+      for (let i = 0; i < actions.length; i++) items.push(actions[i]);
+    }
+  }
+  function layoutSymbols(w, h, items) {
+    const entries = trayEntries();
+    const cols = 3;
+    const rows = Math.ceil(sizeN / 3);
+    const gap = 8;
+    const symW = Math.floor((w - 32 - 16) / 3);
+    const prefH = sizeN <= 6 ? 160 : 112;
+    const availH = h - TOP - 8 - UNDO_H - 8;
+    const byH = Math.floor((availH - (rows - 1) * gap) / rows);
+    const symH = byH >= prefH ? prefH : byH;
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      items.push({
+        id: "symbol-" + e.symbol,
+        x: 16 + col * (symW + gap),
+        y: TOP + row * (symH + gap),
+        w: symW,
+        h: symH,
+        play: true,
+        button: !!e.live,
+        role: e.live ? "symbol" : "dim",
+        symbol: e.symbol
+      });
+    }
+    const actY = TOP + rows * symH + (rows - 1) * gap + 8;
+    const actions = actionItems(w, actY, true);
+    for (let i = 0; i < actions.length; i++) items.push(actions[i]);
+  }
+  function layout(w, h) {
+    const items = chromeItems(w, screenId);
+    const view = pretendView(w, h);
+    if (screenId === "board" && sizeN && puzzle) {
+      if (view === "flat") layoutFlat(w, h, items);
+      else if (view === "boxes") layoutBoxes(w, h, items);
+      else if (view === "zoom") layoutZoom(w, h, items);
+      else if (view === "symbols") layoutSymbols(w, h, items);
+    }
+    if (screenId === "rest" && solved && dealt === 1) {
+      items.push({
+        id: "another", x: Math.floor(w / 2 - 120), y: Math.floor(h / 2 + 20),
+        w: 240, h: 72, play: false, button: true, role: "another"
+      });
+    }
+    const targets = [];
+    for (let i = 0; i < items.length; i++) if (items[i].button) pushTarget(targets, items[i]);
+    let fit = w >= 320;
+    for (let i = 0; i < targets.length; i++) {
+      if (Math.min(targets[i].w, targets[i].h) < 72) fit = false;
+    }
+    return { fit: fit, view: view, items: items, targets: targets };
+  }
+
+  function drawSun(ctx, w, h) {
+    const s = Math.min(w, h);
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = s * 0.28;
+    const ray = s * 0.18;
+    ctx.strokeStyle = "#f08a24";
+    ctx.lineWidth = Math.max(2, s * 0.04);
+    ctx.lineCap = "round";
+    for (let i = 0; i < 8; i++) {
+      const a = (Math.PI * 2 * i) / 8;
+      const inner = r + s * 0.03;
+      ctx.beginPath();
+      ctx.moveTo(cx + Math.cos(a) * inner, cy + Math.sin(a) * inner);
+      ctx.lineTo(cx + Math.cos(a) * (inner + ray), cy + Math.sin(a) * (inner + ray));
+      ctx.stroke();
+    }
+    ctx.fillStyle = "#f5c518";
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  function drawMoon(ctx, w, h) {
+    const s = Math.min(w, h);
+    const r = s * 0.34;
+    const cx = w / 2;
+    const cy = h / 2;
+    ctx.fillStyle = "#f3e6a2";
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath();
+    ctx.arc(cx + r * 0.35, cy, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  }
+  function drawStar(ctx, w, h) {
+    const s = Math.min(w, h);
+    const cx = w / 2;
+    const cy = h / 2;
+    const R = s * 0.42;
+    const r = R * 0.4;
+    ctx.fillStyle = "#e2b007";
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const rad = i % 2 === 0 ? R : r;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const x = cx + Math.cos(a) * rad;
+      const y = cy + Math.sin(a) * rad;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  function drawHeart(ctx, w, h) {
+    const s = Math.min(w, h);
+    const cx = w / 2;
+    const cy = h / 2 + s * 0.04;
+    ctx.fillStyle = "#d62828";
+    ctx.beginPath();
+    ctx.moveTo(cx, cy + s * 0.32);
+    ctx.bezierCurveTo(cx - s * 0.52, cy + s * 0.02, cx - s * 0.42, cy - s * 0.32, cx, cy - s * 0.08);
+    ctx.bezierCurveTo(cx + s * 0.42, cy - s * 0.32, cx + s * 0.52, cy + s * 0.02, cx, cy + s * 0.32);
+    ctx.fill();
+  }
+  function drawName(ctx, name, w, h) {
+    ctx.clearRect(0, 0, w, h);
+    if (name === "sun") drawSun(ctx, w, h);
+    else if (name === "moon") drawMoon(ctx, w, h);
+    else if (name === "star") drawStar(ctx, w, h);
+    else if (name === "heart") drawHeart(ctx, w, h);
+  }
+  function paintSymbol(el, value, w, h) {
+    if (picturesOn()) {
+      const canvas = document.createElement("canvas");
+      canvas.className = "mark";
+      canvas.width = Math.max(1, w);
+      canvas.height = Math.max(1, h);
+      canvas.setAttribute("aria-hidden", "true");
+      const ctx = canvas.getContext("2d");
+      drawName(ctx, nameOf(value), canvas.width, canvas.height);
+      el.appendChild(canvas);
+      el.setAttribute("aria-label", nameOf(value));
+    } else {
+      el.textContent = String(value);
+      el.style.fontSize = Math.floor(Math.min(w, h) * 0.6) + "px";
+      el.style.color = INK;
+    }
+  }
+  function place(el, item, z) {
+    el.style.position = "fixed";
+    el.style.left = item.x + "px";
+    el.style.top = item.y + "px";
+    el.style.width = item.w + "px";
+    el.style.height = item.h + "px";
+    if (z) el.style.zIndex = String(z);
+  }
+  function syncAnother() {
+    const existing = document.getElementById("another");
+    const show = screenId === "rest" && solved && dealt === 1;
+    if (show && !existing) {
+      const btn = document.createElement("button");
+      btn.id = "another";
+      btn.type = "button";
+      btn.textContent = "Another";
+      btn.addEventListener("click", again);
+      restEl.appendChild(btn);
+    } else if (!show && existing) {
+      existing.remove();
+    }
+  }
+  function pieceHost(lay, item) {
+    if ((item.role === "symbol" || item.role === "dim") && lay.view !== "symbols") return trayEl;
+    return boardEl;
+  }
+  function pieceClass(item) {
+    if (item.role === "cell" || item.role === "given" || item.role === "placed") {
+      let name = "cell " + (item.role === "cell" ? "hole" : item.role);
+      if (item.index === latched) name += " latched";
+      if (hintInfo && hintInfo.index === item.index && !reduceMotion) name += " pulse";
+      return name;
+    }
+    if (item.role === "symbol" || item.role === "dim") {
+      let name = "sym " + (item.button ? "live" : "dim");
+      if (hintInfo && hintInfo.symbol === item.symbol && item.button && !reduceMotion) name += " pulse";
+      return name;
+    }
+    return "boxbtn";
+  }
+  function pieceStamp(item) {
+    const pic = picturesOn() ? "p" : "n";
+    if (item.role === "given" || item.role === "placed") {
+      return item.role + ":" + puzzle[item.index] + ":" + item.w + "x" + item.h + ":" + pic;
+    }
+    if (item.role === "symbol" || item.role === "dim") {
+      return item.role + ":" + item.symbol + ":" + item.w + "x" + item.h + ":" + pic;
+    }
+    if (item.role === "box") return "box:" + item.box + ":" + item.w + "x" + item.h;
+    return "cell";
+  }
+  function wirePiece(el) {
+    if (el.dataset.wired) return;
+    el.dataset.wired = "1";
+    el.addEventListener("click", function () {
+      if (el.dataset.kind === "cell") latch(el.id);
+      else if (el.dataset.kind === "symbol") write(Number(el.dataset.symbol));
+      else if (el.dataset.kind === "box") zoom(el.id);
+    });
+  }
+  function paintPiece(el, item) {
+    el.replaceChildren();
+    if (item.role === "given" || item.role === "placed") paintSymbol(el, puzzle[item.index], item.w, item.h);
+    else if (item.role === "symbol" || item.role === "dim") paintSymbol(el, item.symbol, item.w, item.h);
+    else if (item.role === "box") {
+      const canvas = document.createElement("canvas");
+      canvas.className = "mark";
+      canvas.width = Math.max(1, item.w);
+      canvas.height = Math.max(1, item.h);
+      canvas.setAttribute("aria-hidden", "true");
+      drawBox(canvas, item.box, item.w, item.h);
+      el.appendChild(canvas);
+    }
+  }
+  function syncPieces(lay) {
+    const wanted = [];
+    if (screenId === "board") {
+      for (let i = 0; i < lay.items.length; i++) {
+        const item = lay.items[i];
+        if (item.role === "cell" || item.role === "given" || item.role === "placed" ||
+            item.role === "symbol" || item.role === "dim" || item.role === "box") {
+          wanted.push(item);
+        }
+      }
+    }
+    const keep = {};
+    for (let i = 0; i < wanted.length; i++) {
+      const item = wanted[i];
+      const host = pieceHost(lay, item);
+      const wantButton = !!item.button;
+      let el = document.getElementById(item.id);
+      if (!el || (el.tagName === "BUTTON") !== wantButton) {
+        if (el) el.remove();
+        el = document.createElement(wantButton ? "button" : "div");
+        if (wantButton) el.type = "button";
+        el.id = item.id;
+      }
+      if (el.parentElement !== host) host.appendChild(el);
+      el.className = pieceClass(item);
+      if (item.role === "symbol" || item.role === "dim") el.dataset.symbol = String(item.symbol);
+      el.dataset.kind = item.role === "cell" ? "cell" : (item.role === "symbol" ? "symbol" : (item.role === "box" ? "box" : "static"));
+      if (item.button) {
+        el.setAttribute("data-play", "true");
+        if (item.role === "cell") el.setAttribute("aria-label", "Empty");
+        else if (item.role === "box") el.setAttribute("aria-label", "Box " + (item.box + 1));
+        wirePiece(el);
+      } else {
+        el.removeAttribute("data-play");
+      }
+      const stamp = pieceStamp(item);
+      if (el.dataset.stamp !== stamp) {
+        paintPiece(el, item);
+        el.dataset.stamp = stamp;
+      }
+      place(el, item, 30);
+      keep[item.id] = true;
+    }
+    [boardEl, trayEl].forEach(function (host) {
+      const kids = Array.prototype.slice.call(host.children);
+      for (let i = 0; i < kids.length; i++) {
+        if (!keep[kids[i].id]) kids[i].remove();
+      }
+    });
+    const boardIds = [];
+    const trayIds = [];
+    for (let i = 0; i < wanted.length; i++) {
+      const bucket = pieceHost(lay, wanted[i]) === trayEl ? trayIds : boardIds;
+      bucket.push(wanted[i].id);
+    }
+    orderHost(boardEl, boardIds);
+    orderHost(trayEl, trayIds);
+  }
+  function orderHost(host, ids) {
+    const present = [];
+    for (let i = 0; i < ids.length; i++) {
+      const el = document.getElementById(ids[i]);
+      if (el && el.parentElement === host) present.push(el);
+    }
+    let same = host.children.length === present.length;
+    for (let i = 0; same && i < present.length; i++) {
+      if (host.children[i] !== present[i]) same = false;
+    }
+    if (same) return;
+    for (let i = 0; i < present.length; i++) host.appendChild(present[i]);
+  }
+  function render() {
+    if (screenId === "board" && sizeN) reconcileView(window.innerWidth, window.innerHeight);
+    const lay = layout(window.innerWidth, window.innerHeight);
+    menuEl.hidden = screenId !== "menu";
+    playEl.hidden = screenId !== "board";
+    restEl.hidden = screenId !== "rest";
+    backBtn.hidden = screenId === "menu";
+    newBtn.hidden = screenId !== "board";
+    boxesBtn.hidden = !(screenId === "board" && (lay.view === "zoom" || lay.view === "symbols"));
+    undoBtn.hidden = screenId !== "board";
+    hintBtn.hidden = screenId !== "board";
+    bannerEl.textContent = bannerText();
+    bannerEl.hidden = screenId === "menu";
+    eyesEl.hidden = !eyesOn();
+    muteBtn.setAttribute("aria-pressed", muted ? "true" : "false");
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    document.getElementById("sound-on").hidden = muted;
+    document.getElementById("sound-off").hidden = !muted;
+    ["tiny", "little", "shop", "rush"].forEach(function (id) {
+      document.getElementById(id).setAttribute("aria-pressed", id === level ? "true" : "false");
+    });
+    for (let i = 0; i < lay.items.length; i++) {
+      const item = lay.items[i];
+      if (item.role !== "chrome" && item.role !== "action") continue;
+      const el = document.getElementById(item.id);
+      if (!el) continue;
+      place(el, item, item.role === "chrome" ? 46 : 32);
+    }
+    syncPieces(lay);
+    syncAnother();
+  }
+  function drawBox(canvas, b, w, h) {
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, w, h);
+    const cells = cellsInBox(sizeN, b);
+    const g = geom(sizeN);
+    const gap = 4;
+    const cw = Math.floor((w - gap * (g.boxCols + 1)) / g.boxCols);
+    const ch = Math.floor((h - gap * (g.boxRows + 1)) / g.boxRows);
+    const origin = cells[0];
+    const or = Math.floor(origin / sizeN);
+    const oc = origin % sizeN;
+    for (let k = 0; k < cells.length; k++) {
+      const index = cells[k];
+      const r = Math.floor(index / sizeN) - or;
+      const c = (index % sizeN) - oc;
+      const x = gap + c * (cw + gap);
+      const y = gap + r * (ch + gap);
+      ctx.fillStyle = puzzle[index] === 0 ? "#f4f0d8" : (clue[index] ? "#fffdf6" : "#fff6df");
+      ctx.fillRect(x, y, cw, ch);
+      if (puzzle[index]) {
+        if (picturesOn()) {
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(x, y, cw, ch);
+          ctx.clip();
+          ctx.translate(x, y);
+          drawName(ctx, nameOf(puzzle[index]), cw, ch);
+          ctx.restore();
+        } else {
+          ctx.fillStyle = INK;
+          ctx.font = Math.floor(Math.min(cw, ch) * 0.6) + "px Arial Rounded MT Bold, Trebuchet MS, Segoe UI, sans-serif";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillText(String(puzzle[index]), x + cw / 2, y + ch / 2);
+        }
+      }
+    }
+  }
+
+  function selectBand(band) {
+    if (!isBand(band)) return;
+    level = band;
+  }
+  function generate() {
+    const size = level === "shop" ? 6 : level === "rush" ? rushSize(window.innerWidth) : 4;
+    const seed = takeSeed();
+    const gen = sudokuGenerate(level, size, seed);
+    sizeN = gen.size;
+    puzzle = gen.puzzle.slice();
+    solution = gen.solution.slice();
+    clue = puzzle.map(function (v) { return v !== 0; });
+    clueCount = gen.givens;
+    fallbackUsed = gen.fallbackUsed;
+    pictureOrder = rngShuffle(makeRng(seed), ["sun", "moon", "star", "heart"]);
+    placed = [];
+    latched = null;
+    hintInfo = null;
+    solved = false;
+    zoomId = null;
+    viewMode = sizeN === 4 || canFlat(window.innerWidth, window.innerHeight, sizeN) ? "flat" : "boxes";
+  }
+  function start(band) {
+    if (!isBand(band)) { render(); return; }
+    selectBand(band);
+    bandStarted = true;
+    dealt = 1;
+    generate();
+    go("board");
+  }
+  function go(screen) {
+    if (screen !== "menu" && screen !== "board" && screen !== "rest") { render(); return; }
+    if (screen === "menu") {
+      dealt = 0;
+      bandStarted = false;
+      clearBoard();
+    }
+    screenId = screen;
+    render();
+  }
+  function latch(cellId) {
+    if (typeof cellId !== "string" || !sizeN || !puzzle) { render(); return; }
+    const m = /^cell-(\d+)$/.exec(cellId);
+    if (!m) { render(); return; }
+    const idx = +m[1];
+    if (idx < 0 || idx >= puzzle.length || puzzle[idx] !== 0) { render(); return; }
+    latched = idx;
+    render();
+  }
+  function write(symbol) {
+    if (!sizeN || !puzzle || latched === null) { render(); return; }
+    if (typeof symbol !== "number" || !Number.isInteger(symbol) || symbol < 1 || symbol > sizeN) { render(); return; }
+    const cands = sudokuCandidates(sizeN, puzzle, latched);
+    if (cands.indexOf(symbol) < 0) { render(); return; }
+    const idx = latched;
+    puzzle[idx] = symbol;
+    placed.push({ index: idx, symbol: symbol });
+    latched = null;
+    hintInfo = null;
+    if (viewMode === "symbols") viewMode = "zoom";
+    let done = true;
+    for (let i = 0; i < puzzle.length; i++) if (puzzle[i] !== solution[i]) done = false;
+    if (done) {
+      solved = true;
+      beep(659, 90);
+      go("rest");
+      return;
+    }
+    beep(523, 70);
+    render();
+  }
+  function undo() {
+    if (!placed.length || !puzzle) { render(); return; }
+    const last = placed.pop();
+    if (!clue[last.index]) puzzle[last.index] = 0;
+    hintInfo = null;
+    solved = false;
+    if (solution) {
+      solved = true;
+      for (let i = 0; i < puzzle.length; i++) if (puzzle[i] !== solution[i]) solved = false;
+    }
+    render();
+  }
+  function findHintCell() {
+    if (!sizeN || !puzzle) return null;
+    for (let i = 0; i < puzzle.length; i++) {
+      if (puzzle[i] !== 0) continue;
+      const cands = sudokuCandidates(sizeN, puzzle, i);
+      if (cands.length === 1) return { index: i, symbol: cands[0] };
+    }
+    if (level === "shop" || level === "rush") return findHidden(sizeN, puzzle);
+    return null;
+  }
+  function hint() {
+    if (!sizeN || !puzzle || solved) { render(); return; }
+    const found = findHintCell();
+    if (!found) { render(); return; }
+    latched = found.index;
+    hintInfo = { index: found.index, symbol: found.symbol };
+    if (sizeN !== 4 && viewMode !== "flat") {
+      const b = boxIndexAt(sizeN, Math.floor(found.index / sizeN), found.index % sizeN);
+      zoomId = "box-" + b;
+      viewMode = trayFitsZoom(window.innerWidth, window.innerHeight, sizeN) ? "zoom" : "symbols";
+    }
+    render();
+  }
+  function zoom(boxId) {
+    if (!sizeN || sizeN === 4) { render(); return; }
+    if (boxId === null) {
+      zoomId = null;
+      viewMode = "boxes";
+      render();
+      return;
+    }
+    if (typeof boxId !== "string") { render(); return; }
+    const m = /^box-(\d+)$/.exec(boxId);
+    const max = sizeN === 9 ? 8 : 5;
+    if (!m || +m[1] > max) { render(); return; }
+    if (zoomId === boxId && (viewMode === "zoom" || viewMode === "symbols")) {
+      zoomId = null;
+      viewMode = "boxes";
+    } else {
+      zoomId = boxId;
+      viewMode = "zoom";
+    }
+    render();
+  }
+  function toBoxes() {
+    zoomId = null;
+    latched = null;
+    viewMode = "boxes";
+    render();
+  }
+  function newBoard() {
+    if (!bandStarted) { render(); return; }
+    latched = null;
+    placed = [];
+    hintInfo = null;
+    solved = false;
+    zoomId = null;
+    generate();
+    if (screenId !== "board") go("board");
+    else render();
+  }
+  function again() {
+    if (screenId !== "rest" || !solved || dealt >= 2) { render(); return; }
+    dealt = 2;
+    latched = null;
+    placed = [];
+    hintInfo = null;
+    solved = false;
+    zoomId = null;
+    generate();
+    go("board");
+  }
+
+  function ensureAudio() {
+    if (audioCtx || audioFailed) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) { audioFailed = true; return; }
+    try {
+      audioCtx = new AC();
+      master = audioCtx.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(audioCtx.destination);
+    } catch (e) { audioFailed = true; }
+  }
+  function beep(freq, ms) {
+    if (!audioCtx || !master || muted) return;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    gain.gain.value = 1;
+    osc.connect(gain);
+    gain.connect(master);
+    const t0 = audioCtx.currentTime;
+    osc.start(t0);
+    osc.stop(t0 + ms / 1000);
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    if (!document.fullscreenElement) {
+      const req = document.documentElement.requestFullscreen;
+      if (req) req.call(document.documentElement).catch(function () {});
+    } else if (document.exitFullscreen) document.exitFullscreen();
+  }
+
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && now - gazeAt < GAZE_FRESH_MS && eyesOn());
+  }
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const el = document.elementFromPoint(gazePoint.x, gazePoint.y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (btn && buttonVisible(btn) && btn.id) {
+      const play = btn.getAttribute("data-play") === "true";
+      const id = btn.id;
+      return {
+        key: id,
+        ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS,
+        fire: function () {
+          ensureAudio();
+          const live = document.getElementById(id);
+          if (live) live.click();
+        }
+      };
+    }
+    return null;
+  }
+  function stepGaze(now) {
+    eyesEl.hidden = !eyesOn();
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      dwellKey = null;
+      dwellFired = false;
+      leaveAt = 0;
+      dwellProgress = 0;
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerActive) {
+      dwellKey = null;
+      dwellFired = false;
+      leaveAt = 0;
+      dwellProgress = 0;
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.key : null;
+    if (dwellKey && !key) {
+      if (!leaveAt) leaveAt = now;
+      if (now - leaveAt >= LEAVE_MS) {
+        dwellKey = null;
+        dwellFired = false;
+        leaveAt = 0;
+        dwellProgress = 0;
+        gazeEl.style.setProperty("--p", "0%");
+        return;
+      }
+      gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+      return;
+    }
+    if (key && key !== dwellKey) {
+      dwellKey = key;
+      dwellStart = now;
+      dwellFired = false;
+      leaveAt = 0;
+    } else if (key && leaveAt) {
+      dwellStart += now - leaveAt;
+      leaveAt = 0;
+    }
+    let p = 0;
+    if (target && !dwellFired) {
+      p = Math.min(1, (now - dwellStart) / target.ms);
+      if (now - dwellStart >= target.ms) {
+        dwellFired = true;
+        p = 1;
+        target.fire();
+      }
+    } else if (target) p = 1;
+    dwellProgress = target ? p : 0;
+    gazeEl.style.setProperty("--p", Math.round((target ? p : 0) * 100) + "%");
+  }
+  function step(now) {
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed.x += (gazeHold.x - smoothed.x) * 0.45;
+        smoothed.y += (gazeHold.y - smoothed.y) * 0.45;
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (!haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    dwellKey = null;
+    dwellFired = false;
+    leaveAt = 0;
+    dwellProgress = 0;
+    gazeEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    eyesEl.hidden = !eyesOn();
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerActive) { render(); return; }
+    pointerActive = true;
+    dwellKey = null;
+    dwellFired = false;
+    leaveAt = 0;
+    dwellProgress = 0;
+    render();
+  }
+  function release() {
+    pointerActive = false;
+    activePointer = null;
+    render();
+  }
+  function tap(nx, ny) {
+    pointerActive = false;
+    activePointer = null;
+    const x = nx * window.innerWidth;
+    const y = ny * window.innerHeight;
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (btn) btn.click();
+    render();
+  }
+  function dwell() {
+    const value = dwellProgress;
+    render();
+    return value;
+  }
+  function eyes() {
+    const out = { on: eyesOn(), live: eyesLive(clock) };
+    render();
+    return out;
+  }
+  function centers() {
+    render();
+    const list = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn) || !btn.id) continue;
+      const r = btn.getBoundingClientRect();
+      list.push({
+        id: btn.id,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        nx: (r.left + r.width / 2) / window.innerWidth,
+        ny: (r.top + r.height / 2) / window.innerHeight,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return list;
+  }
+  function targetsAt(w, h) {
+    const lay = layout(w, h);
+    render();
+    return { fit: lay.fit, targets: lay.targets };
+  }
+  function singlesNow() {
+    if (!sizeN || !puzzle || !solution) return false;
+    if (level === "tiny") return sudokuOpeningNaked(sizeN, puzzle);
+    if (level === "little") {
+      const solvedGrid = sudokuSolveSingles(sizeN, puzzle, "naked");
+      return !!(solvedGrid && eqArr(solvedGrid, solution));
+    }
+    const solvedGrid = sudokuSolveSingles(sizeN, puzzle, "both");
+    return !!(solvedGrid && eqArr(solvedGrid, solution));
+  }
+  function state() {
+    render();
+    const entries = trayEntries();
+    const tray = [];
+    for (let i = 0; i < entries.length; i++) tray.push({ symbol: entries[i].symbol, live: entries[i].live });
+    const placedCopy = [];
+    for (let i = 0; i < placed.length; i++) placedCopy.push({ index: placed[i].index, symbol: placed[i].symbol });
+    let empties = 0;
+    if (puzzle) for (let i = 0; i < puzzle.length; i++) if (puzzle[i] === 0) empties++;
+    return {
+      level: level,
+      screen: screenId,
+      banner: bannerText(),
+      muted: muted,
+      size: sizeN,
+      givens: sizeN ? clueCount : 0,
+      empties: empties,
+      latched: latched,
+      tray: tray,
+      placed: placedCopy,
+      puzzle: puzzle ? puzzle.slice() : null,
+      solution: solution ? solution.slice() : null,
+      solved: solved,
+      hint: hintInfo ? { index: hintInfo.index, symbol: hintInfo.symbol } : null,
+      singles: singlesNow(),
+      solutions: sizeN && puzzle ? sudokuCountSolutions(sizeN, puzzle) : 0,
+      zoom: zoomId,
+      view: screenId === "menu" ? null : viewMode,
+      dealt: dealt,
+      fallbackUsed: fallbackUsed
+    };
+  }
+  function seed(n) {
+    pinnedSeed = n >>> 0;
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () { gazeTimer = 0; connectGaze(); }, 2000);
+  }
+  function connectGaze() {
+    if (location.protocol === "https:") return;
+    if (suppressReconnect || checking) return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (e) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      dwellKey = null;
+      dwellFired = false;
+      leaveAt = 0;
+      dwellProgress = 0;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed.x += (raw.x - smoothed.x) * 0.45;
+      smoothed.y += (raw.y - smoothed.y) * 0.45;
+    }
+    gazePoint = smoothed;
+    gazeAt = clock || performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const h = gazeWarp;
+    if (!h) return { x: x, y: y };
+    const w = h[6] * x + h[7] * y + h[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (h[0] * x + h[1] * y + h[2]) / w,
+      y: (h[3] * x + h[4] * y + h[5]) / w
+    };
+  }
+
+  function engineSelfCheck() {
+    const failures = [];
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    const rng = makeRng(1);
+    const expectU = [0xA087EAF3, 0x00B349C9, 0x8706C4EB, 0xFB2627FD];
+    for (let i = 0; i < 4; i++) {
+      const u = rngUint(rng);
+      if (u !== expectU[i]) fail("rng-vectors", "uint " + i + " did not match.");
+    }
+    if (playSeed(1, 1) !== 0x3B230FE8) fail("rng-vectors", "playSeed(1, 1) did not match.");
+    const n = rngInt(makeRng(1), 0, 3);
+    if (n < 0 || n > 3) fail("rng-vectors", "rngInt left 0 to 3.");
+    function checkGrid(name, band, size, grid, solution, floorExact) {
+      const spec = specOf(band, size);
+      if (sudokuCountSolutions(size, grid) !== 1) fail(name, "solution count was not 1.");
+      for (let i = 0; i < grid.length; i++) {
+        if (grid[i] && grid[i] !== solution[i]) fail(name, "a clue contradicted the solution.");
+      }
+      const g = givenCount(grid);
+      if (g < spec.min || g > spec.max) fail(name, "givens were outside the window.");
+      if (floorExact && g !== spec.floor) fail(name, "givens were not the floor.");
+      if (distinctCount(grid) < spec.distinct) fail(name, "not enough distinct symbols.");
+      if (!spreadOk(size, grid)) fail(name, "box empties were not spread.");
+      if (spec.row && !rowMinOk(size, grid, spec.row)) fail(name, "a row had fewer than 4 givens.");
+      if (band === "tiny") {
+        if (!sudokuOpeningNaked(size, grid)) fail(name, "opening naked singles were not all present.");
+        for (let i = 0; i < grid.length; i++) {
+          if (grid[i] === 0 && sudokuCandidates(size, grid, i).length !== 1) fail(name, "an empty cell was not a naked single.");
+        }
+        const naked = sudokuSolveSingles(size, grid, "naked");
+        if (!naked || !eqArr(naked, solution)) fail(name, "naked singles did not finish the grid.");
+      } else if (band === "little") {
+        const naked = sudokuSolveSingles(size, grid, "naked");
+        if (!naked || !eqArr(naked, solution)) fail(name, "naked singles did not finish the grid.");
+      } else {
+        const both = sudokuSolveSingles(size, grid, "both");
+        if (!both || !eqArr(both, solution)) fail(name, "singles did not finish the grid.");
+      }
+    }
+    const rows = [["tiny", 4], ["little", 4], ["shop", 6], ["rush", 6], ["rush", 9]];
+    for (let i = 0; i < rows.length; i++) {
+      for (let s = 0; s < 2; s++) {
+        const seedN = s + 1;
+        const band = rows[i][0];
+        const size = rows[i][1];
+        const name = "generate-" + band + "-" + size + "-seed-" + seedN;
+        const gen = sudokuGenerate(band, size, seedN);
+        if (gen.fallbackUsed) fail(name, "fallback was used.");
+        checkGrid(name, band, size, gen.puzzle, gen.solution, true);
+      }
+    }
+    const fbs = [
+      ["fallback-tiny", "tiny", 4],
+      ["fallback-little", "little", 4],
+      ["fallback-shop", "shop", 6],
+      ["fallback-rush-6", "rush", 6],
+      ["fallback-rush-9", "rush", 9]
+    ];
+    for (let i = 0; i < fbs.length; i++) {
+      const pack = fallbackPack(fbs[i][1], fbs[i][2]);
+      if (!eqArr(pack.solution, baseGrid(fbs[i][2]))) fail(fbs[i][0], "solution was not the base grid.");
+      checkGrid(fbs[i][0], fbs[i][1], fbs[i][2], pack.puzzle, pack.solution, false);
+    }
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function pageShows(needle) {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let node = walker.nextNode();
+      while (node) {
+        const tag = node.parentNode && node.parentNode.tagName;
+        if (tag !== "SCRIPT" && tag !== "STYLE" && node.nodeValue.indexOf(needle) >= 0) return true;
+        node = walker.nextNode();
+      }
+      const els = document.body.getElementsByTagName("*");
+      for (let i = 0; i < els.length; i++) {
+        const el = els[i];
+        if (el.tagName === "SCRIPT" || el.tagName === "STYLE") continue;
+        const attrs = el.attributes;
+        for (let a = 0; a < attrs.length; a++) {
+          if (attrs[a].value.indexOf(needle) >= 0) return true;
+        }
+      }
+      return false;
+    }
+    const screenAtStart = screenId;
+    let storageWrites = 0;
+    let popBefore = null;
+    let keysBefore = [];
+    let storageOk = true;
+    try {
+      popBefore = localStorage.getItem("pop-pals-v1");
+      for (let i = 0; i < localStorage.length; i++) keysBefore.push(localStorage.key(i));
+      const origSet = localStorage.setItem;
+      const origRemove = localStorage.removeItem;
+      localStorage.setItem = function () { storageWrites++; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { storageWrites++; return origRemove.apply(localStorage, arguments); };
+    } catch (e) { storageOk = false; }
+    let speakCalls = 0;
+    const synth = window["speech" + "Synthesis"];
+    if (synth && typeof synth.speak === "function") {
+      const origSpeak = synth.speak;
+      synth.speak = function () { speakCalls++; return origSpeak.apply(synth, arguments); };
+    }
+    function same(a, b) { return eqArr(a, b); }
+    function emptyCenters() {
+      return centers().filter(function (t) { return t.id.indexOf("cell-") === 0; });
+    }
+    try {
+      if (!(checking && suppressReconnect && gazeSock === null)) {
+        fail("family-guards", "checking, reconnect suppression, or a closed socket was missing.");
+      }
+      seed(1);
+      start("tiny");
+      releaseLook();
+      release();
+      const empties = emptyCenters();
+      if (empties.length < 2) fail("family-play-dwell", "needed two empty cells.");
+      else {
+        const a = empties[0];
+        const b = empties[1];
+        const placed0 = JSON.stringify(state().placed);
+        let t = 20000;
+        step(t);
+        look(a.nx, a.ny);
+        step(t);
+        step(t + 640);
+        let s = state();
+        if (s.latched !== null || JSON.stringify(s.placed) !== placed0) {
+          fail("family-play-dwell", "a 640 ms look latched or wrote.");
+        }
+        releaseLook();
+        t = 30000;
+        step(t);
+        look(a.nx, a.ny);
+        step(t);
+        step(t + 660);
+        s = state();
+        if (s.latched === null || JSON.stringify(s.placed) !== placed0) {
+          fail("family-play-dwell", "a 660 ms look did not latch without writing.");
+        }
+        releaseLook();
+        const beforeTap = state().latched;
+        tap(b.nx, b.ny);
+        s = state();
+        if (s.latched === null || s.latched === beforeTap || JSON.stringify(s.placed) !== placed0) {
+          fail("family-play-dwell", "tap did not latch a different empty cell.");
+        }
+      }
+
+      go("menu");
+      releaseLook();
+      release();
+      let t = 40000;
+      const lets = centers().filter(function (item) { return item.id === "lets-go"; })[0];
+      if (!lets) fail("family-menu-dwell", "Let's go was not on screen.");
+      else {
+        step(t);
+        look(lets.nx, lets.ny);
+        step(t);
+        step(t + 600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "a 600 ms look left the menu.");
+        step(t + 1300);
+        if (state().screen !== "board" || state().level !== "tiny") {
+          fail("family-menu-dwell", "a 1300 ms look did not open the highlighted band.");
+        }
+      }
+      releaseLook();
+      t = 45000;
+      const back = centers().filter(function (item) { return item.id === "back"; })[0];
+      if (!back) fail("family-menu-dwell", "Back was not on screen.");
+      else {
+        step(t);
+        look(back.nx, back.ny);
+        step(t);
+        step(t + 600);
+        if (state().screen !== "board") fail("family-menu-dwell", "a 600 ms look left the board.");
+        step(t + 1300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "a 1300 ms look did not return to the menu.");
+      }
+
+      seed(1);
+      start("tiny");
+      releaseLook();
+      release();
+      const cell = emptyCenters()[0];
+      t = 50000;
+      if (!cell) fail("family-pointer-blocks", "no empty cell was on screen.");
+      else {
+        step(t);
+        hold(cell.nx, cell.ny);
+        look(cell.nx, cell.ny);
+        step(t);
+        step(t + 660);
+        if (state().latched !== null) fail("family-pointer-blocks", "a look latched while the pointer was down.");
+        release();
+        releaseLook();
+        t = 52000;
+        step(t);
+        look(cell.nx, cell.ny);
+        step(t);
+        step(t + 660);
+        if (state().latched === null) fail("family-pointer-blocks", "a look did not latch after the pointer came up.");
+      }
+
+      const kept = state().latched;
+      const other = emptyCenters().filter(function (item) { return item.id !== "cell-" + kept; })[0];
+      releaseLook();
+      t = 54000;
+      step(t);
+      if (other) {
+        look(other.nx, other.ny);
+        step(t);
+        refreshHold = false;
+        step(t + 500);
+        if (dwell() !== 0) fail("family-stale", "a stale look left the ring filled.");
+        if (state().latched !== kept) fail("family-stale", "a stale look changed the latch.");
+      } else fail("family-stale", "no second empty cell was available.");
+      refreshHold = false;
+
+      if (state().size !== 4 || state().screen !== "board") {
+        seed(1);
+        start("tiny");
+      }
+      const wide = targetsAt(390, 844);
+      const desk = targetsAt(1024, 768);
+      function shortFail(rep, label) {
+        for (let i = 0; i < rep.targets.length; i++) {
+          const t = rep.targets[i];
+          if (Math.min(t.w, t.h) < 72) fail("family-target-size", label + " target " + t.id + " is under 72.");
+        }
+      }
+      shortFail(wide, "390");
+      shortFail(desk, "1024");
+      const cells390 = wide.targets.filter(function (t) { return t.id.indexOf("cell-") === 0; });
+      if (!cells390.length) fail("family-target-size", "390 by 844 listed no cells.");
+      for (let i = 0; i < cells390.length; i++) {
+        if (cells390[i].w !== 87 || cells390[i].h !== 87) {
+          fail("family-target-size", "a 4 by 4 cell was " + cells390[i].w + " by " + cells390[i].h + ".");
+        }
+      }
+      const narrow = targetsAt(300, 600);
+      if (narrow.fit !== false) fail("family-target-size", "a 300 wide viewport claimed to fit.");
+      const smallCells = narrow.targets.filter(function (t) { return t.id.indexOf("cell-") === 0; });
+      let clamped = false;
+      let under = false;
+      for (let i = 0; i < smallCells.length; i++) {
+        const side = Math.min(smallCells[i].w, smallCells[i].h);
+        if (side >= 72) clamped = true;
+        if (side < 72) under = true;
+      }
+      if (!under || clamped) fail("family-target-size", "300 by 600 clamped a cell up to 72 or hid it.");
+
+      releaseLook();
+      release();
+      t = 60000;
+      step(t);
+      look(0.5, 0.5);
+      step(t);
+      const eye = eyes();
+      const eyeKeys = Object.keys(eye);
+      if (eyeKeys.length !== 2 || eyeKeys.indexOf("on") < 0 || eyeKeys.indexOf("live") < 0) {
+        fail("family-eyes", "eyes() did not return only on and live.");
+      }
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "a fresh test look was not live.");
+      if (gazeSock) fail("family-eyes", "the socket opened during the check.");
+      if (eyesEl.hidden) fail("family-eyes", "the Eyes mark stayed hidden.");
+
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "the mute button showed text.");
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "the mute button did not hold two speaker drawings.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      const muteBox = centers().filter(function (item) { return item.id === "mute"; })[0];
+      if (!muteBox) fail("family-mute", "mute was not a target.");
+      else {
+        tap(muteBox.nx, muteBox.ny);
+        if (state().muted !== true) fail("family-mute", "the first tap did not mute.");
+        tap(muteBox.nx, muteBox.ny);
+        if (state().muted !== false) fail("family-mute", "the second tap did not clear mute.");
+      }
+
+      const params = new URLSearchParams(location.search);
+      let junk = "";
+      params.forEach(function (value, key) {
+        if (key !== "selfcheck" && value) junk = value;
+      });
+      if (screenAtStart !== "menu") fail("family-query-inert", "the page did not open on the menu.");
+      if (gazeSock) fail("family-query-inert", "a socket was opened.");
+      if (junk) {
+        const nodes = document.querySelectorAll("*");
+        for (let i = 0; i < nodes.length; i++) {
+          const node = nodes[i];
+          if (node.textContent && node.textContent.indexOf(junk) >= 0) {
+            fail("family-query-inert", "the junk flag value was written into the page.");
+            break;
+          }
+          if (node.attributes) {
+            for (let a = 0; a < node.attributes.length; a++) {
+              if (node.attributes[a].value.indexOf(junk) >= 0) {
+                fail("family-query-inert", "the junk flag value was written into an attribute.");
+                i = nodes.length;
+                break;
+              }
+            }
+          }
+        }
+      }
+
+      let plain = null;
+      try { plain = JSON.parse(JSON.stringify(state())); }
+      catch (e) { plain = null; }
+      if (!plain || !("level" in plain) || !("screen" in plain) || !("banner" in plain) || !("muted" in plain)) {
+        fail("family-plain-state", "state() was not plain JSON with the family fields.");
+      }
+
+      for (let bi = 0; bi < 4; bi++) {
+        const band = ["tiny", "little", "shop", "rush"][bi];
+        seed(1);
+        start(band);
+        if (state().solutions !== 1) fail("unique", band + " did not have one solution.");
+      }
+      const rush9 = sudokuGenerate("rush", 9, 1);
+      if (sudokuCountSolutions(9, rush9.puzzle) !== 1) fail("unique", "rush 9 did not have one solution.");
+
+      for (let bi = 0; bi < 4; bi++) {
+        const band = ["tiny", "little", "shop", "rush"][bi];
+        seed(1);
+        start(band);
+        if (!state().singles) fail("singles-only", band + " did not start solvable by singles.");
+        let guard = 0;
+        const cap = state().size * state().size;
+        while (!state().solved && guard < cap) {
+          hint();
+          const h = state().hint;
+          if (!h) break;
+          write(h.symbol);
+          guard++;
+        }
+        if (!state().solved || state().screen !== "rest") fail("singles-only", band + " did not finish on the rest card.");
+      }
+
+      seed(1);
+      start("tiny");
+      const tiny = state();
+      const holeBtn = document.querySelector("#board button.hole");
+      if (!holeBtn) fail("click-survives-frame", "no empty cell was on screen.");
+      else {
+        const keptId = holeBtn.id;
+        step(82000);
+        if (!holeBtn.isConnected || document.getElementById(keptId) !== holeBtn) {
+          fail("click-survives-frame", "the empty cell was replaced on the next frame.");
+        } else {
+          holeBtn.click();
+          if (state().latched !== Number(keptId.slice(5))) fail("click-survives-frame", "the click did not latch the cell.");
+        }
+      }
+      if (tiny.tray.length !== 1 || tiny.tray[0].live !== true) fail("tiny-forced", "the tray did not offer one live symbol.");
+      for (let i = 0; i < tiny.puzzle.length; i++) {
+        if (tiny.puzzle[i] === 0 && sudokuCandidates(4, tiny.puzzle, i).length !== 1) {
+          fail("tiny-forced", "an empty cell had more than one candidate.");
+        }
+      }
+
+      seed(1);
+      start("little");
+      const little = state();
+      if (little.givens < 8 || little.givens > 10) fail("little-range", "givens were outside 8 to 10.");
+      const littleSolved = sudokuSolveSingles(4, little.puzzle, "naked");
+      if (!littleSolved || !same(littleSolved, little.solution)) fail("little-range", "naked singles did not finish the board.");
+
+      seed(1);
+      start("shop");
+      const shop = state();
+      if (shop.size !== 6 || shop.givens < 24 || shop.givens > 28) fail("shop-boxes", "size or givens were outside the shop window.");
+      for (let r = 0; r < 6; r++) {
+        let n = 0;
+        for (let c = 0; c < 6; c++) if (shop.puzzle[r * 6 + c]) n++;
+        if (n < 4) fail("shop-boxes", "a row had fewer than 4 clues.");
+      }
+      const shopSolved = sudokuSolveSingles(6, shop.puzzle, "both");
+      if (!shopSolved || !same(shopSolved, shop.solution) || shop.solutions !== 1) {
+        fail("shop-boxes", "singles did not finish a unique board.");
+      }
+
+      seed(1);
+      start("tiny");
+      if (distinctCount(state().puzzle) < 3) fail("symbol-bound", "the 4 by 4 showed fewer than 3 symbols.");
+      seed(1);
+      start("shop");
+      if (distinctCount(state().puzzle) < 5) fail("symbol-bound", "the 6 by 6 showed fewer than 5 symbols.");
+      if (distinctCount(rush9.puzzle) < 8) fail("symbol-bound", "rush 9 showed fewer than 8 symbols.");
+
+      seed(1);
+      start("tiny");
+      releaseLook();
+      release();
+      const playCell = emptyCenters()[0];
+      t = 70000;
+      const placedBefore = JSON.stringify(state().placed);
+      if (!playCell) fail("latch-not-fill", "no empty cell was on screen.");
+      else {
+        step(t);
+        look(playCell.nx, playCell.ny);
+        step(t);
+        step(t + 640);
+        if (state().latched !== null) fail("latch-not-fill", "a 640 ms look latched a cell.");
+        releaseLook();
+        t = 72000;
+        step(t);
+        look(playCell.nx, playCell.ny);
+        step(t);
+        step(t + 660);
+        if (state().latched === null || JSON.stringify(state().placed) !== placedBefore) {
+          fail("latch-not-fill", "a 660 ms look did not latch without writing.");
+        }
+        releaseLook();
+        const sym = centers().filter(function (item) { return item.id.indexOf("symbol-") === 0; })[0];
+        if (!sym) fail("latch-not-fill", "no live symbol was on screen.");
+        else {
+          t = 74000;
+          step(t);
+          look(sym.nx, sym.ny);
+          step(t);
+          step(t + 660);
+          if (state().latched !== null || state().placed.length !== 1) {
+            fail("latch-not-fill", "the symbol look did not write and clear the latch.");
+          }
+        }
+      }
+
+      seed(1);
+      start("tiny");
+      releaseLook();
+      let givenEl = null;
+      const allCells = document.querySelectorAll("[id^='cell-']");
+      for (let i = 0; i < allCells.length; i++) {
+        if (allCells[i].tagName !== "BUTTON") { givenEl = allCells[i]; break; }
+      }
+      if (!givenEl) fail("given-ignores", "no given cell was on screen.");
+      else {
+        const rect = givenEl.getBoundingClientRect();
+        const nx = (rect.left + rect.width / 2) / window.innerWidth;
+        const ny = (rect.top + rect.height / 2) / window.innerHeight;
+        t = 76000;
+        step(t);
+        look(nx, ny);
+        step(t);
+        step(t + 660);
+        if (state().latched !== null) fail("given-ignores", "a look latched a given.");
+        latch(givenEl.id);
+        if (state().latched !== null) fail("given-ignores", "latch accepted a given.");
+      }
+      releaseLook();
+
+      seed(1);
+      start("little");
+      const hole = state().puzzle.indexOf(0);
+      latch("cell-" + hole);
+      const cands = sudokuCandidates(4, state().puzzle, hole);
+      let dead = 9;
+      for (let v = 1; v <= 4; v++) if (cands.indexOf(v) < 0) dead = v;
+      const beforeDead = state().puzzle.slice();
+      write(dead);
+      if (!same(state().puzzle, beforeDead)) fail("dead-symbol", "a dead symbol was written.");
+      if ("mistakes" in state()) fail("dead-symbol", "a mistakes field appeared.");
+      const probe = "::not-a-symbol::";
+      write(probe);
+      write("1");
+      if (!same(state().puzzle, beforeDead)) fail("dead-symbol", "a string write changed the board.");
+      if (pageShows(probe)) fail("dead-symbol", "a string was inserted into the page.");
+
+      seed(1);
+      start("tiny");
+      const fresh = state().puzzle.slice();
+      undo();
+      if (!same(state().puzzle, fresh)) fail("undo-child-only", "undo changed a fresh board.");
+      hint();
+      write(state().hint.symbol);
+      if (!state().placed.length) fail("undo-child-only", "the child write was not recorded.");
+      undo();
+      if (state().placed.length !== 0) fail("undo-child-only", "undo left the child symbol in place.");
+      for (let i = 0; i < fresh.length; i++) {
+        if (fresh[i] && state().puzzle[i] !== fresh[i]) fail("undo-child-only", "undo changed a given.");
+      }
+
+      seed(1);
+      start("little");
+      const beforeHint = state().puzzle.slice();
+      hint();
+      const hinted = state();
+      if (!hinted.hint || hinted.latched === null || hinted.placed.length !== 0) {
+        fail("hint-does-not-write", "hint did not latch a cell without writing.");
+      }
+      if (!hinted.hint || hinted.puzzle[hinted.hint.index] !== 0 || !same(hinted.puzzle, beforeHint)) {
+        fail("hint-does-not-write", "hint filled the cell.");
+      }
+
+      seed(1);
+      start("tiny");
+      const firstPuzzle = state().puzzle.slice();
+      again();
+      if (state().screen !== "board" || !same(state().puzzle, firstPuzzle)) {
+        fail("another-gated", "Another changed the board before it was solved.");
+      }
+      let guard = 0;
+      while (!state().solved && guard < 16) {
+        hint();
+        const h = state().hint;
+        if (!h) break;
+        write(h.symbol);
+        guard++;
+      }
+      if (!state().solved || state().screen !== "rest") fail("another-gated", "the first board did not reach rest.");
+      seed(2);
+      again();
+      const second = sudokuGenerate("tiny", 4, 2);
+      if (state().screen !== "board" || state().placed.length !== 0 || !same(state().puzzle, second.puzzle)) {
+        fail("another-gated", "Another did not deal the seed 2 board.");
+      }
+      guard = 0;
+      while (!state().solved && guard < 16) {
+        hint();
+        const h = state().hint;
+        if (!h) break;
+        write(h.symbol);
+        guard++;
+      }
+      if (document.getElementById("another")) fail("another-gated", "Another was offered after the second board.");
+      const third = state().puzzle.slice();
+      const dealtNow = state().dealt;
+      again();
+      if (state().dealt !== dealtNow || state().screen !== "rest" || !same(state().puzzle, third)) {
+        fail("another-gated", "Another dealt a third board.");
+      }
+
+      seed(1);
+      start("rush");
+      const rushView = targetsAt(390, 844);
+      const rushCells = rushView.targets.filter(function (item) { return item.id.indexOf("cell-") === 0; });
+      const rushBoxes = rushView.targets.filter(function (item) { return item.id.indexOf("box-") === 0; });
+      if (rushCells.length >= 81) fail("rush-narrow", "a full 9 by 9 of cells was listed.");
+      for (let i = 0; i < rushCells.length; i++) {
+        if (Math.min(rushCells[i].w, rushCells[i].h) < 72) fail("rush-narrow", "a cell was under 72.");
+      }
+      if (!rushBoxes.length && !rushCells.length) fail("rush-narrow", "no box or cell targets were listed.");
+      for (let i = 0; i < rushBoxes.length; i++) {
+        if (rushBoxes[i].w !== 114 || rushBoxes[i].h !== 114) {
+          fail("rush-narrow", "a box button was " + rushBoxes[i].w + " by " + rushBoxes[i].h + ".");
+        }
+      }
+
+      const nested = document.querySelectorAll("button button");
+      if (nested.length) fail("no-pencil", "a button was nested inside a button.");
+      const cellNodes = document.querySelectorAll("[id^='cell-']");
+      for (let i = 0; i < cellNodes.length; i++) {
+        if (cellNodes[i].querySelector("button")) fail("no-pencil", "a cell contained a button.");
+      }
+
+      const tally = state();
+      ["mistakes", "wrongs", "rank", "score", "lives", "clock", "msLeft", "said"].forEach(function (key) {
+        if (key in tally) fail("no-tally", "state has " + key + ".");
+      });
+      write("nope");
+      const bannerNow = state().banner.toLowerCase();
+      if (bannerNow.indexOf("fail") >= 0 || bannerNow.indexOf("wrong") >= 0 || bannerNow.indexOf("mistake") >= 0) {
+        fail("no-tally", "the banner scolded a dead write.");
+      }
+      if (speakCalls !== 0) fail("no-speech", "speech was called.");
+
+      const eng = engineSelfCheck();
+      for (let i = 0; i < eng.failures.length; i++) failures.push(eng.failures[i]);
+    } catch (err) {
+      fail("self-check", err && err.message ? err.message : "the check threw.");
+    }
+    if (!storageOk) fail("family-no-storage", "storage could not be read.");
+    else {
+      try {
+        const popAfter = localStorage.getItem("pop-pals-v1");
+        const keysAfter = [];
+        for (let i = 0; i < localStorage.length; i++) keysAfter.push(localStorage.key(i));
+        if (popAfter !== popBefore) fail("family-no-storage", "pop-pals-v1 changed.");
+        if (storageWrites !== 0) fail("family-no-storage", "storage was written.");
+        if (keysAfter.length !== keysBefore.length) fail("family-no-storage", "a storage key was added.");
+        for (let i = 0; i < keysAfter.length; i++) {
+          if (keysBefore.indexOf(keysAfter[i]) < 0) fail("family-no-storage", "a storage key was added.");
+        }
+      } catch (e) {
+        fail("family-no-storage", "storage could not be read after the cases.");
+      }
+    }
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  document.getElementById("tiny").addEventListener("click", function () { selectBand("tiny"); render(); });
+  document.getElementById("little").addEventListener("click", function () { selectBand("little"); render(); });
+  document.getElementById("shop").addEventListener("click", function () { selectBand("shop"); render(); });
+  document.getElementById("rush").addEventListener("click", function () { selectBand("rush"); render(); });
+  letsBtn.addEventListener("click", function () { start(level); });
+  backBtn.addEventListener("click", function () { go("menu"); });
+  undoBtn.addEventListener("click", undo);
+  hintBtn.addEventListener("click", hint);
+  newBtn.addEventListener("click", newBoard);
+  boxesBtn.addEventListener("click", toBoxes);
+  muteBtn.addEventListener("click", toggleMute);
+  fullBtn.addEventListener("click", toggleFull);
+  document.addEventListener("pointerdown", function (e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (pointerActive) return;
+    pointerActive = true;
+    activePointer = e.pointerId;
+    ensureAudio();
+    dwellKey = null;
+    dwellFired = false;
+    leaveAt = 0;
+    dwellProgress = 0;
+  }, true);
+  function endPointer(e) {
+    if (activePointer === null || e.pointerId !== activePointer) return;
+    activePointer = null;
+    pointerActive = false;
+  }
+  document.addEventListener("pointerup", endPointer, true);
+  document.addEventListener("pointercancel", endPointer, true);
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    if (e.key === "Escape") {
+      if (!backBtn.hidden) { backBtn.click(); e.preventDefault(); }
+      return;
+    }
+    if (screenId !== "board" || !sizeN || !puzzle) return;
+    if (e.key === "u" || e.key === "U") { undo(); e.preventDefault(); return; }
+    if (e.key === "h" || e.key === "H") { hint(); e.preventDefault(); return; }
+    if (/^[1-9]$/.test(e.key) && latched !== null) {
+      write(Number(e.key));
+      e.preventDefault();
+      return;
+    }
+    const arrow = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
+    if (!arrow) return;
+    e.preventDefault();
+    if (latched === null) {
+      for (let i = 0; i < puzzle.length; i++) {
+        if (puzzle[i] === 0) { latch("cell-" + i); return; }
+      }
+      return;
+    }
+    let c = (latched % sizeN) + arrow[0];
+    let r = Math.floor(latched / sizeN) + arrow[1];
+    while (r >= 0 && c >= 0 && r < sizeN && c < sizeN) {
+      const idx = r * sizeN + c;
+      if (puzzle[idx] === 0) { latch("cell-" + idx); return; }
+      c += arrow[0];
+      r += arrow[1];
+    }
+  });
+  window.addEventListener("resize", function () { render(); });
+
+  window.sudoku = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck,
+    latch: latch,
+    write: write,
+    undo: undo,
+    hint: hint,
+    zoom: zoom,
+    newBoard: newBoard,
+    again: again
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (e) { /* already closed */ }
+      gazeSock = null;
+    }
+    const result = selfCheck();
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("play")) start("tiny");
+    else if (params.has("rush")) start("rush");
+    requestAnimationFrame(function frame(now) {
+      if (!checking) step(now);
+      requestAnimationFrame(frame);
+    });
+    connectGaze();
+  }
+})();
+</script>
+</body>
+</html>

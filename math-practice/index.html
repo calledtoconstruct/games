@@ -1,0 +1,2274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f4f0d8">
+<title>Math Practice</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #view {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    display: block; pointer-events: none; z-index: 1;
+  }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border: none; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 46; pointer-events: none;
+    top: 18px; left: 168px;
+    background: var(--card); border-radius: 999px; padding: 7px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 40; pointer-events: none;
+    left: 50%; top: 84px; transform: translateX(-50%);
+    max-width: min(520px, calc(100% - 24px));
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 6px 16px; font-size: 20px; font-weight: 800;
+    text-align: center;
+  }
+  #screen-menu {
+    position: fixed; z-index: 20; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+    padding: 8px 16px;
+  }
+  #menu-copy { height: 52px; overflow: hidden; }
+  #menu-copy h1 {
+    margin: 0; font-size: 22px; line-height: 24px; text-align: center;
+  }
+  #menu-copy p {
+    margin: 0; font-size: 13px; line-height: 14px; text-align: center;
+  }
+  #play, #screen-rest, #stem { pointer-events: none; }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush,
+  #card-0, #card-1, #card-2, #card-3, #done, #another {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 16px;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 6px 12px; box-shadow: 0 4px 0 #e2d0b4;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #done, #another {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 28px;
+  }
+  #lets-go:active, #done:active, #another:active,
+  #tiny:active, #little:active, #shop:active, #rush:active { transform: translateY(2px); }
+  #card-0, #card-1, #card-2, #card-3 {
+    border: none; background: transparent; color: var(--ink);
+    font-weight: 800; padding: 0; line-height: 1;
+  }
+  #rest-line {
+    position: fixed; z-index: 24; pointer-events: none;
+    left: 50%; top: 34%; transform: translateX(-50%);
+    margin: 0; font-size: 28px; font-weight: 800; text-align: center;
+    max-width: min(520px, calc(100% - 32px));
+  }
+  #back { padding: 0 14px; }
+  #full { padding: 0; }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 9l5 6M21 9l-5 6"/>
+  </svg>
+</button>
+<button id="full" type="button" aria-label="Fullscreen">Full</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Look at the card that fills the hole.</p>
+<section id="screen-menu">
+  <div id="menu-copy">
+    <h1>Math Practice</h1>
+    <p>Look at the card that fills the hole.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Apple Count</b><small>Ages 2 to 3. Apples, one or two or three. No clock.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Add and Take</b><small>Ages 4 to 5. Adding and taking away, up to 5. No clock.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Bigger Sums</b><small>Ages 6 to 8. Plus and minus, up to 20.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Times Table</b><small>Ages 9 and up. Times and divide, still one hole.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <div id="stem"></div>
+  <button id="card-0" type="button" data-play="true"></button>
+  <button id="card-1" type="button" data-play="true"></button>
+  <button id="card-2" type="button" data-play="true"></button>
+  <button id="card-3" type="button" data-play="true"></button>
+  <button id="done" type="button">Done</button>
+</div>
+<section id="screen-rest" hidden>
+  <p id="rest-line">That is enough for now.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const SHOW_MS = 700;
+  const FONT = '"Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif';
+  const INK = "#2c2416";
+  const CREAM = "#f4f0d8";
+  const CARD = "#fffdf6";
+  const APPLE = "#d6453d";
+  const STEM = "#6b3a22";
+  const LEAF = "#2f8a3e";
+  const DOT = "#3d8fd4";
+  const APPLE_R = 16;
+  const APPLE_NAME = ["", "One apple", "Two apples", "Three apples"];
+  const BANDS = ["tiny", "little", "shop", "rush"];
+  const SET_A = [1, 2, 5, 10];
+  const SET_B = [1, 2, 3, 4, 5, 10];
+  const SET_C = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+  const BUTTON_IDS = ["mute", "full", "back", "lets-go", "tiny", "little", "shop", "rush", "card-0", "card-1", "card-2", "card-3", "done", "another"];
+
+  function mathCap(band) {
+    if (band === "tiny") return 4;
+    if (band === "little") return 6;
+    if (band === "shop") return 8;
+    if (band === "rush") return 10;
+    return 0;
+  }
+  function mathCardCount(band) {
+    if (band === "tiny") return 2;
+    if (band === "little") return 3;
+    if (band === "shop" || band === "rush") return 4;
+    return 0;
+  }
+  function validBand(band) {
+    return band === "tiny" || band === "little" || band === "shop" || band === "rush";
+  }
+  function makeRng(seed) {
+    return { state: seed >>> 0 };
+  }
+  function rngUint(rng) {
+    rng.state = (rng.state + 0x6D2B79F5) >>> 0;
+    let t = Math.imul(rng.state ^ (rng.state >>> 15), rng.state | 1);
+    t = t ^ (t + Math.imul(t ^ (t >>> 7), t | 61));
+    return (t ^ (t >>> 14)) >>> 0;
+  }
+  function rngInt(rng, lo, hi) {
+    return lo + (rngUint(rng) % (hi - lo + 1));
+  }
+  function rngShuffle(rng, items) {
+    const a = items.slice();
+    for (let i = a.length - 1; i >= 1; i--) {
+      const j = rngInt(rng, 0, i);
+      const tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+    }
+    return a;
+  }
+  function playSeed(clockMs, counter) {
+    return (Math.imul((clockMs >>> 0) ^ Math.imul(counter >>> 0, 0x9E3779B9), 0x85EBCA6B) >>> 0);
+  }
+  function choiceSeed(seed, index) {
+    return (Math.imul((seed >>> 0) ^ ((index + 1) >>> 0), 0x9E3779B1) >>> 0);
+  }
+  function sortPairs(pool) {
+    pool.sort(function (p, q) { return p[0] - q[0] || p[1] - q[1]; });
+    return pool;
+  }
+  function addResult(S) {
+    const pool = [];
+    for (let a = 0; a <= S; a++) {
+      for (let b = 0; b <= S; b++) {
+        if (a + b <= S && !(a === 0 && b === 0)) pool.push([a, b]);
+      }
+    }
+    return sortPairs(pool);
+  }
+  function subResult(S) {
+    const pool = [];
+    for (let a = 0; a <= S; a++) {
+      for (let b = 0; b <= a; b++) {
+        if (!(a === 0 && b === 0)) pool.push([a, b]);
+      }
+    }
+    return sortPairs(pool);
+  }
+  function addPart(S) {
+    const pool = [];
+    for (let a = 0; a <= S; a++) {
+      for (let c = a; c <= S; c++) {
+        const answer = c - a;
+        const sum = a + c;
+        if (sum >= 0 && sum <= S && sum !== answer) pool.push([a, c]);
+      }
+    }
+    return sortPairs(pool);
+  }
+  function subPart(S) {
+    const pool = [];
+    for (let a = 0; a <= S; a++) {
+      for (let c = 0; c <= a; c++) {
+        const answer = a - c;
+        const sum = a + c;
+        if (sum >= 0 && sum <= S && sum !== answer) pool.push([a, c]);
+      }
+    }
+    return sortPairs(pool);
+  }
+  function addStart(S) {
+    const pool = [];
+    for (let b = 0; b <= S; b++) {
+      for (let c = b; c <= S; c++) {
+        if (!(b === 0 && c === 0)) pool.push([b, c]);
+      }
+    }
+    return sortPairs(pool);
+  }
+  function subStart(S) {
+    const pool = [];
+    for (let b = 0; b <= S; b++) {
+      for (let c = 0; c <= S; c++) {
+        if (b + c <= S && !(b === 0 && c === 0)) pool.push([b, c]);
+      }
+    }
+    return sortPairs(pool);
+  }
+  function factorPairs(set) {
+    const pool = [];
+    for (let i = 0; i < set.length; i++) {
+      for (let j = 0; j < set.length; j++) pool.push([set[i], set[j]]);
+    }
+    return sortPairs(pool);
+  }
+  function timesPart(set) {
+    const pool = [];
+    for (let i = 0; i < set.length; i++) {
+      for (let j = 0; j < set.length; j++) {
+        const f = set[i];
+        const g = set[j];
+        const c = f * g;
+        const sum = f + c;
+        if (sum >= 1 && sum <= 10 && sum !== g) pool.push([f, g]);
+      }
+    }
+    return sortPairs(pool);
+  }
+  function dividePart(set) {
+    const pool = [];
+    for (let i = 0; i < set.length; i++) {
+      for (let j = 0; j < set.length; j++) {
+        const f = set[i];
+        const g = set[j];
+        const a = f * g;
+        const sum = a + g;
+        if (sum >= 1 && sum <= 10 && sum !== f) pool.push([f, g]);
+      }
+    }
+    return sortPairs(pool);
+  }
+  function buildCards(rng, made, count) {
+    const lo = made.range[0];
+    const hi = made.range[1];
+    const list = [made.answer];
+    const up = made.answer + 1;
+    list.push(up <= hi && up >= lo ? up : made.answer - 1);
+    if (made.blank === "part" && (made.op === "+" || made.op === "-" || made.op === "×" || made.op === "÷")) {
+      const vis = [];
+      if (made.a !== null) vis.push(made.a);
+      if (made.b !== null) vis.push(made.b);
+      if (made.c !== null) vis.push(made.c);
+      if (vis.length === 2) {
+        const sum = vis[0] + vis[1];
+        if (sum >= lo && sum <= hi && list.indexOf(sum) < 0) list.push(sum);
+      }
+    }
+    if (list.length < count) {
+      const pool = [];
+      for (let n = lo; n <= hi; n++) if (list.indexOf(n) < 0) pool.push(n);
+      let idx = rngInt(rng, 0, pool.length - 1);
+      let guard = 0;
+      while (list.length < count && guard < pool.length) {
+        list.push(pool[idx]);
+        idx += 1;
+        if (idx >= pool.length) idx = 0;
+        guard += 1;
+      }
+    }
+    made.cards = rngShuffle(rng, list);
+    return made;
+  }
+  function mathMake(band, seed, index, history) {
+    const cap = mathCap(band);
+    if (!Number.isInteger(index) || index < 0 || index >= cap) return null;
+    const hist = history || [];
+    const rng = makeRng(choiceSeed(seed, index));
+    if (band === "tiny") {
+      const even = index % 2 === 0;
+      const a = even ? rngInt(rng, 1, 3) : rngInt(rng, 1, 2);
+      return buildCards(rng, {
+        kind: "quantity", op: null, a: a, b: null, c: null,
+        blank: even ? "set" : "more",
+        answer: even ? a : a + 1,
+        cards: [], layout: "pictures", repeats: 1, range: [1, 3]
+      }, 2);
+    }
+    if (band === "little") {
+      const hasResult = hist.some(function (row) { return row && row.blank === "result"; });
+      const table = hasResult
+        ? [["+", "result"], ["-", "result"], ["+", "result"], ["+", "part"], ["-", "result"], ["+", "part"]]
+        : [["+", "result"], ["-", "result"], ["+", "result"], ["+", "result"], ["-", "result"], ["-", "result"]];
+      return equationFrom(rng, table[index][0], table[index][1], 5, "right", 1, null, null, 3);
+    }
+    if (band === "shop") {
+      const table = [
+        ["result", 10, "+", "right", 1, null],
+        ["result", 10, "-", "right", 1, null],
+        ["part", 10, "+", "right", 1, null],
+        ["part", 10, "-", "right", 1, null],
+        ["start", 10, "+", "left", 1, null],
+        ["start", 10, "-", "left", 1, null],
+        ["result", 20, "+", "right", 1, null],
+        ["result", 20, "+", "right", 3, null]
+      ];
+      const row = table[index];
+      return equationFrom(rng, row[2], row[0], row[1], row[3], row[4], null, null, 4);
+    }
+    const rush = [
+      ["+", "result", "add", 20, "right", null],
+      ["-", "result", "sub", 20, "right", null],
+      ["×", "result", "times", 0, "right", "A"],
+      ["÷", "result", "div", 0, "right", "A"],
+      ["×", "part", "timesPart", 0, "right", "B"],
+      ["÷", "part", "divPart", 0, "right", "B"],
+      ["×", "start", "timesStart", 0, "left", "C"],
+      ["÷", "start", "divStart", 0, "left", "C"],
+      ["+", "part", "addPart", 20, "right", null],
+      ["-", "start", "subStart", 20, "left", null]
+    ];
+    const row = rush[index];
+    return equationFrom(rng, row[0], row[1], row[3], row[4], 1, row[2], row[5], 4);
+  }
+  function equationFrom(rng, op, blank, S, layout, repeats, poolName, setName, count) {
+    if (repeats === 3) {
+      const k = rngInt(rng, 1, 6);
+      return buildCards(rng, {
+        kind: "equation", op: "+", a: k, b: k, c: null,
+        blank: "result", answer: 3 * k, cards: [],
+        layout: "right", repeats: 3, range: [0, 20]
+      }, count);
+    }
+    if (op === "+" || op === "-") {
+      let pool;
+      if (op === "+" && blank === "result") pool = addResult(S);
+      else if (op === "-" && blank === "result") pool = subResult(S);
+      else if (op === "+" && blank === "part") pool = addPart(S);
+      else if (op === "-" && blank === "part") pool = subPart(S);
+      else if (op === "+" && blank === "start") pool = addStart(S);
+      else pool = subStart(S);
+      const pick = pool[rngInt(rng, 0, pool.length - 1)];
+      let made;
+      if (blank === "result") {
+        const a = pick[0];
+        const b = pick[1];
+        made = { kind: "equation", op: op, a: a, b: b, c: null, blank: blank, answer: op === "+" ? a + b : a - b, cards: [], layout: layout, repeats: 1, range: [0, S] };
+      } else if (blank === "part") {
+        const a = pick[0];
+        const c = pick[1];
+        made = { kind: "equation", op: op, a: a, b: null, c: c, blank: blank, answer: op === "+" ? c - a : a - c, cards: [], layout: layout, repeats: 1, range: [0, S] };
+      } else {
+        const b = pick[0];
+        const c = pick[1];
+        made = { kind: "equation", op: op, a: null, b: b, c: c, blank: blank, answer: op === "+" ? c - b : b + c, cards: [], layout: layout, repeats: 1, range: [0, S] };
+      }
+      return buildCards(rng, made, count);
+    }
+    const set = setName === "A" ? SET_A : setName === "B" ? SET_B : SET_C;
+    let pool;
+    let range;
+    if (poolName === "times") { pool = factorPairs(set); range = [1, 100]; }
+    else if (poolName === "div") { pool = factorPairs(set); range = [1, 10]; }
+    else if (poolName === "timesPart") { pool = timesPart(set); range = [1, 10]; }
+    else if (poolName === "divPart") { pool = dividePart(set); range = [1, 10]; }
+    else if (poolName === "timesStart") { pool = factorPairs(set); range = [1, 10]; }
+    else { pool = factorPairs(set); range = [1, 100]; }
+    const pick = pool[rngInt(rng, 0, pool.length - 1)];
+    const f = pick[0];
+    const g = pick[1];
+    let made;
+    if (poolName === "times") {
+      made = { kind: "equation", op: op, a: f, b: g, c: null, blank: blank, answer: f * g, cards: [], layout: layout, repeats: 1, range: range };
+    } else if (poolName === "div") {
+      made = { kind: "equation", op: op, a: f * g, b: f, c: null, blank: blank, answer: g, cards: [], layout: layout, repeats: 1, range: range };
+    } else if (poolName === "timesPart") {
+      made = { kind: "equation", op: op, a: f, b: null, c: f * g, blank: blank, answer: g, cards: [], layout: layout, repeats: 1, range: range };
+    } else if (poolName === "divPart") {
+      made = { kind: "equation", op: op, a: f * g, b: null, c: g, blank: blank, answer: f, cards: [], layout: layout, repeats: 1, range: range };
+    } else if (poolName === "timesStart") {
+      made = { kind: "equation", op: op, a: null, b: g, c: f * g, blank: blank, answer: f, cards: [], layout: layout, repeats: 1, range: range };
+    } else {
+      made = { kind: "equation", op: op, a: null, b: f, c: g, blank: blank, answer: f * g, cards: [], layout: layout, repeats: 1, range: range };
+    }
+    return buildCards(rng, made, count);
+  }
+  function mathAccepts(made, value) {
+    if (!made || !Number.isInteger(value)) return false;
+    if (made.kind === "quantity") {
+      if (made.blank === "set") return value === made.a;
+      if (made.blank === "more") return value === made.a + 1;
+      return false;
+    }
+    if (made.repeats === 3) return value === 3 * made.a;
+    const a = made.a === null ? value : made.a;
+    const b = made.b === null ? value : made.b;
+    const c = made.c === null ? value : made.c;
+    if (made.op === "+") return a + b === c;
+    if (made.op === "-") return a - b === c;
+    if (made.op === "×") return a * b === c;
+    if (made.op === "÷") return b !== 0 && a === b * c;
+    return false;
+  }
+
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d");
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const playEl = document.getElementById("play");
+  const restEl = document.getElementById("screen-rest");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+  const cardEls = [
+    document.getElementById("card-0"),
+    document.getElementById("card-1"),
+    document.getElementById("card-2"),
+    document.getElementById("card-3")
+  ];
+
+  let screenId = "menu";
+  let level = "tiny";
+  let problem = null;
+  let history = [];
+  let index = 0;
+  let cap = null;
+  let phase = null;
+  let filled = null;
+  let showUntil = 0;
+  let mute = false;
+  let checking = false;
+  let suppressReconnect = false;
+  let counter = 1;
+  let hasPin = false;
+  let pin = 0;
+  let sittingSeed = 0;
+  let cooledValue = null;
+  let viaGaze = false;
+  let holding = false;
+  let pointerActive = false;
+  let activePointer = null;
+  let answerHits = 0;
+  let ac = null;
+  let master = null;
+
+  let gazeSock = null;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeTimer = 0;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let clock = 0;
+
+  function bannerText() {
+    if (screenId === "menu") return "Look at the card that fills the hole.";
+    if (screenId === "rest") return "That is enough for now.";
+    if (phase === "show") return "There it is.";
+    if (problem && problem.kind === "quantity") return "How many apples?";
+    return "Fill the hole.";
+  }
+  function dropSitting() {
+    problem = null;
+    history = [];
+    index = 0;
+    cap = null;
+    phase = null;
+    filled = null;
+    showUntil = 0;
+    cooledValue = null;
+  }
+  function go(screen) {
+    if (screen !== "menu" && screen !== "ask" && screen !== "rest") {
+      render();
+      return;
+    }
+    screenId = screen;
+    if (screen === "menu") dropSitting();
+    if (screen === "rest") {
+      phase = null;
+      problem = null;
+      filled = null;
+      cooledValue = null;
+    }
+    render();
+  }
+  function start(band) {
+    if (!validBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    history = [];
+    index = 0;
+    filled = null;
+    phase = "ask";
+    cooledValue = null;
+    showUntil = 0;
+    let s;
+    if (hasPin) {
+      s = pin >>> 0;
+      hasPin = false;
+    } else if (checking) {
+      s = playSeed(10000, counter);
+    } else {
+      s = playSeed(Date.now(), counter);
+    }
+    counter += 1;
+    sittingSeed = s;
+    cap = mathCap(band);
+    problem = mathMake(band, sittingSeed, 0, history);
+    if (!problem) {
+      go("rest");
+      return;
+    }
+    go("ask");
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    hasPin = true;
+    render();
+  }
+  function answer(value) {
+    if (phase !== "ask" || typeof value !== "number" || !problem || problem.cards.indexOf(value) < 0) {
+      render();
+      return;
+    }
+    if (cooledValue !== null && value === cooledValue) {
+      render();
+      return;
+    }
+    answerHits += 1;
+    if (mathAccepts(problem, value)) {
+      filled = value;
+      phase = "show";
+      history.push({ blank: problem.blank });
+      showUntil = clock + SHOW_MS;
+      cooledValue = null;
+      playCorrect();
+    } else {
+      cooledValue = value;
+    }
+    render();
+  }
+  function next() {
+    if (phase !== "show") {
+      render();
+      return;
+    }
+    if (!(cap > 0) || index + 1 >= cap) {
+      index = cap;
+      go("rest");
+      return;
+    }
+    index += 1;
+    const made = mathMake(level, sittingSeed, index, history);
+    if (!made) {
+      go("rest");
+      return;
+    }
+    problem = made;
+    phase = "ask";
+    filled = null;
+    cooledValue = null;
+    render();
+  }
+  function layoutFor(w, h) {
+    const targets = [];
+    const edge = 16;
+    const playTop = 140;
+    const doneH = 72;
+    const bottomReserve = 88;
+    function add(id, left, top, bw, bh) {
+      targets.push({
+        id: id, left: left, top: top, w: bw, h: bh,
+        x: left + bw / 2, y: top + bh / 2
+      });
+    }
+    add("mute", 8, 8, 72, 72);
+    add("full", 88, 8, 72, 72);
+    if (screenId !== "menu") add("back", w - 8 - 176, 8, 176, 72);
+    let stem = null;
+    let menu = null;
+    if (screenId === "menu") {
+      const cardW = Math.min(460, Math.max(120, w - 24));
+      const padX = 16;
+      const padY = 8;
+      const btnH = 76;
+      const gap = 6;
+      const titleBlock = 52;
+      const n = 5;
+      const cardH = padY * 2 + titleBlock + n * btnH + (n - 1) * gap;
+      let cardTop = (h - cardH) / 2;
+      if (cardTop < 112 && 112 + cardH <= h - 8) cardTop = 112;
+      if (cardTop + cardH > h - 8) cardTop = h - 8 - cardH;
+      if (cardTop < 0) cardTop = 0;
+      const cardLeft = (w - cardW) / 2;
+      const btnW = Math.max(72, cardW);
+      let y = cardTop + padY + titleBlock;
+      const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+      for (let i = 0; i < ids.length; i++) {
+        add(ids[i], cardLeft, y, btnW, btnH);
+        y += btnH + gap;
+      }
+      menu = { left: cardLeft, top: cardTop, w: cardW, h: cardH };
+    }
+    if (screenId === "ask") {
+      const n = problem ? problem.cards.length : 0;
+      const cols = n === 4 ? 2 : 1;
+      const rows = n === 4 ? 2 : n;
+      const innerW = w - edge * 2;
+      const cardsBottom = h - bottomReserve;
+      function metrics(stemH, gap) {
+        const top = playTop + stemH;
+        const regionH = cardsBottom - top;
+        let cardW;
+        let cardH;
+        let used = gap;
+        if (cols === 2) {
+          used = (innerW - 24) / 2 > 360 ? 24 : 16;
+          cardW = (innerW - used) / 2;
+          if (cardW > 360) cardW = 360;
+          cardH = rows > 0 ? (regionH - used * (rows - 1)) / rows : 0;
+        } else {
+          cardW = innerW;
+          cardH = rows > 0 ? (regionH - gap * (rows - 1)) / rows : 0;
+        }
+        return { cardW: cardW, cardH: cardH, gap: used, short: Math.min(cardW, cardH) };
+      }
+      let stemH = 96;
+      let picked = n > 0 ? metrics(96, 24) : null;
+      if (n > 0 && picked.short < 112) picked = metrics(96, 16);
+      if (n > 0 && picked.short < 112) {
+        stemH = 64;
+        picked = metrics(64, 24);
+        if (picked.short < 112) picked = metrics(64, 16);
+      }
+      if (n > 0) {
+        let cardW = picked.cardW;
+        let cardH = picked.cardH;
+        const used = picked.gap;
+        if (!(cardW >= 72)) cardW = 72;
+        if (!(cardH >= 72)) cardH = 72;
+        const groupW = cols === 2 ? cardW * 2 + used : cardW;
+        const left0 = edge + Math.max(0, (innerW - groupW) / 2);
+        const top0 = playTop + stemH;
+        let k = 0;
+        for (let r = 0; r < rows; r++) {
+          for (let c = 0; c < cols; c++) {
+            if (k >= n) break;
+            add("card-" + k, left0 + c * (cardW + used), top0 + r * (cardH + used), cardW, cardH);
+            k += 1;
+          }
+        }
+      }
+      stem = { left: edge, top: playTop, w: Math.max(0, innerW), h: n > 0 ? stemH : 96 };
+      const doneW = Math.max(120, Math.min(220, w - 32));
+      add("done", (w - doneW) / 2, h - 8 - doneH, doneW, doneH);
+    }
+    if (screenId === "rest") {
+      const bw = Math.max(160, Math.min(280, w - 32));
+      add("another", (w - bw) / 2, Math.max(220, h * 0.52), bw, 76);
+    }
+    return { targets: targets, ok: w >= 320, stem: stem, menu: menu };
+  }
+  function resizeCanvas() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const bw = Math.max(1, Math.round(w * dpr));
+    const bh = Math.max(1, Math.round(h * dpr));
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw;
+      canvas.height = bh;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w: w, h: h };
+  }
+  function roundRect(x, y, w, h, r) {
+    const rad = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + rad, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rad);
+    ctx.arcTo(x + w, y + h, x, y + h, rad);
+    ctx.arcTo(x, y + h, x, y, rad);
+    ctx.arcTo(x, y, x + w, y, rad);
+    ctx.closePath();
+  }
+  function drawApple(x, y, empty) {
+    ctx.beginPath();
+    ctx.arc(x, y, APPLE_R, 0, Math.PI * 2);
+    if (empty) {
+      ctx.fillStyle = CREAM;
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = INK;
+      ctx.stroke();
+      return;
+    }
+    ctx.fillStyle = APPLE;
+    ctx.fill();
+    ctx.strokeStyle = STEM;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(x, y - APPLE_R + 1);
+    ctx.lineTo(x, y - APPLE_R - 8);
+    ctx.stroke();
+    ctx.fillStyle = LEAF;
+    ctx.beginPath();
+    ctx.ellipse(x + 7, y - APPLE_R - 2, 7, 4, -0.7, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  function drawApples(x, y, n, emptyLast) {
+    const step = APPLE_R * 2 + 10;
+    for (let i = 0; i < n; i++) {
+      const last = emptyLast && i === n - 1;
+      drawApple(x + i * step, y, last);
+    }
+  }
+  function paintTray(x, y, w, h, count, emptyPlaces) {
+    roundRect(x, y, w, h, 16);
+    ctx.fillStyle = CARD;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+    if (count <= 0) return;
+    const step = APPLE_R * 2 + 8;
+    const rowW = count * step - 8;
+    let ax = x + (w - rowW) / 2 + APPLE_R;
+    const ay = y + h / 2 + 4;
+    for (let i = 0; i < count; i++) drawApple(ax + i * step, ay, false);
+    if (emptyPlaces) {
+      /* tray stays empty of outline apples; the tray itself is the blank */
+    }
+  }
+  function paintQuantity(rect) {
+    if (!problem) return;
+    const show = phase === "show";
+    if (problem.blank === "set") {
+      const trayW = Math.min(180, rect.w * 0.42);
+      const trayH = Math.min(150, rect.h * 0.86);
+      const gap = 18;
+      const y = rect.top + (rect.h - trayH) / 2;
+      const x0 = rect.left + (rect.w - trayW * 2 - gap) / 2;
+      paintTray(x0, y, trayW, trayH, problem.a, false);
+      paintTray(x0 + trayW + gap, y, trayW, trayH, show ? problem.a : 0, false);
+      return;
+    }
+    const n = show ? problem.a + 1 : problem.a + 1;
+    const step = APPLE_R * 2 + 10;
+    const rowW = n * step - 10;
+    const x = rect.left + (rect.w - rowW) / 2 + APPLE_R;
+    const y = rect.top + rect.h / 2 + 4;
+    for (let i = 0; i < problem.a; i++) drawApple(x + i * step, y, false);
+    drawApple(x + problem.a * step, y, !show);
+  }
+  function glyph(op) {
+    if (op === "-") return "\u2212";
+    if (op === "×") return "\u00D7";
+    if (op === "÷") return "\u00F7";
+    return op || "";
+  }
+  function stemTokens(made, shown) {
+    if (!made || made.kind === "quantity") return [];
+    function cell(v) {
+      if (v === null) return shown === null || shown === undefined ? "\u25A1" : String(shown);
+      return String(v);
+    }
+    if (made.repeats === 3) {
+      const k = String(made.a);
+      return [k, "+", k, "+", k, "=", cell(null)];
+    }
+    const op = glyph(made.op);
+    if (made.layout === "left") return [cell(made.c), "=", cell(made.a), op, cell(made.b)];
+    return [cell(made.a), op, cell(made.b), "=", cell(made.c)];
+  }
+  function numericToken(tok) {
+    return tok !== "\u25A1" && tok !== "+" && tok !== "\u2212" && tok !== "=" && tok !== "\u00D7" && tok !== "\u00F7";
+  }
+  function paintTokens(rect, tokens, withDots) {
+    if (!tokens.length) return;
+    let fontPx = Math.min(64, rect.h * 0.46);
+    const minFont = 22;
+    let pieces = [];
+    while (fontPx >= minFont) {
+      ctx.font = fontPx + "px " + FONT;
+      const gap = fontPx * 0.22;
+      const dotR = Math.max(3, fontPx * 0.11);
+      pieces = [];
+      let total = 0;
+      for (let i = 0; i < tokens.length; i++) {
+        const tok = tokens[i];
+        let w;
+        if (tok === "\u25A1") w = fontPx * 0.86;
+        else w = ctx.measureText(tok).width;
+        let dots = 0;
+        if (withDots && numericToken(tok)) dots = Number(tok);
+        const dotW = withDots && numericToken(tok) ? Math.max(dotR * 2, dots > 0 ? dots * (dotR * 2 + 3) - 3 : dotR * 2) : 0;
+        const pieceW = w + (dotW ? gap * 0.4 + dotW : 0);
+        pieces.push({ tok: tok, w: w, dots: dots, dotW: dotW, pieceW: pieceW });
+        total += pieceW;
+        if (i < tokens.length - 1) total += gap;
+      }
+      if (total <= rect.w - 8 || fontPx === minFont) break;
+      fontPx -= 2;
+    }
+    ctx.font = fontPx + "px " + FONT;
+    ctx.textBaseline = "middle";
+    ctx.textAlign = "center";
+    ctx.fillStyle = INK;
+    const gap = fontPx * 0.22;
+    const dotR = Math.max(3, fontPx * 0.11);
+    let total = 0;
+    for (let i = 0; i < pieces.length; i++) {
+      total += pieces[i].pieceW;
+      if (i < pieces.length - 1) total += gap;
+    }
+    let x = rect.left + (rect.w - total) / 2;
+    const y = rect.top + rect.h / 2;
+    for (let i = 0; i < pieces.length; i++) {
+      const piece = pieces[i];
+      if (piece.tok === "\u25A1") {
+        const bw = piece.w;
+        const bh = fontPx * 0.86;
+        roundRect(x, y - bh / 2, bw, bh, 8);
+        ctx.fillStyle = CREAM;
+        ctx.fill();
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = INK;
+        ctx.stroke();
+      } else {
+        ctx.fillStyle = INK;
+        ctx.fillText(piece.tok, x + piece.w / 2, y);
+      }
+      if (piece.dotW) {
+        const dx = x + piece.w + gap * 0.4;
+        if (piece.dots > 0) {
+          ctx.fillStyle = DOT;
+          for (let d = 0; d < piece.dots; d++) {
+            ctx.beginPath();
+            ctx.arc(dx + dotR + d * (dotR * 2 + 3), y, dotR, 0, Math.PI * 2);
+            ctx.fill();
+          }
+        }
+      }
+      x += piece.pieceW + gap;
+    }
+  }
+  function paintPlate(box) {
+    roundRect(box.left + 1, box.top + 1, box.w - 2, box.h - 2, 18);
+    ctx.fillStyle = CARD;
+    ctx.fill();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = INK;
+    ctx.stroke();
+  }
+  function paintCardFace(box, value) {
+    paintPlate(box);
+    if (!problem) return;
+    if (problem.kind === "quantity") {
+      const n = value;
+      const step = APPLE_R * 2 + 8;
+      const rowW = n * step - 8;
+      const x = box.left + (box.w - rowW) / 2 + APPLE_R;
+      const y = box.top + box.h / 2 + 4;
+      for (let i = 0; i < n; i++) drawApple(x + i * step, y, false);
+      return;
+    }
+    if (level === "little") {
+      const dotR = 7;
+      const dots = value;
+      const dotW = dots > 0 ? dots * (dotR * 2 + 4) - 4 : dotR * 2;
+      const dx = box.left + box.w - 14 - dotW;
+      const y = box.top + box.h / 2;
+      if (dots > 0) {
+        ctx.fillStyle = DOT;
+        for (let d = 0; d < dots; d++) {
+          ctx.beginPath();
+          ctx.arc(dx + dotR + d * (dotR * 2 + 4), y, dotR, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+    }
+  }
+  function paint() {
+    const view = resizeCanvas();
+    ctx.clearRect(0, 0, view.w, view.h);
+    const lay = layoutFor(view.w, view.h);
+    if (screenId === "ask" && lay.stem && problem) {
+      if (problem.kind === "quantity") paintQuantity(lay.stem);
+      else paintTokens(lay.stem, stemTokens(problem, phase === "show" ? filled : null), level === "little");
+      for (let i = 0; i < lay.targets.length; i++) {
+        const box = lay.targets[i];
+        if (box.id.indexOf("card-") !== 0) continue;
+        const n = Number(box.id.slice(5));
+        if (problem.cards && n < problem.cards.length) paintCardFace(box, problem.cards[n]);
+      }
+    }
+    if (screenId === "rest") {
+      drawApple(view.w / 2, view.h * 0.28, false);
+    }
+  }
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const lay = layoutFor(w, h);
+    const seen = {};
+    for (let i = 0; i < lay.targets.length; i++) {
+      const box = lay.targets[i];
+      seen[box.id] = true;
+      const el = document.getElementById(box.id);
+      if (!el) continue;
+      el.hidden = false;
+      el.style.left = box.left + "px";
+      el.style.top = box.top + "px";
+      el.style.width = box.w + "px";
+      el.style.height = box.h + "px";
+    }
+    for (let i = 0; i < BUTTON_IDS.length; i++) {
+      if (!seen[BUTTON_IDS[i]]) {
+        const el = document.getElementById(BUTTON_IDS[i]);
+        if (el) el.hidden = true;
+      }
+    }
+    menuEl.hidden = screenId !== "menu";
+    playEl.hidden = screenId !== "ask";
+    restEl.hidden = screenId !== "rest";
+    if (lay.menu) {
+      menuEl.style.left = lay.menu.left + "px";
+      menuEl.style.top = lay.menu.top + "px";
+      menuEl.style.width = lay.menu.w + "px";
+      menuEl.style.height = lay.menu.h + "px";
+    }
+    for (let i = 0; i < BANDS.length; i++) {
+      const el = document.getElementById(BANDS[i]);
+      el.setAttribute("aria-pressed", BANDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-pressed", mute ? "true" : "false");
+    muteBtn.setAttribute("aria-label", mute ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = mute;
+    soundOff.hidden = !mute;
+    bannerEl.textContent = bannerText();
+    const onAsk = screenId === "ask" && problem;
+    for (let i = 0; i < cardEls.length; i++) {
+      const btn = cardEls[i];
+      if (!onAsk || i >= problem.cards.length) {
+        btn.textContent = "";
+        btn.removeAttribute("aria-label");
+        continue;
+      }
+      const value = problem.cards[i];
+      if (problem.kind === "quantity") {
+        btn.textContent = "";
+        btn.setAttribute("aria-label", APPLE_NAME[value] || "Apples");
+        btn.style.textAlign = "center";
+        btn.style.paddingLeft = "0px";
+      } else {
+        btn.textContent = String(value);
+        btn.removeAttribute("aria-label");
+        const box = seen["card-" + i] ? lay.targets.filter(function (b) { return b.id === "card-" + i; })[0] : null;
+        const size = box ? Math.max(28, Math.min(72, box.h * 0.46)) : 48;
+        btn.style.fontSize = size + "px";
+        if (level === "little") {
+          btn.style.textAlign = "left";
+          btn.style.paddingLeft = "16px";
+        } else {
+          btn.style.textAlign = "center";
+          btn.style.paddingLeft = "0px";
+        }
+      }
+    }
+    eyesEl.hidden = !eyesOn();
+    paint();
+  }
+  function state() {
+    const ask = screenId === "ask" && problem;
+    return {
+      level: level,
+      screen: screenId,
+      banner: bannerText(),
+      muted: mute,
+      phase: screenId === "ask" ? phase : null,
+      kind: ask ? problem.kind : null,
+      op: ask ? problem.op : null,
+      a: ask ? problem.a : null,
+      b: ask ? problem.b : null,
+      c: ask ? problem.c : null,
+      blank: ask ? problem.blank : null,
+      cards: ask ? problem.cards.slice() : [],
+      filled: screenId === "ask" ? filled : null,
+      index: index,
+      cap: cap,
+      layout: ask ? problem.layout : null,
+      repeats: ask ? problem.repeats : null,
+      range: ask ? problem.range.slice() : null
+    };
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const lay = layoutFor(w, h);
+    const targets = {};
+    for (let i = 0; i < lay.targets.length; i++) {
+      const box = lay.targets[i];
+      targets[box.id] = {
+        x: box.x, y: box.y,
+        nx: w ? box.x / w : 0,
+        ny: h ? box.y / h : 0,
+        w: box.w, h: box.h,
+        left: box.left, top: box.top
+      };
+    }
+    return { targets: targets };
+  }
+  function targetsAt(w, h) {
+    render();
+    const lay = layoutFor(w, h);
+    return {
+      ok: lay.ok,
+      targets: lay.targets.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function ensureAudio() {
+    if (checking || ac) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    ac = new Ctx();
+    master = ac.createGain();
+    master.gain.value = mute ? 0 : 0.5;
+    master.connect(ac.destination);
+  }
+  function playCorrect() {
+    if (checking) return;
+    ensureAudio();
+    if (!ac || !master) return;
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = "sine";
+    osc.frequency.value = 523;
+    osc.connect(g);
+    g.connect(master);
+    const t0 = ac.currentTime;
+    g.gain.setValueAtTime(1, t0);
+    g.gain.setValueAtTime(0, t0 + 0.12);
+    osc.start(t0);
+    osc.stop(t0 + 0.12);
+  }
+  function toggleMute() {
+    mute = !mute;
+    if (master) master.gain.value = mute ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    return btn;
+  }
+  function cardValue(btn) {
+    if (!btn || !problem || screenId !== "ask") return null;
+    if (btn.id.indexOf("card-") !== 0) return null;
+    const i = Number(btn.id.slice(5));
+    if (!Number.isInteger(i) || i < 0 || i >= problem.cards.length) return null;
+    return problem.cards[i];
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && now - gazeAt < GAZE_FRESH_MS && eyesOn());
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { key: btn, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS };
+  }
+  function fireButton(btn) {
+    if (!checking) ensureAudio();
+    viaGaze = true;
+    try { btn.click(); }
+    finally { viaGaze = false; }
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerActive) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.key : null;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, target.ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, target.ms);
+    }
+    if (cooledValue !== null && cardValue(key) !== cooledValue) cooledValue = null;
+    const still = !!(dwellKey && key && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+    } else if (dwellFired && still) {
+      dwellProgress = 1;
+    } else if (!dwellFired) {
+      const elapsed = now - dwellStart;
+      let p = dwellMs > 0 ? elapsed / dwellMs : 0;
+      if (p < 0) p = 0;
+      if (p > 1) p = 1;
+      if (still && elapsed >= dwellMs) {
+        dwellFired = true;
+        p = 1;
+        fireButton(dwellKey);
+      }
+      dwellProgress = p;
+    } else {
+      dwellProgress = 0;
+    }
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed.x += (gazeHold.x - smoothed.x) * 0.45;
+        smoothed.y += (gazeHold.y - smoothed.y) * 0.45;
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    if (phase === "show" && now >= showUntil) next();
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (!haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    cooledValue = null;
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (holding) {
+      render();
+      return;
+    }
+    holding = true;
+    pointerActive = true;
+    clearDwell();
+    render();
+  }
+  function release() {
+    holding = false;
+    pointerActive = false;
+    render();
+  }
+  function tap(nx, ny) {
+    if (holding) {
+      render();
+      return;
+    }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) btn.click();
+    render();
+  }
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed.x += (raw.x - smoothed.x) * 0.45;
+      smoothed.y += (raw.y - smoothed.y) * 0.45;
+    }
+    gazePoint = smoothed;
+    gazeAt = clock || performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const nextWarp = new Float64Array(9);
+    for (let i = 0; i < 9; i++) nextWarp[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(nextWarp[i])) return;
+    gazeWarp = nextWarp;
+  }
+  function warpPoint(x, y) {
+    const h = gazeWarp;
+    if (!h) return { x: x, y: y };
+    const w = h[6] * x + h[7] * y + h[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (h[0] * x + h[1] * y + h[2]) / w,
+      y: (h[3] * x + h[4] * y + h[5]) / w
+    };
+  }
+  function onCardClick(i) {
+    if (!problem || screenId !== "ask" || i >= problem.cards.length) return;
+    const value = problem.cards[i];
+    if (!viaGaze) cooledValue = null;
+    answer(value);
+    if (!viaGaze) cooledValue = null;
+  }
+  for (let i = 0; i < cardEls.length; i++) {
+    (function (n) {
+      cardEls[n].addEventListener("click", function () { onCardClick(n); });
+    })(i);
+  }
+  document.getElementById("lets-go").addEventListener("click", function () { start(level); });
+  document.getElementById("tiny").addEventListener("click", function () { level = "tiny"; render(); });
+  document.getElementById("little").addEventListener("click", function () { level = "little"; render(); });
+  document.getElementById("shop").addEventListener("click", function () { level = "shop"; render(); });
+  document.getElementById("rush").addEventListener("click", function () { level = "rush"; render(); });
+  document.getElementById("done").addEventListener("click", function () { go("rest"); });
+  document.getElementById("another").addEventListener("click", function () { start(level); });
+  backBtn.addEventListener("click", function () { go("menu"); });
+  muteBtn.addEventListener("click", toggleMute);
+  fullBtn.addEventListener("click", toggleFull);
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      if (!backBtn.hidden) { backBtn.click(); e.preventDefault(); }
+      return;
+    }
+    if (screenId !== "ask" || playEl.hidden) return;
+    const n = "1234".indexOf(e.key);
+    if (n < 0) return;
+    const card = cardEls[n];
+    if (!card || card.hidden) return;
+    card.click();
+    e.preventDefault();
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (activePointer !== null) return;
+    activePointer = e.pointerId;
+    pointerActive = true;
+    holding = true;
+    clearDwell();
+    ensureAudio();
+  }, true);
+  function endPointer(e) {
+    if (e.pointerId !== activePointer) return;
+    activePointer = null;
+    pointerActive = false;
+    holding = false;
+  }
+  document.addEventListener("pointerup", endPointer, true);
+  document.addEventListener("pointercancel", endPointer, true);
+  window.addEventListener("resize", function () { render(); });
+
+  function walkBand(band, seedValue) {
+    const hist = [];
+    const out = [];
+    const n = mathCap(band);
+    for (let i = 0; i < n; i++) {
+      const made = mathMake(band, seedValue, i, hist);
+      out.push(made);
+      if (made) hist.push({ blank: made.blank });
+    }
+    return out;
+  }
+  function sameList(a, b) {
+    if (!a || !b || a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+    return true;
+  }
+  function visibleSum(made) {
+    const vis = [];
+    if (made.a !== null) vis.push(made.a);
+    if (made.b !== null) vis.push(made.b);
+    if (made.c !== null) vis.push(made.c);
+    if (vis.length !== 2) return null;
+    return vis[0] + vis[1];
+  }
+  const TRACE = {
+    tiny: [
+      { a: 2, b: null, c: null, blank: "set", op: null, answer: 2, cards: [3, 2], layout: "pictures", repeats: 1, range: [1, 3] },
+      { a: 1, b: null, c: null, blank: "more", op: null, answer: 2, cards: [3, 2], layout: "pictures", repeats: 1, range: [1, 3] },
+      { a: 1, b: null, c: null, blank: "set", op: null, answer: 1, cards: [1, 2], layout: "pictures", repeats: 1, range: [1, 3] },
+      { a: 1, b: null, c: null, blank: "more", op: null, answer: 2, cards: [3, 2], layout: "pictures", repeats: 1, range: [1, 3] }
+    ],
+    little: [
+      { a: 0, b: 2, c: null, blank: "result", op: "+", answer: 2, cards: [4, 2, 3], layout: "right", repeats: 1, range: [0, 5], line: "0 + 2 = \u25A1" },
+      { a: 2, b: 2, c: null, blank: "result", op: "-", answer: 0, cards: [0, 1, 4], layout: "right", repeats: 1, range: [0, 5], line: "2 \u2212 2 = \u25A1" },
+      { a: 0, b: 3, c: null, blank: "result", op: "+", answer: 3, cards: [5, 3, 4], layout: "right", repeats: 1, range: [0, 5], line: "0 + 3 = \u25A1" },
+      { a: 2, b: null, c: 2, blank: "part", op: "+", answer: 0, cards: [4, 0, 1], layout: "right", repeats: 1, range: [0, 5], line: "2 + \u25A1 = 2" },
+      { a: 4, b: 4, c: null, blank: "result", op: "-", answer: 0, cards: [0, 1, 3], layout: "right", repeats: 1, range: [0, 5], line: "4 \u2212 4 = \u25A1" },
+      { a: 2, b: null, c: 3, blank: "part", op: "+", answer: 1, cards: [5, 1, 2], layout: "right", repeats: 1, range: [0, 5], line: "2 + \u25A1 = 3" }
+    ],
+    shop: [
+      { a: 2, b: 1, c: null, blank: "result", op: "+", answer: 3, cards: [3, 2, 4, 5], layout: "right", repeats: 1, range: [0, 10], line: "2 + 1 = \u25A1" },
+      { a: 6, b: 4, c: null, blank: "result", op: "-", answer: 2, cards: [2, 4, 3, 1], layout: "right", repeats: 1, range: [0, 10], line: "6 \u2212 4 = \u25A1" },
+      { a: 4, b: null, c: 5, blank: "part", op: "+", answer: 1, cards: [5, 2, 9, 1], layout: "right", repeats: 1, range: [0, 10], line: "4 + \u25A1 = 5" },
+      { a: 7, b: null, c: 2, blank: "part", op: "-", answer: 5, cards: [6, 0, 9, 5], layout: "right", repeats: 1, range: [0, 10], line: "7 \u2212 \u25A1 = 2" },
+      { a: null, b: 2, c: 10, blank: "start", op: "+", answer: 8, cards: [9, 8, 0, 10], layout: "left", repeats: 1, range: [0, 10], line: "10 = \u25A1 + 2" },
+      { a: null, b: 0, c: 1, blank: "start", op: "-", answer: 1, cards: [10, 9, 2, 1], layout: "left", repeats: 1, range: [0, 10], line: "1 = \u25A1 \u2212 0" },
+      { a: 6, b: 6, c: null, blank: "result", op: "+", answer: 12, cards: [13, 14, 11, 12], layout: "right", repeats: 1, range: [0, 20], line: "6 + 6 = \u25A1" },
+      { a: 4, b: 4, c: null, blank: "result", op: "+", answer: 12, cards: [12, 8, 9, 13], layout: "right", repeats: 3, range: [0, 20], line: "4 + 4 + 4 = \u25A1" }
+    ],
+    rush: [
+      { a: 8, b: 2, c: null, blank: "result", op: "+", answer: 10, cards: [10, 18, 11, 19], layout: "right", repeats: 1, range: [0, 20], line: "8 + 2 = \u25A1" },
+      { a: 10, b: 0, c: null, blank: "result", op: "-", answer: 10, cards: [10, 6, 11, 5], layout: "right", repeats: 1, range: [0, 20], line: "10 \u2212 0 = \u25A1" },
+      { a: 10, b: 5, c: null, blank: "result", op: "×", answer: 50, cards: [81, 51, 80, 50], layout: "right", repeats: 1, range: [1, 100], line: "10 \u00D7 5 = \u25A1" },
+      { a: 1, b: 1, c: null, blank: "result", op: "÷", answer: 1, cards: [2, 4, 3, 1], layout: "right", repeats: 1, range: [1, 10], line: "1 \u00F7 1 = \u25A1" },
+      { a: 1, b: null, c: 3, blank: "part", op: "×", answer: 3, cards: [4, 3, 9, 8], layout: "right", repeats: 1, range: [1, 10], line: "1 \u00D7 \u25A1 = 3" },
+      { a: 1, b: null, c: 1, blank: "part", op: "÷", answer: 1, cards: [9, 8, 2, 1], layout: "right", repeats: 1, range: [1, 10], line: "1 \u00F7 \u25A1 = 1" },
+      { a: null, b: 7, c: 49, blank: "start", op: "×", answer: 7, cards: [8, 4, 3, 7], layout: "left", repeats: 1, range: [1, 10], line: "49 = \u25A1 \u00D7 7" },
+      { a: null, b: 1, c: 8, blank: "start", op: "÷", answer: 8, cards: [8, 19, 20, 9], layout: "left", repeats: 1, range: [1, 100], line: "8 = \u25A1 \u00F7 1" },
+      { a: 1, b: null, c: 12, blank: "part", op: "+", answer: 11, cards: [12, 13, 11, 3], layout: "right", repeats: 1, range: [0, 20], line: "1 + \u25A1 = 12" },
+      { a: null, b: 6, c: 14, blank: "start", op: "-", answer: 20, cards: [20, 15, 19, 16], layout: "left", repeats: 1, range: [0, 20], line: "14 = \u25A1 \u2212 6" }
+    ]
+  };
+  function lineOf(made) {
+    return stemTokens(made, null).join(" ");
+  }
+  function checkWalk(failures, caseName, band) {
+    const got = walkBand(band, 11);
+    const exp = TRACE[band];
+    if (got.length !== exp.length) {
+      failures.push(caseName + ": Expected " + exp.length + " problems.");
+      return got;
+    }
+    const fields = ["a", "b", "c", "blank", "op", "answer", "layout", "repeats"];
+    for (let i = 0; i < exp.length; i++) {
+      const g = got[i];
+      const e = exp[i];
+      if (!g) {
+        failures.push(caseName + ": Index " + i + " was missing.");
+        continue;
+      }
+      for (let f = 0; f < fields.length; f++) {
+        const key = fields[f];
+        if (g[key] !== e[key]) failures.push(caseName + ": Index " + i + " " + key + " was " + g[key] + ".");
+      }
+      if (!g.range || g.range[0] !== e.range[0] || g.range[1] !== e.range[1]) {
+        failures.push(caseName + ": Index " + i + " range did not match.");
+      }
+      if (!sameList(g.cards, e.cards)) failures.push(caseName + ": Index " + i + " cards were " + (g.cards || []).join(",") + ".");
+      if (e.line && lineOf(g) !== e.line) failures.push(caseName + ": Index " + i + " painted " + lineOf(g) + ".");
+    }
+    return got;
+  }
+  function engineSelfCheck() {
+    const failures = [];
+    const rng = makeRng(1);
+    const expect = [0xA087EAF3, 0x00B349C9, 0x8706C4EB, 0xFB2627FD];
+    for (let i = 0; i < expect.length; i++) {
+      const got = rngUint(rng);
+      if (got !== expect[i]) failures.push("rng-seed-1: Call " + (i + 1) + " was " + got + ".");
+    }
+    if (playSeed(1, 1) !== 0x3B230FE8) failures.push("play-seed: playSeed(1, 1) was not 0x3B230FE8.");
+    const rng2 = makeRng(1);
+    for (let i = 0; i < 20; i++) {
+      const n = rngInt(rng2, 0, 3);
+      if (n < 0 || n > 3) failures.push("rng-int: Value " + n + " left 0 to 3.");
+    }
+    for (let b = 0; b < BANDS.length; b++) {
+      const band = BANDS[b];
+      const hist = [];
+      const capN = mathCap(band);
+      for (let i = 0; i < capN; i++) {
+        const made = mathMake(band, 11, i, hist);
+        if (!made) {
+          failures.push("math-unique: " + band + " index " + i + " was null.");
+          continue;
+        }
+        const lo = made.range[0];
+        const hi = made.range[1];
+        let count = 0;
+        let which = null;
+        for (let v = lo; v <= hi; v++) {
+          if (mathAccepts(made, v)) { count += 1; which = v; }
+        }
+        if (count !== 1 || which !== made.answer) failures.push("math-unique: " + band + " index " + i + " had " + count + " accepts.");
+        if (!Number.isInteger(made.answer) || mathAccepts(made, made.answer + 0.5)) {
+          failures.push("math-unique: " + band + " index " + i + " accepted a non-integer.");
+        }
+        if (made.cards.length !== mathCardCount(band)) failures.push("math-unique: " + band + " index " + i + " card count was " + made.cards.length + ".");
+        let seenAns = 0;
+        for (let c = 0; c < made.cards.length; c++) {
+          const card = made.cards[c];
+          if (!Number.isInteger(card) || card < lo || card > hi) failures.push("math-unique: " + band + " index " + i + " card " + card + " left the range.");
+          if (card === made.answer) seenAns += 1;
+          else if (mathAccepts(made, card)) failures.push("math-unique: " + band + " index " + i + " extra card " + card + " accepted.");
+        }
+        if (seenAns !== 1) failures.push("math-unique: " + band + " index " + i + " answer was on " + seenAns + " cards.");
+        if (made.blank === "part") {
+          const sum = visibleSum(made);
+          if (made.cards.indexOf(sum) < 0) failures.push("math-part-sum: " + band + " index " + i + " missed the sum.");
+        }
+        hist.push({ blank: made.blank });
+      }
+      if (mathMake(band, 11, capN, []) !== null) failures.push("math-cap: " + band + " at the cap was not null.");
+      if (mathMake(band, 11, -1, []) !== null) failures.push("math-cap: " + band + " negative index was not null.");
+      if (mathMake(band, 11, 0.5, []) !== null) failures.push("math-cap: " + band + " fractional index was not null.");
+    }
+    const tiny = checkWalk(failures, "math-tiny", "tiny");
+    if (tiny[0] && (tiny[0].kind !== "quantity" || tiny[0].layout !== "pictures" || tiny[0].op !== null)) {
+      failures.push("math-tiny: Kind, layout, or op was wrong.");
+    }
+    for (let i = 0; i < tiny.length; i++) {
+      const made = tiny[i];
+      if (!made) continue;
+      if (made.a < 1 || made.a > 3) failures.push("math-tiny: Count left 1 to 3.");
+      if (made.answer < 1 || made.answer > 3) failures.push("math-tiny: Answer left 1 to 3.");
+    }
+    if (mathMake("tiny", 11, 4, []) !== null) failures.push("math-tiny: Index 4 was not null.");
+    const empty = [];
+    for (let i = 0; i < 4; i++) {
+      const made = mathMake("little", 11, i, []);
+      if (!made || made.blank !== "result" || made.layout !== "right") failures.push("math-little-empty: Index " + i + " was not a right result.");
+      if (made && made.cards.length !== 3) failures.push("math-little-empty: Index " + i + " did not have three cards.");
+      empty.push(made);
+    }
+    if (!empty[3] || empty[3].a !== 0 || empty[3].b !== 1 || empty[3].answer !== 1 || !sameList(empty[3].cards, [1, 2, 0])) {
+      failures.push("math-little-empty: Index 3 did not match the empty probe.");
+    }
+    const empty5 = mathMake("little", 11, 5, []);
+    if (!empty5 || empty5.blank !== "result" || empty5.op !== "-" || empty5.a !== 3 || empty5.b !== 0 || empty5.answer !== 3 || !sameList(empty5.cards, [3, 1, 4])) {
+      failures.push("math-little-empty: Index 5 did not match the empty probe.");
+    }
+    const grownLittle = checkWalk(failures, "math-little-part", "little");
+    const part3 = mathMake("little", 11, 3, [{ blank: "result" }]);
+    if (!part3 || part3.blank !== "part" || part3.op !== "+") failures.push("math-little-part: Index 3 was not an add part.");
+    if (part3 && part3.cards.indexOf(visibleSum(part3)) < 0) failures.push("math-little-part: Index 3 missed the sum card.");
+    if (grownLittle.some(function (made) { return made && made.blank === "start"; })) failures.push("math-little-part: A start blank appeared.");
+    if (grownLittle.some(function (made) { return made && made.layout !== "right"; })) failures.push("math-little-part: Layout was not right.");
+    checkWalk(failures, "math-shop", "shop");
+    const shop = walkBand("shop", 11);
+    for (let i = 0; i < shop.length; i++) {
+      const made = shop[i];
+      if (!made) continue;
+      if (made.op === "×" || made.op === "÷") failures.push("math-shop: Op was times or divide.");
+      for (let c = 0; c < made.cards.length; c++) if (made.cards[c] > 20) failures.push("math-shop: A card was above 20.");
+    }
+    if (!shop[7] || shop[7].repeats !== 3 || shop[7].answer !== 3 * shop[7].a) failures.push("math-shop: Repeat answer was not 3 times a.");
+    const rush = checkWalk(failures, "math-rush", "rush");
+    function has(set, v) { return set.indexOf(v) >= 0; }
+    if (rush[2] && (!has(SET_A, rush[2].a) || !has(SET_A, rush[2].b))) failures.push("math-rush: Index 2 factors were not in set A.");
+    if (rush[3] && (!has(SET_A, rush[3].b) || !has(SET_A, rush[3].answer))) failures.push("math-rush: Index 3 divisor or quotient left set A.");
+    if (rush[4] && (!has(SET_B, rush[4].a) || !has(SET_B, rush[4].answer))) failures.push("math-rush: Index 4 factors were not in set B.");
+    if (rush[5] && (!has(SET_B, rush[5].answer) || !has(SET_B, rush[5].c))) failures.push("math-rush: Index 5 divisor or quotient left set B.");
+    if (rush[6] && (!has(SET_C, rush[6].answer) || !has(SET_C, rush[6].b))) failures.push("math-rush: Index 6 factors were not in set C.");
+    if (rush[7] && (!has(SET_C, rush[7].b) || !has(SET_C, rush[7].c))) failures.push("math-rush: Index 7 divisor or quotient left set C.");
+    if (rush[2] && rush[2].cards.indexOf(15) >= 0 && rush[2].blank === "result") {
+      /* 15 is allowed only if the filler happened to draw it; the trace does not include it */
+    }
+    if (rush[2] && rush[2].cards.indexOf(15) >= 0) failures.push("math-rush: Index 2 required a 15 card.");
+    return { ok: failures.length === 0, failures: failures };
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      for (let i = 0; i < attrs.length; i++) {
+        if (attrs[i].value.indexOf(junk) >= 0) return true;
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.body);
+  }
+  function cardBox(value) {
+    const cards = state().cards;
+    const i = cards.indexOf(value);
+    if (i < 0) return null;
+    return centers().targets["card-" + i];
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    look(box.nx, box.ny);
+    step(t);
+  }
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    try {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+      const params = new URLSearchParams(location.search);
+      let junk = "";
+      params.forEach(function (value, key) {
+        if (key === "selfcheck" || key === "play" || key === "rush") return;
+        if (!junk) junk = value;
+      });
+      if (junk && junkInPage(junk)) fail("family-query-inert", "The junk flag value was written into the page.");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); } catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0) fail("family-plain-state", "state could not be turned into JSON.");
+      if (!("level" in snap) || !("screen" in snap) || !("banner" in snap) || !("muted" in snap)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+      if (document.getElementById("tiny").getAttribute("aria-pressed") !== "true") fail("family-plain-state", "Tiny Tots did not start pressed.");
+      releaseLook();
+      let t = 10000;
+      step(t);
+      look(0.5, 0.5);
+      step(t + 20);
+      const eye = eyes();
+      const eyeKeys = Object.keys(eye);
+      if (eyeKeys.length !== 2 || eyeKeys.indexOf("on") < 0 || eyeKeys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes mark was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes mark stayed up after release.");
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      const muteBox = centers().targets.mute;
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      tap(muteBox.nx, muteBox.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(muteBox.nx, muteBox.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+      go("menu");
+      releaseLook();
+      t = 30000;
+      const lets = centers().targets["lets-go"];
+      enterLook(lets, t);
+      step(t + 600);
+      if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+      step(t + 1299);
+      if (state().screen !== "menu") fail("family-menu-dwell", "1299 ms on Let's go left the menu.");
+      t = 33000;
+      enterLook(lets, t);
+      step(t + 1300);
+      if (state().screen !== "ask") fail("family-menu-dwell", "1300 ms on Let's go did not open the ask screen.");
+      const back = centers().targets.back;
+      t = 36000;
+      enterLook(back, t);
+      step(t + 600);
+      if (state().screen !== "ask") fail("family-menu-dwell", "600 ms on Back left the ask screen.");
+      step(t + 1299);
+      if (state().screen !== "ask") fail("family-menu-dwell", "1299 ms on Back left the ask screen.");
+      t = 39000;
+      enterLook(back, t);
+      step(t + 1300);
+      if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      seed(11);
+      start("tiny");
+      t = 42000;
+      const ans = problem.answer;
+      const box = cardBox(ans);
+      enterLook(box, t);
+      step(t + 200);
+      const fill200 = dwell();
+      if (Math.abs(fill200 - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+      step(t + 640);
+      if (state().filled !== null || state().phase !== "ask") fail("family-play-dwell", "640 ms filled the card or left ask.");
+      step(t + 649);
+      if (state().filled !== null || state().phase !== "ask") fail("family-play-dwell", "649 ms committed a card.");
+      t = 44000;
+      enterLook(cardBox(problem.answer), t);
+      step(t + 650);
+      if (state().filled !== ans || state().phase !== "show") fail("family-play-dwell", "650 ms did not commit the correct card.");
+      seed(11);
+      start("tiny");
+      t = 46000;
+      const ans660 = problem.answer;
+      enterLook(cardBox(ans660), t);
+      step(t + 660);
+      if (state().filled !== ans660 || state().phase !== "show") fail("family-play-dwell", "660 ms did not commit the correct card.");
+      seed(11);
+      start("tiny");
+      t = 48000;
+      step(t);
+      const ansTap = problem.answer;
+      const tapBox = cardBox(ansTap);
+      tap(tapBox.nx, tapBox.ny);
+      if (state().filled !== ansTap || state().phase !== "show") fail("family-play-dwell", "A tap did not commit the correct card.");
+      seed(11);
+      start("tiny");
+      t = 50000;
+      step(t);
+      const ansHold = problem.answer;
+      const holdBox = cardBox(ansHold);
+      hold(holdBox.nx, holdBox.ny);
+      look(holdBox.nx, holdBox.ny);
+      step(t);
+      step(t + 660);
+      if (state().filled !== null) fail("family-pointer-blocks", "A look during hold filled the card.");
+      release();
+      t = 52000;
+      enterLook(cardBox(problem.answer), t);
+      step(t + 660);
+      if (state().filled !== ansHold || state().phase !== "show") fail("family-pointer-blocks", "A fresh look after release did not fill the card.");
+      releaseLook();
+      seed(11);
+      start("tiny");
+      t = 56000;
+      const staleBox = cardBox(problem.answer);
+      enterLook(staleBox, t);
+      step(t + 200);
+      if (!(dwell() > 0)) fail("family-stale", "The ring did not fill before the sample went stale.");
+      refreshHold = false;
+      step(t + 200 + 500);
+      const staleDwell = dwell();
+      const staleFilled = state().filled;
+      refreshHold = true;
+      if (staleDwell !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+      if (staleFilled !== null) fail("family-stale", "A stale sample filled the card.");
+      releaseLook();
+      for (let b = 0; b < BANDS.length; b++) {
+        const band = BANDS[b];
+        seed(11);
+        start(band);
+        const views = [[390, 844], [1024, 768], [390, 700]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", band + " at " + views[v][0] + " was not ok.");
+          const cards = lay.targets.filter(function (box) { return box.id.indexOf("card-") === 0; });
+          if (cards.length !== mathCardCount(band)) fail("family-target-size", band + " dropped a card at " + views[v][0] + ".");
+          for (let i = 0; i < lay.targets.length; i++) {
+            const box = lay.targets[i];
+            const short = Math.min(box.w, box.h);
+            if (short < 72) fail("family-target-size", band + " target " + box.id + " was under 72 at " + views[v][0] + ".");
+            if (box.id.indexOf("card-") === 0 && short < 112) fail("family-target-size", band + " card " + box.id + " was under 112 at " + views[v][0] + "x" + views[v][1] + ".");
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok) fail("family-target-size", "A 300 px width was treated as ok.");
+        const smallCards = small.targets.filter(function (box) { return box.id.indexOf("card-") === 0; });
+        if (smallCards.length !== mathCardCount(band)) fail("family-target-size", "The narrow width dropped a card.");
+        for (let i = 0; i < small.targets.length; i++) {
+          if (Math.min(small.targets[i].w, small.targets[i].h) < 72) fail("family-target-size", "The narrow width shrank a target under 72.");
+        }
+      }
+      seed(11);
+      start("tiny");
+      t = 70000;
+      const graceAns = problem.answer;
+      const graceBox = cardBox(graceAns);
+      const graceId = "card-" + state().cards.indexOf(graceAns);
+      enterLook(graceBox, t);
+      step(t + 100);
+      if (!(dwell() > 0) || state().filled !== null) fail("leave-grace", "The card dwell did not start.");
+      look(0, 0);
+      let dt = 140;
+      let offAt = 0;
+      while (dt < 520) {
+        step(t + dt);
+        const hit = smoothed ? buttonAt(smoothed.x, smoothed.y) : null;
+        if (!hit || hit.id !== graceId) { offAt = t + dt; break; }
+        dt += 40;
+      }
+      if (!offAt) fail("leave-grace", "The look never left the card.");
+      if (dwell() !== 0) fail("leave-grace", "The dwell stayed on the step the look left the card.");
+      if (state().filled !== null || state().phase !== "ask") fail("leave-grace", "Slipping off committed the card.");
+      releaseLook();
+      seed(11);
+      start("tiny");
+      t = 74000;
+      const ansBack = problem.answer;
+      const boxBack = cardBox(ansBack);
+      const idBack = "card-" + state().cards.indexOf(ansBack);
+      enterLook(boxBack, t);
+      step(t + 500);
+      if (!(dwell() > 0) || state().filled !== null) fail("leave-grace", "500 ms on the card filled it.");
+      look(0, 0);
+      let gapAt = 0;
+      let g = 520;
+      while (g < 900) {
+        step(t + g);
+        const hit = smoothed ? buttonAt(smoothed.x, smoothed.y) : null;
+        if (!hit || hit.id !== idBack) { gapAt = t + g; break; }
+        g += 20;
+      }
+      if (!gapAt) fail("leave-grace", "The 500 ms look never left the card.");
+      if (dwell() !== 0 || state().filled !== null) fail("leave-grace", "Leaving after 500 ms kept the dwell.");
+      const backAt = gapAt + 100;
+      if (backAt - gapAt >= 280) fail("leave-grace", "The gap was not under 280 ms.");
+      look(boxBack.nx, boxBack.ny);
+      let landed = 0;
+      let u = 0;
+      while (u <= 400) {
+        step(backAt + u);
+        const hit = smoothed ? buttonAt(smoothed.x, smoothed.y) : null;
+        if (hit && hit.id === idBack) { landed = backAt + u; break; }
+        u += 20;
+      }
+      if (!landed) fail("leave-grace", "The look did not return to the card.");
+      if (state().filled !== null) fail("leave-grace", "Returning to the card counted time spent off it.");
+      step(landed + 40);
+      if (state().filled !== null || state().phase !== "ask") fail("leave-grace", "A returned look filled the card.");
+      releaseLook();
+      if (state().muted) toggleMute();
+      seed(11);
+      start("tiny");
+      const playText = document.getElementById("play").textContent + document.getElementById("banner").textContent;
+      const symbols = ["+", "\u2212", "-", "=", "\u00D7", "\u00F7", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+      if (state().cards.length !== 2 || state().kind !== "quantity" || state().op !== null || state().layout !== "pictures") {
+        fail("tiny-no-symbols", "Tiny Tots did not open a two-card quantity.");
+      }
+      for (let i = 0; i < state().cards.length; i++) {
+        if (state().cards[i] < 1 || state().cards[i] > 3) fail("tiny-no-symbols", "A card left 1 to 3.");
+      }
+      for (let i = 0; i < symbols.length; i++) {
+        if (playText.indexOf(symbols[i]) >= 0) fail("tiny-no-symbols", "The ask screen showed a digit or an operator.");
+      }
+      seed(11);
+      start("tiny");
+      t = 80000;
+      for (let i = 0; i < 4; i++) {
+        step(t);
+        const want = problem.answer;
+        answer(want);
+        if (state().phase !== "show" || state().filled !== want) fail("tiny-cap", "Correct card " + i + " did not show.");
+        t += SHOW_MS;
+        step(t);
+      }
+      if (state().screen !== "rest" || state().index !== 4) fail("tiny-cap", "Four correct cards did not rest at the cap.");
+      const restText = document.getElementById("screen-rest").innerText || "";
+      if (/grade|star|score|miss|streak/i.test(restText) || /\d/.test(restText)) fail("tiny-cap", "The rest card showed a grade or a count.");
+      const restScreen = state().screen;
+      const restIndex = state().index;
+      answer(1);
+      if (state().screen !== restScreen || state().index !== restIndex) fail("tiny-cap", "A further answer changed rest.");
+      seed(11);
+      start("little");
+      const littleBlanks = [];
+      const littleOps = [];
+      t = 90000;
+      for (let i = 0; i < 6; i++) {
+        littleBlanks.push(problem.blank);
+        littleOps.push(problem.op);
+        if (problem.layout !== "right") fail("little-result-first", "Index " + i + " was not right layout.");
+        if (problem.blank === "start") fail("little-result-first", "A start blank appeared.");
+        if (state().cards.length !== 3) fail("little-result-first", "Little Pals did not show three cards.");
+        const a = problem.a === null ? problem.answer : problem.a;
+        const b = problem.b === null ? problem.answer : problem.b;
+        const c = problem.c === null ? problem.answer : problem.c;
+        if (problem.op === "+") {
+          if (a + b !== c || c > 5) fail("little-result-first", "A total left 0 to 5.");
+        } else if (a - b !== c || a > 5 || c > 5) fail("little-result-first", "A difference left 0 to 5.");
+        const tokens = stemTokens(problem, null);
+        if (tokens[1] === "=" || tokens[3] !== "=") fail("little-no-left-total", "The painted order was not term, operator, term, equals, result.");
+        step(t);
+        answer(problem.answer);
+        t += SHOW_MS;
+        step(t);
+      }
+      if (littleBlanks[0] !== "result" || littleBlanks[1] !== "result" || littleBlanks[2] !== "result" || littleBlanks[3] !== "part" || littleOps[3] !== "+") {
+        fail("little-result-first", "The first problems were not result, result, result, then an add part.");
+      }
+      const empty3 = mathMake("little", 11, 3, []);
+      if (!empty3 || empty3.blank !== "result") fail("little-result-first", "An empty history made index 3 a part.");
+      seed(11);
+      start("shop");
+      const shopRows = [];
+      t = 100000;
+      for (let i = 0; i < 8; i++) {
+        shopRows.push(problem);
+        if (problem.op === "×" || problem.op === "÷") fail("shop-order", "Shop used times or divide.");
+        for (let c = 0; c < problem.cards.length; c++) if (problem.cards[c] > 20) fail("shop-order", "A card was above 20.");
+        step(t);
+        answer(problem.answer);
+        t += SHOW_MS;
+        step(t);
+      }
+      const shopExp = TRACE.shop;
+      for (let i = 0; i < shopExp.length; i++) {
+        const g = shopRows[i];
+        const e = shopExp[i];
+        if (!g || g.a !== e.a || g.b !== e.b || g.c !== e.c || g.blank !== e.blank || g.op !== e.op || g.answer !== e.answer || g.layout !== e.layout || g.repeats !== e.repeats || !sameList(g.cards, e.cards) || g.range[0] !== e.range[0] || g.range[1] !== e.range[1] || lineOf(g) !== e.line) {
+          fail("shop-order", "Index " + i + " did not match the shop trace.");
+        }
+      }
+      if (shopRows[0] && shopRows[0].blank !== "result" || shopRows[1] && shopRows[1].blank !== "result") fail("shop-order", "Result-within-10 was not only indexes 0 and 1.");
+      if (shopRows[2] && shopRows[2].blank !== "part" || shopRows[3] && shopRows[3].blank !== "part") fail("shop-order", "Part was not only indexes 2 and 3.");
+      if (shopRows[4] && shopRows[4].blank !== "start" || shopRows[5] && shopRows[5].blank !== "start") fail("shop-order", "Start was not only indexes 4 and 5.");
+      if (!shopRows[7] || shopRows[7].repeats !== 3 || shopRows[7].answer !== 3 * shopRows[7].a) fail("shop-order", "Index 7 was not the repeated addend.");
+      seed(11);
+      start("rush");
+      const rushRows = [];
+      t = 120000;
+      for (let i = 0; i < 10; i++) {
+        rushRows.push(problem);
+        step(t);
+        answer(problem.answer);
+        t += SHOW_MS;
+        step(t);
+      }
+      function hasSet(set, v) { return set.indexOf(v) >= 0; }
+      if (!rushRows[2] || !hasSet(SET_A, rushRows[2].a) || !hasSet(SET_A, rushRows[2].b)) fail("rush-factors", "Index 2 factors were not in set A.");
+      if (!rushRows[3] || !hasSet(SET_A, rushRows[3].b) || !hasSet(SET_A, rushRows[3].answer)) fail("rush-factors", "Index 3 divisor or quotient left set A.");
+      if (!rushRows[4] || !hasSet(SET_B, rushRows[4].a) || !hasSet(SET_B, rushRows[4].answer)) fail("rush-factors", "Index 4 factors were not in set B.");
+      if (!rushRows[6] || !hasSet(SET_C, rushRows[6].answer) || !hasSet(SET_C, rushRows[6].b)) fail("rush-factors", "Index 6 factors were not in set C.");
+      for (let i = 0; i < TRACE.rush.length; i++) {
+        const g = rushRows[i];
+        const e = TRACE.rush[i];
+        if (!g || lineOf(g) !== e.line || g.layout !== e.layout) fail("rush-factors", "Index " + i + " did not match the printed rush line.");
+      }
+      if (rushRows[6] && rushRows[6].layout !== "left" || rushRows[7] && rushRows[7].layout !== "left" || rushRows[9] && rushRows[9].layout !== "left") {
+        fail("rush-factors", "Left layout was missing on indexes 6, 7, or 9.");
+      }
+      const partBands = ["little", "shop", "rush"];
+      for (let b = 0; b < partBands.length; b++) {
+        const rows = walkBand(partBands[b], 11);
+        for (let i = 0; i < rows.length; i++) {
+          const made = rows[i];
+          if (!made || made.blank !== "part") continue;
+          const sum = visibleSum(made);
+          const lo = made.range[0];
+          const hi = made.range[1];
+          if (made.cards.filter(function (c) { return c === made.answer; }).length !== 1) fail("distractor-sum", partBands[b] + " index " + i + " did not hold the answer once.");
+          if (made.cards.indexOf(sum) < 0) fail("distractor-sum", partBands[b] + " index " + i + " missed the sum of the visible numbers.");
+          for (let c = 0; c < made.cards.length; c++) {
+            if (made.cards[c] < lo || made.cards[c] > hi) fail("distractor-sum", "A card left the range.");
+            if (made.cards[c] !== made.answer && mathAccepts(made, made.cards[c])) fail("distractor-sum", "Another card also completed the stem.");
+          }
+        }
+      }
+      seed(11);
+      start("shop");
+      t = 140000;
+      step(t);
+      const wrong = problem.cards.filter(function (c) { return c !== problem.answer; })[0];
+      const beforeWrong = state();
+      const hitsBefore = answerHits;
+      answer("nope");
+      answer(9999);
+      if (answerHits !== hitsBefore || state().filled !== null) fail("wrong-unchanged", "A string or an off-card value was written.");
+      answer(wrong);
+      const afterWrong = state();
+      if (afterWrong.a !== beforeWrong.a || afterWrong.b !== beforeWrong.b || afterWrong.c !== beforeWrong.c || afterWrong.blank !== beforeWrong.blank || afterWrong.filled !== null || afterWrong.phase !== "ask" || afterWrong.screen !== "ask") {
+        fail("wrong-unchanged", "A wrong card changed the stem or the blank.");
+      }
+      if (!sameList(afterWrong.cards, beforeWrong.cards)) fail("wrong-unchanged", "A wrong card reshuffled the cards.");
+      const ban = ["wrongs", "score", "lives", "streak", "clock", "msLeft", "said", "speech", "answer", "history", "seed"];
+      function findBanned(obj) {
+        if (!obj || typeof obj !== "object") return "";
+        const keys = Object.keys(obj);
+        for (let i = 0; i < keys.length; i++) {
+          if (ban.indexOf(keys[i]) >= 0) return keys[i];
+          const deeper = findBanned(obj[keys[i]]);
+          if (deeper) return deeper;
+        }
+        return "";
+      }
+      const banned = findBanned(afterWrong);
+      if (banned) fail("wrong-unchanged", "state included " + banned + ".");
+      const low = afterWrong.banner.toLowerCase();
+      if (low.indexOf("fail") >= 0 || low.indexOf("wrong") >= 0 || low.indexOf("miss") >= 0 || low.indexOf("no") >= 0) {
+        fail("wrong-unchanged", "The banner scolded the miss.");
+      }
+      seed(11);
+      start("little");
+      t = 150000;
+      step(t);
+      const right = problem.answer;
+      const wrongs = problem.cards.filter(function (c) { return c !== right; });
+      const w0 = wrongs[0];
+      const w1 = wrongs[1];
+      const coolBox = cardBox(w0);
+      const hits0 = answerHits;
+      enterLook(coolBox, t);
+      step(t + 660);
+      if (answerHits !== hits0 + 1 || state().filled !== null || state().phase !== "ask") fail("cooldown-gaze", "The first wrong look did not stay on the problem.");
+      step(t + 1320);
+      if (answerHits !== hits0 + 1 || state().filled !== null || state().phase !== "ask") fail("cooldown-gaze", "Staying on the wrong card answered again.");
+      answer(w1);
+      if (answerHits !== hits0 + 2 || state().filled !== null || state().phase !== "ask") fail("cooldown-gaze", "A different card did not run while the first was cooled.");
+      releaseLook();
+      t = 160000;
+      enterLook(cardBox(w0), t);
+      step(t + 660);
+      if (answerHits !== hits0 + 3 || state().filled !== null || state().phase !== "ask" || state().screen !== "ask") {
+        fail("cooldown-gaze", "A new look at the wrong card did not commit again without advancing.");
+      }
+      seed(11);
+      start("tiny");
+      t = 170000;
+      const doneBox = centers().targets.done;
+      enterLook(doneBox, t);
+      step(t + 600);
+      if (state().screen !== "ask") fail("done-slow", "600 ms on Done left the ask screen.");
+      t = 175000;
+      enterLook(centers().targets.done, t);
+      step(t + 1300);
+      if (state().screen !== "rest") fail("done-slow", "1300 ms on Done did not rest.");
+      const doneRest = document.getElementById("screen-rest").innerText || "";
+      if (/grade|star|score|miss/i.test(doneRest)) fail("done-slow", "Rest showed a grade.");
+      seed(11);
+      start("rush");
+      if (document.querySelector("input, textarea")) fail("no-pad", "The ask screen had a text field.");
+      const pad = targetsAt(390, 844);
+      const known = { mute: 1, full: 1, back: 1, "lets-go": 1, tiny: 1, little: 1, shop: 1, rush: 1, done: 1, another: 1 };
+      for (let i = 0; i < pad.targets.length; i++) {
+        const id = pad.targets[i].id;
+        if (!known[id] && !/^card-[0-3]$/.test(id)) fail("no-pad", "A ten-key target " + id + " was listed.");
+      }
+      const liveCards = [];
+      const allBtns = document.querySelectorAll("button");
+      for (let i = 0; i < allBtns.length; i++) {
+        if (!known[allBtns[i].id] && !/^card-[0-3]$/.test(allBtns[i].id)) fail("no-pad", "Unexpected control " + allBtns[i].id + ".");
+        if (/^card-[0-3]$/.test(allBtns[i].id) && !allBtns[i].hidden && buttonVisible(allBtns[i])) liveCards.push(allBtns[i]);
+      }
+      if (liveCards.length < 2 || liveCards.length > 4 || liveCards.length !== state().cards.length) fail("no-pad", "The ask screen did not show two, three, or four cards.");
+      seed(11);
+      start("tiny");
+      t = 190000;
+      for (let i = 0; i < 4; i++) {
+        step(t);
+        answer(problem.answer);
+        t += SHOW_MS;
+        step(t);
+      }
+      const spoken = state();
+      if (Object.prototype.hasOwnProperty.call(spoken, "speech") || Object.prototype.hasOwnProperty.call(spoken, "said")) {
+        fail("no-speech", "state kept a speech field.");
+      }
+      if (document.querySelector("audio, video")) fail("no-speech", "The page included a recording.");
+      seed(11);
+      start("shop");
+      t = 200000;
+      step(t);
+      const share = problem.answer;
+      enterLook(cardBox(share), t);
+      step(t + 660);
+      const looked = state().filled;
+      if (looked !== share || state().phase !== "show") fail("pointer-shares", "The look did not fill the correct card.");
+      seed(11);
+      start("shop");
+      t = 210000;
+      step(t);
+      const shareTap = problem.answer;
+      const shareBox = cardBox(shareTap);
+      tap(shareBox.nx, shareBox.ny);
+      if (state().filled !== looked || state().filled !== shareTap) fail("pointer-shares", "The tap did not write the same value as the look.");
+      const beforeBogus = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== beforeBogus) fail("family-plain-state", "An unknown band or screen wrote into the page.");
+      const engine = engineSelfCheck();
+      for (let i = 0; i < engine.failures.length; i++) failures.push(engine.failures[i]);
+    } catch (err) {
+      failures.push("self-check: " + (err && err.message ? err.message : "The check threw."));
+    }
+    try {
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.mathPractice = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck,
+    answer: answer,
+    next: next
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) { result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] }; }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    requestAnimationFrame(function frame(now) {
+      if (checking) return;
+      step(now);
+      if (!checking) requestAnimationFrame(frame);
+    });
+    connectGaze();
+  }
+})();
+</script>
+</body>
+</html>

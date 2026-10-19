@@ -1,0 +1,2600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#f4f0d8">
+<title>Word Search</title>
+<style>
+  :root {
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffaf0;
+    --gold: #e2a62e;
+    --found: #f3d48a;
+    --preview: #d5ead8;
+    --ring: #2f8a3e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    height: 100dvh;
+  }
+  button { font-family: inherit; color: var(--ink); cursor: pointer; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  #mute, #full {
+    position: fixed; z-index: 50; top: 8px;
+    width: 72px; height: 72px; padding: 0;
+    border: 3px solid var(--ink); border-radius: 18px;
+    background: var(--card);
+  }
+  #mute { left: 8px; }
+  #full { left: 88px; font-size: 13px; font-weight: 800; line-height: 1.05; }
+  #mute svg { width: 40px; height: 40px; display: block; margin: 0 auto; }
+  #back {
+    position: fixed; z-index: 50; top: 8px; right: 8px;
+    min-width: 72px; min-height: 72px; padding: 8px 14px;
+    border: 3px solid var(--ink); border-radius: 18px;
+    background: var(--card); font-weight: 800; font-size: 18px;
+  }
+  #eyes {
+    position: fixed; z-index: 46; top: 18px; left: 170px;
+    background: var(--card); border-radius: 999px; padding: 7px 12px;
+    font-weight: 800; font-size: 16px; pointer-events: none;
+  }
+  #banner {
+    position: fixed; z-index: 40; pointer-events: none;
+    top: 8px; left: 168px; right: 200px; height: 72px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 4px 14px; font-size: clamp(13px, 1.6vw, 20px); font-weight: 800;
+    text-align: center; overflow: hidden; line-height: 1.15;
+  }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border: none; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #dead {
+    position: fixed; z-index: 80; left: 0; bottom: 0;
+    width: 36px; height: 36px; pointer-events: auto;
+  }
+  [hidden] { display: none !important; }
+  .card {
+    background: var(--card); border-radius: 28px;
+    margin: 0 auto; padding: 0;
+    width: min(460px, calc(100% - 16px));
+    max-height: 100%;
+    overflow: hidden;
+  }
+  h1 { font-size: 42px; line-height: 1; margin: 4px 0 10px; text-align: center; }
+  .line { text-align: center; margin: 0 0 8px; font-size: 18px; }
+  .band, #go, #another, #backward {
+    display: block; width: 100%; min-height: 0; margin: 0;
+    border: 3px solid transparent; border-radius: 18px;
+    background: var(--card); font-weight: 800; text-align: left; padding: 4px 10px;
+    box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  .band b { display: block; font-size: 26px; }
+  .band small { display: block; font-size: 15px; font-weight: 700; }
+  .band.on, #go, #another { background: var(--gold); }
+  #go, #another, #backward { text-align: center; font-size: 26px; }
+  #play { margin: 0 auto; width: max-content; max-width: 100%; }
+  .chips, .bank { display: grid; }
+  .chips button, .bank button {
+    min-width: 0; min-height: 0; border: 3px solid var(--ink); border-radius: 16px;
+    background: var(--card); font-weight: 800; font-size: 20px;
+    padding: 4px; overflow: hidden; line-height: 1.1;
+  }
+  .chips button { padding: 8px; }
+  .bank button.found { background: var(--found); }
+  .cell.preview { background: var(--preview); }
+  .cell.anchor { box-shadow: inset 0 0 0 3px var(--ring); }
+  .grid { display: grid; position: relative; }
+  .bands {
+    position: absolute; left: 0; top: 0; overflow: visible;
+    pointer-events: none; z-index: 0;
+  }
+  .cell {
+    border: none; border-radius: 8px;
+    background: transparent; font-weight: 800; padding: 0;
+    position: relative; z-index: 1;
+  }
+  #reveal { margin-top: 8px; pointer-events: none; display: flex; justify-content: center; }
+  canvas { pointer-events: none; display: block; }
+  .cell.pulse { animation: ws-pulse 650ms ease-in-out 1; }
+  @keyframes ws-pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .cell.pulse { animation: none; }
+  }
+  #selfcheck-result { white-space: pre-wrap; margin: 12px; }
+</style>
+</head>
+<body>
+<button id="mute" type="button" aria-label="Mute sound" aria-pressed="false">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 9l5 6M21 9l-5 6"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<div id="dead" aria-hidden="true"></div>
+<p id="banner" role="status">Look at the first letter and the last letter.</p>
+<section id="screen-menu" class="card">
+  <h1>Word Search</h1>
+  <p class="line">Look at the first letter and the last letter.</p>
+  <p class="line">Ages 2 and up.</p>
+  <button id="tiny" class="band on" type="button" aria-pressed="true"><b>First Words</b><small>Ages 2 to 3. Three words, across.</small></button>
+  <button id="little" class="band" type="button" aria-pressed="false"><b>Word Row</b><small>Ages 4 to 5. A few more words, still across.</small></button>
+  <button id="shop" class="band" type="button" aria-pressed="false"><b>Crossword</b><small>Ages 6 to 8. Across and down.</small></button>
+  <button id="rush" class="band" type="button" aria-pressed="false"><b>Every Way</b><small>Ages 9 and up. Across, down, and slanted.</small></button>
+  <button id="go" type="button">Let's go</button>
+</section>
+<div id="play" hidden></div>
+<section id="screen-rest" class="card" hidden></section>
+<script>
+(function () {
+  "use strict";
+  var GAZE_URL = "ws://127.0.0.1:7081";
+  var PLAY_DWELL_MS = 650;
+  var MENU_DWELL_MS = 1300;
+  var GAZE_FRESH_MS = 500;
+  var LEAVE_MS = 280;
+  var DIRS = [
+    { name: "right", dr: 0, dc: 1 },
+    { name: "left", dr: 0, dc: -1 },
+    { name: "down", dr: 1, dc: 0 },
+    { name: "up", dr: -1, dc: 0 },
+    { name: "downRight", dr: 1, dc: 1 },
+    { name: "downLeft", dr: 1, dc: -1 },
+    { name: "upRight", dr: -1, dc: 1 },
+    { name: "upLeft", dr: -1, dc: -1 }
+  ];
+  var DIR_BY = {};
+  for (var di = 0; di < DIRS.length; di++) DIR_BY[DIRS[di].name] = DIRS[di];
+  var DENY = ["ASS", "FAG", "FUK", "NIG", "SEX", "TIT", "CUM"];
+  var ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+  var BACKWARD = { left: 1, up: 1, upLeft: 1, upRight: 1 };
+  var DIAGONAL = { downRight: 1, downLeft: 1, upRight: 1, upLeft: 1 };
+
+  function makeRng(seed) { return { state: seed >>> 0 }; }
+  function rngUint(rng) {
+    rng.state = (rng.state + 0x6D2B79F5) >>> 0;
+    var t = Math.imul(rng.state ^ (rng.state >>> 15), rng.state | 1);
+    var mixed = Math.imul(t ^ (t >>> 7), t | 61);
+    t = (t ^ ((t + mixed) >>> 0)) >>> 0;
+    return (t ^ (t >>> 14)) >>> 0;
+  }
+  function rngInt(rng, lo, hi) { return lo + (rngUint(rng) % (hi - lo + 1)); }
+  function rngShuffle(rng, items) {
+    var a = items.slice();
+    for (var i = a.length - 1; i >= 1; i--) {
+      var j = rngInt(rng, 0, i);
+      var tmp = a[i]; a[i] = a[j]; a[j] = tmp;
+    }
+    return a;
+  }
+  function playSeed(clockMs, counter) {
+    return Math.imul(((clockMs >>> 0) ^ Math.imul(counter >>> 0, 0x9E3779B9)) >>> 0, 0x85EBCA6B) >>> 0;
+  }
+  function wordHygiene(words) {
+    if (!words || words.length === 0) return { ok: false, reason: "empty" };
+    var seen = Object.create(null);
+    for (var i = 0; i < words.length; i++) {
+      var w = words[i];
+      if (typeof w !== "string" || !/^[A-Z]+$/.test(w)) return { ok: false, reason: "alphabet" };
+      if (seen[w]) return { ok: false, reason: "duplicate" };
+      seen[w] = true;
+    }
+    for (var a = 0; a < words.length; a++) {
+      for (var b = 0; b < words.length; b++) {
+        if (a === b) continue;
+        var A = words[a], B = words[b];
+        var rev = B.split("").reverse().join("");
+        if (B.indexOf(A) !== -1 || rev.indexOf(A) !== -1) return { ok: false, reason: "substring" };
+      }
+    }
+    return { ok: true, reason: "" };
+  }
+  function spanKey(cells, cols) {
+    var idx = [];
+    for (var i = 0; i < cells.length; i++) idx.push(cells[i].r * cols + cells[i].c);
+    idx.sort(function (x, y) { return x - y; });
+    return idx.join(",");
+  }
+  function wordSpanList(grid, word) {
+    var rows = grid.length, cols = grid[0].length, keys = Object.create(null), list = [];
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        for (var d = 0; d < DIRS.length; d++) {
+          var dir = DIRS[d], cells = [], ok = true;
+          for (var i = 0; i < word.length; i++) {
+            var rr = r + dir.dr * i, cc = c + dir.dc * i;
+            if (rr < 0 || cc < 0 || rr >= rows || cc >= cols || grid[rr][cc] !== word[i]) { ok = false; break; }
+            cells.push({ r: rr, c: cc });
+          }
+          if (!ok) continue;
+          var key = spanKey(cells, cols);
+          if (!keys[key]) { keys[key] = true; list.push(cells); }
+        }
+      }
+    }
+    return list;
+  }
+  function wordSpans(grid, word) {
+    var g = typeof grid[0] === "string" ? grid.map(function (s) { return s.split(""); }) : grid;
+    return wordSpanList(g, word).length;
+  }
+  function gridOk(grid, words) {
+    for (var i = 0; i < words.length; i++) if (wordSpanList(grid, words[i]).length !== 1) return false;
+    for (var k = 0; k < DENY.length; k++) if (wordSpanList(grid, DENY[k]).length !== 0) return false;
+    return true;
+  }
+  function cellsShare(placements, cols) {
+    var owner = Object.create(null);
+    for (var p = 0; p < placements.length; p++) {
+      var place = placements[p], dir = DIR_BY[place.dir];
+      for (var i = 0; i < place.word.length; i++) {
+        var idx = (place.row + dir.dr * i) * cols + (place.col + dir.dc * i);
+        var prev = owner[idx];
+        if (prev && prev !== place.word) return true;
+        owner[idx] = place.word;
+      }
+    }
+    return false;
+  }
+  function playDirs(group, harder) {
+    var names = group.directions.slice();
+    if (harder && group.band === "rush") names.push("left", "up", "upLeft", "upRight");
+    var out = [];
+    for (var i = 0; i < names.length; i++) out.push(DIR_BY[names[i]]);
+    return out;
+  }
+  function filler(grid, words, rng) {
+    var rows = grid.length, cols = grid[0].length;
+    var snapshot = grid.map(function (row) { return row.slice(); });
+    var empty = [];
+    for (var r = 0; r < rows; r++) for (var c = 0; c < cols; c++) if (grid[r][c] === "") empty.push([r, c]);
+    for (var n = 0; n < 30; n++) {
+      for (var rr = 0; rr < rows; rr++) for (var cc = 0; cc < cols; cc++) grid[rr][cc] = snapshot[rr][cc];
+      var order = rngShuffle(rng, empty);
+      var ok = true;
+      for (var i = 0; i < order.length; i++) {
+        var er = order[i][0], ec = order[i][1];
+        var letters = rngShuffle(rng, ALPHA.slice());
+        var placed = false;
+        for (var k = 0; k < letters.length; k++) {
+          grid[er][ec] = letters[k];
+          if (gridOk(grid, words)) { placed = true; break; }
+        }
+        if (!placed) { ok = false; break; }
+      }
+      if (ok && (order.length === 0 || gridOk(grid, words))) return true;
+    }
+    for (var r2 = 0; r2 < rows; r2++) for (var c2 = 0; c2 < cols; c2++) grid[r2][c2] = snapshot[r2][c2];
+    return false;
+  }
+  function searchSize(words, rows, cols, dirs, seed, requireShare) {
+    var rng = makeRng(seed);
+    var keyed = words.map(function (w) { return { word: w, key: rngUint(rng) }; });
+    keyed.sort(function (a, b) {
+      if (a.word.length !== b.word.length) return b.word.length - a.word.length;
+      return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+    });
+    var grid = [];
+    for (var r = 0; r < rows; r++) {
+      var row = [];
+      for (var c = 0; c < cols; c++) row.push("");
+      grid.push(row);
+    }
+    var placements = [];
+    var attempts = 0;
+    function placeWord(index) {
+      if (index === keyed.length) {
+        if (!gridOk(grid, words)) return false;
+        if (requireShare && !cellsShare(placements, cols)) return false;
+        if (!filler(grid, words, rng)) return false;
+        return true;
+      }
+      var word = keyed[index].word;
+      var cands = [];
+      for (var rr = 0; rr < rows; rr++) {
+        for (var cc = 0; cc < cols; cc++) {
+          for (var di2 = 0; di2 < dirs.length; di2++) {
+            var dir = dirs[di2], cells = [], legal = true, score = 0;
+            for (var i = 0; i < word.length; i++) {
+              var r3 = rr + dir.dr * i, c3 = cc + dir.dc * i;
+              if (r3 < 0 || c3 < 0 || r3 >= rows || c3 >= cols) { legal = false; break; }
+              var cur = grid[r3][c3];
+              if (cur === "") cells.push({ r: r3, c: c3, ch: word[i], write: true });
+              else if (cur === word[i]) { score++; cells.push({ r: r3, c: c3, ch: word[i], write: false }); }
+              else { legal = false; break; }
+            }
+            if (legal) cands.push({ r: rr, c: cc, dir: dir, score: score, cells: cells });
+          }
+        }
+      }
+      cands.sort(function (a, b) { return b.score - a.score; });
+      var i2 = 0;
+      while (i2 < cands.length) {
+        var j = i2 + 1;
+        while (j < cands.length && cands[j].score === cands[i2].score) j++;
+        var sh = rngShuffle(rng, cands.slice(i2, j));
+        for (var k = 0; k < sh.length; k++) cands[i2 + k] = sh[k];
+        i2 = j;
+      }
+      for (var ci = 0; ci < cands.length; ci++) {
+        if (attempts >= 4000) return false;
+        attempts++;
+        var cand = cands[ci], written = [];
+        for (var wi = 0; wi < cand.cells.length; wi++) {
+          var cell = cand.cells[wi];
+          if (cell.write) { grid[cell.r][cell.c] = cell.ch; written.push(cell); }
+        }
+        placements.push({ word: word, row: cand.r, col: cand.c, dir: cand.dir.name });
+        if (placeWord(index + 1)) return true;
+        placements.pop();
+        for (var wj = 0; wj < written.length; wj++) grid[written[wj].r][written[wj].c] = "";
+      }
+      return false;
+    }
+    if (!placeWord(0)) return null;
+    return { grid: grid.map(function (row) { return row.join(""); }), placements: placements.slice() };
+  }
+  function acceptFallback(group, harder) {
+    var hy = wordHygiene(group.words);
+    if (!hy.ok) return { ok: false };
+    var rows = group.fallback;
+    if (!rows || !rows.length) return { ok: false };
+    var cols = rows[0].length;
+    for (var i = 0; i < rows.length; i++) {
+      if (typeof rows[i] !== "string" || rows[i].length !== cols || !/^[A-Z]+$/.test(rows[i])) return { ok: false };
+    }
+    var grid = rows.map(function (s) { return s.split(""); });
+    if (!gridOk(grid, group.words)) return { ok: false };
+    var dirs = playDirs(group, harder);
+    var placements = [];
+    for (var wi = 0; wi < group.words.length; wi++) {
+      var word = group.words[wi];
+      var spans = wordSpanList(grid, word);
+      if (spans.length !== 1) return { ok: false };
+      var want = spanKey(spans[0], cols);
+      var chosen = null;
+      for (var d = 0; d < dirs.length && !chosen; d++) {
+        var dir = dirs[d];
+        for (var s = 0; s < spans[0].length && !chosen; s++) {
+          var start = spans[0][s], cells = [], ok = true;
+          for (var k = 0; k < word.length; k++) {
+            var rr = start.r + dir.dr * k, cc = start.c + dir.dc * k;
+            if (rr < 0 || cc < 0 || rr >= grid.length || cc >= cols || grid[rr][cc] !== word[k]) { ok = false; break; }
+            cells.push({ r: rr, c: cc });
+          }
+          if (ok && spanKey(cells, cols) === want) chosen = { word: word, row: start.r, col: start.c, dir: dir.name };
+        }
+      }
+      if (!chosen) return { ok: false };
+      placements.push(chosen);
+    }
+    if (group.requireShare && !cellsShare(placements, cols)) return { ok: false };
+    return {
+      ok: true,
+      grid: rows.slice(),
+      placements: placements,
+      fallbackUsed: true,
+      directions: dirs.map(function (d) { return d.name; })
+    };
+  }
+  function wordSearchGenerate(group, seed, harder) {
+    var hy = wordHygiene(group.words);
+    if (!hy.ok) return { ok: false };
+    var dirs = playDirs(group, !!harder);
+    var found = searchSize(group.words, group.rows, group.cols, dirs, seed >>> 0, !!group.requireShare);
+    if (!found && group.band === "rush" && group.rows === 6 && group.cols === 6) {
+      found = searchSize(group.words, 7, 6, dirs, seed >>> 0, !!group.requireShare);
+    }
+    var names = dirs.map(function (d) { return d.name; });
+    if (found) {
+      return { ok: true, grid: found.grid, placements: found.placements, fallbackUsed: false, directions: names };
+    }
+    var fb = acceptFallback(group, !!harder);
+    if (fb.ok) return fb;
+    return { ok: false };
+  }
+
+  function bandBase(band) {
+    if (band === "tiny") return { rows: 3, cols: 5, directions: ["right"], requireShare: true };
+    if (band === "little") return { rows: 5, cols: 4, directions: ["right"], requireShare: false };
+    if (band === "shop") return { rows: 6, cols: 6, directions: ["right", "down"], requireShare: true };
+    return { rows: 6, cols: 6, directions: ["right", "down", "downRight", "downLeft"], requireShare: true };
+  }
+  function makeGroup(band, id, name, words, rows, share) {
+    var b = bandBase(band);
+    return {
+      id: id, name: name, band: band, rows: b.rows, cols: b.cols,
+      words: words.slice(), directions: b.directions.slice(), fallback: rows.slice(),
+      requireShare: share == null ? b.requireShare : share
+    };
+  }
+  var PLAY = {
+    tiny: [
+      makeGroup("tiny", "body", "Body", ["EAR", "ARM", "EYE"], ["EARME", "STRMX", "EYEDH"]),
+      makeGroup("tiny", "farm", "Farm", ["COW", "OWL", "HEN"], ["COWLE", "STRMX", "HENDH"]),
+      makeGroup("tiny", "small-animals", "Small animals", ["BEE", "EEL", "CUB"], ["BEELE", "STRMX", "CUBDH"]),
+      makeGroup("tiny", "play", "Play", ["CAP", "APE", "BOX"], ["CAPEE", "STRMX", "BOXDH"])
+    ],
+    little: [
+      makeGroup("little", "snack", "Snack", ["BUN", "NUT", "PIE", "CAKE"], ["SPIE", "CAKE", "FIRB", "NUTM", "BUNR"]),
+      makeGroup("little", "toys", "Toys", ["NET", "TOP", "KITE", "BALL"], ["KHYK", "KITE", "BALL", "BTOP", "HNET"]),
+      makeGroup("little", "animals", "Animals", ["PUP", "PIG", "CALF", "LAMB"], ["KHYK", "CALF", "LAMB", "BPIG", "HPUP"]),
+      makeGroup("little", "clothes", "Clothes", ["HAT", "TIE", "SHOE", "SOCK"], ["KHYK", "SHOE", "SOCK", "BTIE", "HHAT"]),
+      makeGroup("little", "home", "Home", ["TUB", "BED", "RUG", "CRIB"], ["SRUG", "CRIB", "FIRB", "BEDM", "TUBR"]),
+      makeGroup("little", "outside", "Outside", ["BUD", "DEW", "LOG", "SUN", "HAY"], ["PDEW", "HHAY", "LOGG", "XSUN", "BUDZ"])
+    ],
+    shop: [
+      makeGroup("shop", "kitchen", "Kitchen", ["FORK", "BOWL", "OVEN", "SINK", "TRAY", "SPOON"], ["FVSYPS", "OJPHYI", "RWOVEN", "KBOWLK", "LJNKXI", "TVTRAY"]),
+      makeGroup("shop", "animals", "Animals", ["FROG", "DUCK", "BEAR", "WOLF", "LION", "GOAT", "MULE"], ["OWOLFG", "BEARRG", "DUCKOG", "COMUGO", "FMULEA", "LIONHT"]),
+      makeGroup("shop", "garden", "Garden", ["TREE", "LEAF", "ROSE", "VINE", "SEED", "SOIL", "BULB", "STEM"], ["VINEGU", "IKBULB", "SRTREE", "OOSEED", "ISTEMO", "LEAFFH"]),
+      makeGroup("shop", "weather", "Weather", ["RAIN", "SNOW", "WIND", "HAIL", "CLOUD", "STORM"], ["BYSNOW", "LCTBMW", "CLOUDI", "IRRAIN", "ILMIXD", "QLHAIL"]),
+      makeGroup("shop", "home", "Home", ["LAMP", "DOOR", "SOFA", "DESK", "ROOF", "GATE", "WALL"], ["BRLAMP", "OOSTMO", "DOORTG", "EFFZDA", "SWALLT", "KKWDEE"]),
+      makeGroup("shop", "ocean", "Ocean", ["FISH", "CRAB", "SAND", "WAVE", "REEF", "BOAT"], ["YFFISH", "PNCRAB", "WAVENO", "MKBEDA", "GHJFQT", "FFFYJG"]),
+      makeGroup("shop", "school", "School", ["BOOK", "GLUE", "RULER", "PAPER", "CHALK", "PAINT"], ["RCPSDB", "RHABOH", "UAIOGZ", "LLNOLG", "EKTKUR", "RPAPER"]),
+      makeGroup("shop", "roads", "Roads", ["ROAD", "CART", "PATH", "LANE", "RAIL", "PORT"], ["KQPORT", "RGCART", "HOPKAL", "ROADIA", "BITULN", "UGHRFE"])
+    ],
+    rush: [
+      makeGroup("rush", "orchard", "Orchard", ["PEAR", "PLUM", "BEET", "CORN", "BEAN", "MINT", "OLIVE", "GRAPE"], ["NMCDBO", "CEIEEL", "OPANEI", "RNEYTV", "NGRAPE", "PLUMRN"]),
+      makeGroup("rush", "forest", "Forest", ["PINE", "MOSS", "FERN", "TWIG", "BARK", "ROOT", "MAPLE", "CEDAR"], ["BARKRM", "RCNFOA", "PDESOP", "IRSDTL", "NROZAE", "ETWIGR"]),
+      makeGroup("rush", "sky", "Sky", ["MIST", "HAZE", "DUSK", "DAWN", "GUST", "FROST", "SLEET", "VAPOR"], ["UHDFFF", "OVAPOR", "MDWZZO", "IUNLES", "SSLEET", "TKGUST"]),
+      makeGroup("rush", "clothing", "Clothing", ["COAT", "VEST", "BELT", "BOOT", "HOOD", "SWEATER", "SCARF", "GLOVE"], ["SBOOTH", "WCESGO", "ECALFO", "ABORTD", "TVTAFZ", "EVESTY", "RUOMLF"]),
+      makeGroup("rush", "tools", "Tools", ["PEEL", "MITT", "ZEST", "TONGS", "WHISK", "LADLE", "SCOOP", "SIEVE"], ["WZESTL", "HPEELA", "IMITTD", "SCOOPL", "KSIEVE", "TONGST"]),
+      makeGroup("rush", "wild-animals", "Wild animals", ["DOLPHIN", "SEAL", "HARE", "TOAD", "NEWT", "MOTH", "CRANE", "HERON"], ["DHHNCM", "ODEERV", "LMRWAN", "POOTNS", "HTNOEE", "IHHARE", "NPLDGO"]),
+      makeGroup("rush", "places", "Places", ["PARK", "FARM", "POND", "CAVE", "HILL", "LAKE", "BEACH", "ISLAND"], ["ICAVEI", "KSPOND", "HILLFQ", "FBEACH", "PARKNQ", "HMJEJD"]),
+      makeGroup("rush", "workshop", "Workshop", ["NAIL", "BOLT", "GEAR", "WOOD", "BRICK", "PLANK", "CLAMP", "SCREW"], ["CCLAMP", "EBSNBL", "GRCAOA", "EIRILN", "ACELTK", "RKWOOD"])
+    ]
+  };
+  var FIXTURES = [
+    makeGroup("tiny", "pets", "pets", ["COW", "OWL", "HEN"], ["COWLE", "STRMX", "HENDH"], true),
+    makeGroup("tiny", "foods", "foods", ["BUN", "NUT", "PIE"], ["BUNUT", "NOQLI", "YPIEW"], true),
+    makeGroup("tiny", "body", "body", ["EAR", "ARM", "EYE"], ["EARME", "STRMX", "EYEDH"], true),
+    makeGroup("tiny", "toys", "toys", ["BAT", "TOP", "CAR"], ["BATOP", "NOQLI", "YCARW"], true),
+    makeGroup("little", "little-farm", "little-farm", ["EAR", "ARM", "CAKE", "FROG", "DUCK"], ["LEYX", "FROG", "EARM", "DUCK", "CAKE"], true),
+    makeGroup("shop", "shop-animals", "shop-animals", ["CAKE", "CARD", "FISH", "FROG", "LION", "DUCK"], ["XPFROG", "EXCARD", "GNYDLU", "FISHIC", "CAKEOK", "OBOHNI"], true),
+    makeGroup("rush", "rush-animals", "rush-animals", ["LION", "FROG", "BEAR", "WOLF", "CRAB", "DEER", "GOAT", "DUCK"], ["CRABDV", "WCTELD", "NFEAIU", "XRLROC", "WOLFNK", "XGOATQ"], true)
+  ];
+  function findPlay(band, id) {
+    var list = PLAY[band] || [];
+    for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+
+  var PICS = {
+    EAR: [["#f3c2a0", "e", 0.55, 0.5, 0.28, 0.38], ["#e7a888", "e", 0.68, 0.5, 0.1, 0.18]],
+    ARM: [["#f3c2a0", "r", 0.18, 0.28, 0.22, 0.46], ["#f3c2a0", "r", 0.32, 0.28, 0.34, 0.16], ["#f3c2a0", "e", 0.7, 0.36, 0.12, 0.12]],
+    EYE: [["#fff", "e", 0.5, 0.5, 0.32, 0.2], ["#2c2416", "e", 0.5, 0.5, 0.1, 0.1], ["#6b4423", "e", 0.54, 0.46, 0.04, 0.04]],
+    COW: [["#fff", "e", 0.48, 0.58, 0.32, 0.18], ["#fff", "e", 0.78, 0.42, 0.12, 0.1], ["#2c2416", "e", 0.38, 0.5, 0.06, 0.05], ["#2c2416", "e", 0.55, 0.62, 0.05, 0.04], ["#2c2416", "r", 0.28, 0.72, 0.06, 0.18], ["#2c2416", "r", 0.4, 0.72, 0.06, 0.18], ["#2c2416", "r", 0.58, 0.72, 0.06, 0.18], ["#2c2416", "r", 0.7, 0.72, 0.06, 0.18]],
+    OWL: [["#8a5a32", "e", 0.5, 0.55, 0.28, 0.32], ["#fff", "e", 0.38, 0.48, 0.1, 0.1], ["#fff", "e", 0.62, 0.48, 0.1, 0.1], ["#2c2416", "e", 0.38, 0.48, 0.04, 0.04], ["#2c2416", "e", 0.62, 0.48, 0.04, 0.04], ["#e2a62e", "p", [0.5, 0.62], [0.42, 0.56], [0.58, 0.56]]],
+    HEN: [["#8a5a32", "e", 0.48, 0.6, 0.28, 0.18], ["#c0392b", "e", 0.78, 0.32, 0.06, 0.08], ["#c0392b", "e", 0.84, 0.4, 0.05, 0.06], ["#e2a62e", "p", [0.82, 0.5], [0.95, 0.55], [0.82, 0.6]]],
+    BEE: [["#f4e07a", "e", 0.5, 0.55, 0.28, 0.16], ["#2c2416", "r", 0.32, 0.48, 0.06, 0.16], ["#2c2416", "r", 0.5, 0.48, 0.06, 0.16], ["#d9eef8", "e", 0.32, 0.32, 0.14, 0.08], ["#d9eef8", "e", 0.62, 0.32, 0.14, 0.08]],
+    EEL: [["#3d7ea6", "e", 0.5, 0.55, 0.4, 0.1], ["#3d7ea6", "p", [0.3, 0.48], [0.42, 0.36], [0.46, 0.5]]],
+    CUB: [["#8a5a32", "e", 0.5, 0.58, 0.26, 0.24], ["#8a5a32", "e", 0.32, 0.32, 0.1, 0.1], ["#8a5a32", "e", 0.68, 0.32, 0.1, 0.1]],
+    CAP: [["#3d6fbf", "e", 0.48, 0.42, 0.22, 0.16], ["#2c4f8f", "e", 0.62, 0.58, 0.24, 0.08]],
+    APE: [["#8a5a32", "e", 0.42, 0.55, 0.16, 0.22], ["#8a5a32", "e", 0.42, 0.32, 0.12, 0.12], ["#8a5a32", "e", 0.68, 0.62, 0.22, 0.08]],
+    BOX: [["#c0392b", "r", 0.22, 0.38, 0.56, 0.4], ["#e07a72", "r", 0.22, 0.28, 0.56, 0.12]],
+    BUN: [["#e2c08a", "e", 0.5, 0.55, 0.3, 0.16]],
+    NUT: [["#8a5a32", "e", 0.5, 0.5, 0.22, 0.26], ["#6b4423", "l", 0.5, 0.28, 0.5, 0.72]],
+    PIE: [["#e2a62e", "e", 0.5, 0.55, 0.3, 0.18], ["#f3d48a", "e", 0.5, 0.5, 0.2, 0.1]],
+    CAKE: [["#f3c2a0", "r", 0.22, 0.4, 0.56, 0.36], ["#f3b6c8", "r", 0.22, 0.28, 0.56, 0.16]],
+    NET: [["#2c2416", "e", 0.4, 0.4, 0.16, 0.16], ["#2c2416", "l", 0.28, 0.4, 0.52, 0.4], ["#2c2416", "l", 0.4, 0.28, 0.4, 0.52], ["#c8b48a", "p", [0.48, 0.48], [0.78, 0.7], [0.58, 0.78]]],
+    TOP: [["#c0392b", "e", 0.5, 0.42, 0.16, 0.1], ["#e2a62e", "e", 0.5, 0.58, 0.22, 0.12]],
+    KITE: [["#c0392b", "p", [0.5, 0.18], [0.78, 0.46], [0.5, 0.7], [0.22, 0.46]], ["#2c2416", "l", 0.5, 0.7, 0.58, 0.88]],
+    BALL: [["#3d6fbf", "e", 0.5, 0.5, 0.28, 0.28], ["#fff", "r", 0.22, 0.46, 0.56, 0.1]],
+    PUP: [["#e2c08a", "e", 0.48, 0.58, 0.26, 0.18], ["#e2c08a", "e", 0.7, 0.4, 0.12, 0.16], ["#c8a070", "e", 0.78, 0.55, 0.08, 0.12]],
+    PIG: [["#f3b6c8", "e", 0.46, 0.58, 0.28, 0.18], ["#f3b6c8", "e", 0.74, 0.48, 0.12, 0.12], ["#e7a0b4", "e", 0.84, 0.52, 0.06, 0.05]],
+    CALF: [["#fff", "e", 0.48, 0.58, 0.28, 0.16], ["#8a5a32", "e", 0.74, 0.46, 0.12, 0.1], ["#8a5a32", "r", 0.3, 0.7, 0.08, 0.16], ["#8a5a32", "r", 0.48, 0.7, 0.08, 0.16]],
+    LAMB: [["#fff", "e", 0.5, 0.52, 0.26, 0.2], ["#2c2416", "r", 0.32, 0.68, 0.06, 0.16], ["#2c2416", "r", 0.44, 0.68, 0.06, 0.16], ["#2c2416", "r", 0.56, 0.68, 0.06, 0.16], ["#2c2416", "r", 0.68, 0.68, 0.06, 0.16]],
+    HAT: [["#e2a62e", "r", 0.4, 0.22, 0.2, 0.36], ["#e2a62e", "e", 0.5, 0.58, 0.34, 0.08]],
+    TIE: [["#c0392b", "p", [0.5, 0.16], [0.66, 0.28], [0.5, 0.86], [0.34, 0.28]]],
+    SHOE: [["#8a5a32", "p", [0.18, 0.48], [0.7, 0.48], [0.86, 0.62], [0.18, 0.7]]],
+    SOCK: [["#3d6fbf", "r", 0.38, 0.22, 0.24, 0.5], ["#d9eef8", "r", 0.38, 0.22, 0.24, 0.12]],
+    TUB: [["#fff", "p", [0.16, 0.4], [0.84, 0.4], [0.74, 0.72], [0.26, 0.72]], ["#2c2416", "r", 0.16, 0.36, 0.68, 0.06]],
+    BED: [["#8a5a32", "r", 0.16, 0.4, 0.68, 0.12], ["#3d6fbf", "r", 0.2, 0.5, 0.6, 0.22]],
+    RUG: [["#c0392b", "r", 0.16, 0.3, 0.68, 0.4], ["#8a2030", "r", 0.22, 0.36, 0.56, 0.28]],
+    CRIB: [["#e2c08a", "r", 0.2, 0.4, 0.6, 0.28], ["#8a5a32", "r", 0.2, 0.28, 0.06, 0.4], ["#8a5a32", "r", 0.74, 0.28, 0.06, 0.4], ["#8a5a32", "r", 0.36, 0.28, 0.05, 0.28], ["#8a5a32", "r", 0.52, 0.28, 0.05, 0.28]],
+    BUD: [["#7d9a4a", "p", [0.5, 0.78], [0.3, 0.58], [0.7, 0.58]], ["#f3b6c8", "e", 0.5, 0.42, 0.12, 0.2]],
+    DEW: [["#7d9a4a", "e", 0.48, 0.55, 0.22, 0.12], ["#3d7ea6", "e", 0.32, 0.36, 0.05, 0.07], ["#3d7ea6", "e", 0.5, 0.28, 0.05, 0.07], ["#3d7ea6", "e", 0.66, 0.4, 0.05, 0.07]],
+    LOG: [["#8a5a32", "e", 0.48, 0.55, 0.34, 0.16], ["#e2c08a", "e", 0.78, 0.55, 0.1, 0.1]],
+    SUN: [["#f4e07a", "e", 0.5, 0.5, 0.16, 0.16], ["#e07a20", "l", 0.5, 0.5, 0.5, 0.16], ["#e07a20", "l", 0.5, 0.5, 0.74, 0.26], ["#e07a20", "l", 0.5, 0.5, 0.84, 0.5], ["#e07a20", "l", 0.5, 0.5, 0.74, 0.74], ["#e07a20", "l", 0.5, 0.5, 0.5, 0.84], ["#e07a20", "l", 0.5, 0.5, 0.26, 0.74], ["#e07a20", "l", 0.5, 0.5, 0.16, 0.5], ["#e07a20", "l", 0.5, 0.5, 0.26, 0.26]],
+    HAY: [["#e2c04a", "r", 0.18, 0.32, 0.64, 0.36], ["#c8a030", "r", 0.18, 0.42, 0.64, 0.06], ["#c8a030", "r", 0.18, 0.54, 0.64, 0.06]]
+  };
+  function drawCmd(ctx, w, h, cmd) {
+    ctx.fillStyle = cmd[0];
+    ctx.strokeStyle = cmd[0];
+    if (cmd[1] === "e") {
+      ctx.beginPath();
+      ctx.ellipse(cmd[2] * w, cmd[3] * h, cmd[4] * w, cmd[5] * h, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (cmd[1] === "r") {
+      ctx.fillRect(cmd[2] * w, cmd[3] * h, cmd[4] * w, cmd[5] * h);
+    } else if (cmd[1] === "p") {
+      ctx.beginPath();
+      ctx.moveTo(cmd[2][0] * w, cmd[2][1] * h);
+      for (var i = 3; i < cmd.length; i++) ctx.lineTo(cmd[i][0] * w, cmd[i][1] * h);
+      ctx.closePath();
+      ctx.fill();
+    } else if (cmd[1] === "l") {
+      ctx.lineWidth = Math.max(2, w * 0.035);
+      ctx.lineCap = "round";
+      ctx.beginPath();
+      ctx.moveTo(cmd[2] * w, cmd[3] * h);
+      ctx.lineTo(cmd[4] * w, cmd[5] * h);
+      ctx.stroke();
+    }
+  }
+  function drawPic(word, canvas) {
+    var ctx = canvas.getContext("2d");
+    var w = canvas.width, h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    var list = PICS[word] || [];
+    for (var i = 0; i < list.length; i++) drawCmd(ctx, w, h, list[i]);
+  }
+  function paintCanvas(word, size) {
+    var canvas = document.createElement("canvas");
+    canvas.width = size;
+    canvas.height = size;
+    canvas.setAttribute("aria-hidden", "true");
+    drawPic(word, canvas);
+    return canvas;
+  }
+
+  var screen = "menu";
+  var builtKey = "";
+  var level = "tiny";
+  var muted = false;
+  var harder = false;
+  var groupId = null;
+  var grid = [];
+  var placements = [];
+  var directions = [];
+  var words = [];
+  var found = [];
+  var anchorId = null;
+  var revealed = null;
+  var picture = false;
+  var said = null;
+  var fallbackUsed = false;
+  var puzzlesDone = 0;
+  var col0 = 0;
+  var pulse = null;
+  var pulseAt = 0;
+  var pulsed = false;
+  var idleSince = 0;
+  var placed = false;
+  var pin = null;
+  var playCounter = 1;
+  var forceWidth = 0;
+  var forceHeight = 0;
+  var checking = false;
+  var suppressReconnect = false;
+  var clock = 0;
+  var pointerDown = false;
+  var activePointer = null;
+
+  var gazeSock = null;
+  var gazeBuf = new Uint8Array(0);
+  var gazeWarp = null;
+  var gazeHold = null;
+  var refreshHold = false;
+  var haveSmooth = false;
+  var smoothed = null;
+  var gazePoint = null;
+  var gazeAt = 0;
+  var gazeTimer = 0;
+  var dwellId = null;
+  var dwellAccrued = 0;
+  var dwellSegStart = 0;
+  var dwellOn = false;
+  var dwellLeftAt = 0;
+  var dwellLastOn = 0;
+  var dwellFired = false;
+  var dwellMs = PLAY_DWELL_MS;
+  var dwellProgress = 0;
+
+  var audioCtx = null;
+  var master = null;
+  var audioStarted = false;
+
+  var muteEl = document.getElementById("mute");
+  var fullEl = document.getElementById("full");
+  var backEl = document.getElementById("back");
+  var eyesEl = document.getElementById("eyes");
+  var gazeEl = document.getElementById("gaze");
+  var bannerEl = document.getElementById("banner");
+  var menuEl = document.getElementById("screen-menu");
+  var playEl = document.getElementById("play");
+  var restEl = document.getElementById("screen-rest");
+  var soundOn = document.getElementById("sound-on");
+  var soundOff = document.getElementById("sound-off");
+
+  function layoutWidth() { return forceWidth > 0 ? forceWidth : window.innerWidth; }
+  function layoutHeight() { return forceHeight > 0 ? forceHeight : window.innerHeight; }
+  function chromeBox(w, h) {
+    var side = 72;
+    var budget = Math.floor(h * 0.14);
+    if (budget < side) side = Math.max(40, budget);
+    var widthCap = Math.floor((w - 24) / 5);
+    if (widthCap < side) side = Math.max(36, widthCap);
+    var backW = Math.min(176, Math.max(side, 108));
+    var room = w - (16 + side * 2 + 16) - 8;
+    if (backW > room) backW = Math.max(side, room);
+    return { side: side, backW: Math.floor(backW), top: 8 + side + 8 };
+  }
+  function sideFor(budget, count, gap) {
+    return Math.floor((budget - gap * 2 - (count - 1) * gap) / count);
+  }
+  function packBank(availW, leftH, n, young, revealed) {
+    var reveal = 0;
+    var bankH = leftH;
+    if (revealed && young) {
+      reveal = Math.min(96, Math.max(20, Math.floor(leftH * 0.22)));
+      bankH = leftH - reveal - 8;
+    }
+    if (bankH < 16 || n < 1) return null;
+    var best = null;
+    var gap = bankH < 100 ? 4 : 8;
+    var capH = young ? 112 : 72;
+    for (var rows = 1; rows <= n; rows++) {
+      var per = Math.ceil(n / rows);
+      var chipW = Math.floor((availW - (per - 1) * gap) / per);
+      var rawH = Math.floor((bankH - (rows - 1) * gap) / rows);
+      var chipH = Math.min(rawH, capH);
+      if (young) {
+        var sq = Math.min(chipW, chipH, 112);
+        chipW = sq;
+        chipH = sq;
+      }
+      if (chipW < 16 || chipH < 16) continue;
+      var usedH = rows * chipH + (rows - 1) * gap;
+      var usedW = per * chipW + (per - 1) * gap;
+      if (usedH > bankH || usedW > availW) continue;
+      var score = Math.min(chipW, chipH) * 1000 - rows;
+      if (!best || score > best.score) {
+        best = { rows: rows, per: per, chipW: chipW, chipH: chipH, gap: gap, reveal: reveal, usedH: usedH, usedW: usedW, score: score };
+      }
+    }
+    return best;
+  }
+  function puzzleLayout(w, h, rows, cols, n, young, revealed) {
+    var box = chromeBox(w, h);
+    var availW = Math.max(32, w - 16);
+    var availH = Math.max(32, h - box.top - 8);
+    var bankFloor = Math.min(young ? 96 : 72, Math.max(24, Math.floor(availH * 0.12)));
+    if (revealed && young) bankFloor += Math.min(64, Math.max(20, Math.floor(availH * 0.08)));
+    var gridBudget = Math.max(24, availH - bankFloor - 8);
+    var gaps = [8, 4, 2];
+    for (var gi = 0; gi < gaps.length; gi++) {
+      var gap = gaps[gi];
+      var limit = Math.min(168, sideFor(availW, cols, gap), sideFor(gridBudget, rows, gap));
+      for (var side = limit; side >= 8; side--) {
+        var pad = gap;
+        var gridW = cols * side + (cols - 1) * gap + pad * 2;
+        var gridH = rows * side + (rows - 1) * gap + pad * 2;
+        if (gridW > availW || gridH > availH - 28) continue;
+        var left = availH - gridH - 8;
+        var bank = packBank(availW, left, n, young, revealed);
+        if (!bank) continue;
+        var contentW = Math.max(gridW, bank.usedW);
+        var extra = bank.reveal ? 8 + bank.reveal : 0;
+        var contentH = gridH + 8 + bank.usedH + extra;
+        if (contentH > availH || contentW > availW) continue;
+        var originX = Math.max(0, Math.floor((w - contentW) / 2));
+        return {
+          chrome: box.side, backW: box.backW, top: box.top, side: side, gap: gap, pad: pad,
+          gridW: gridW, gridH: gridH, contentW: contentW, contentH: contentH, originX: originX,
+          bank: bank, fit: box.top + contentH <= h
+        };
+      }
+    }
+    return null;
+  }
+  function groupLayout(w, h, count) {
+    var box = chromeBox(w, h);
+    var availW = Math.max(32, w - 16);
+    var availH = Math.max(32, h - box.top - 8);
+    var best = null;
+    var n = Math.max(1, count);
+    var gaps = [8, 4, 2];
+    for (var gi = 0; gi < gaps.length; gi++) {
+      var gap = gaps[gi];
+      for (var cols = 1; cols <= n; cols++) {
+        var rows = Math.ceil(n / cols);
+        var chipW = Math.floor((availW - (cols - 1) * gap) / cols);
+        var chipH = Math.floor((availH - (rows - 1) * gap) / rows);
+        var side = Math.min(chipW, chipH, 160);
+        if (side < 12) continue;
+        var usedH = rows * side + (rows - 1) * gap;
+        var usedW = cols * side + (cols - 1) * gap;
+        if (usedH > availH || usedW > availW) continue;
+        if (!best || side > best.side || (side === best.side && rows < best.rows)) {
+          best = { cols: cols, rows: rows, side: side, gap: gap, usedW: usedW, usedH: usedH };
+        }
+      }
+      if (best) break;
+    }
+    if (!best) return null;
+    return {
+      chrome: box.side, backW: box.backW, top: box.top, cols: best.cols, rows: best.rows,
+      side: best.side, gap: best.gap, contentW: best.usedW, contentH: best.usedH,
+      originX: Math.max(0, Math.floor((w - best.usedW) / 2)),
+      fit: box.top + best.usedH <= h
+    };
+  }
+  function menuLayout(w, h) {
+    var box = chromeBox(w, h);
+    var top = box.top;
+    var availH = Math.max(40, h - top - 8);
+    var cardW = Math.min(460, Math.max(88, w - 16));
+    var x0 = Math.max(0, Math.floor((w - cardW) / 2));
+    var pad = 12;
+    var inner = Math.max(40, cardW - pad * 2);
+    var title = Math.min(40, Math.max(16, Math.floor(availH * 0.06)));
+    var line = Math.min(16, Math.max(11, Math.floor(availH * 0.03)));
+    var gap = 8;
+    var btnH = Math.min(72, Math.max(16, Math.floor(availH * 0.16)));
+    var titleGap = 6;
+    var lineGap = 4;
+    var beforeBtns = 8;
+    function blockH() { return pad + title + titleGap + line + lineGap + line + beforeBtns; }
+    function bottomOf(bh, g) { return top + blockH() + 5 * bh + 4 * g + pad; }
+    while (btnH > 16 && bottomOf(btnH, gap) > h - 8) btnH -= 1;
+    while (bottomOf(btnH, gap) > h - 8 && title > 16) title -= 1;
+    while (bottomOf(btnH, gap) > h - 8 && line > 11) line -= 1;
+    while (bottomOf(btnH, gap) > h - 8 && gap > 2) gap -= 1;
+    while (bottomOf(btnH, gap) > h - 8 && btnH > 12) btnH -= 1;
+    var y = top + blockH();
+    var ids = ["tiny", "little", "shop", "rush", "go"];
+    var buttons = [];
+    for (var i = 0; i < ids.length; i++) {
+      buttons.push({ id: ids[i], x: x0 + pad, y: y, w: inner, h: btnH });
+      y += btnH + gap;
+    }
+    return {
+      chrome: box.side, backW: box.backW, top: top, cardW: cardW, x0: x0, pad: pad,
+      title: title, line: line, titleGap: titleGap, lineGap: lineGap, beforeBtns: beforeBtns,
+      btnH: btnH, gap: gap, buttons: buttons,
+      fit: (y - gap) <= h - 4 && x0 + cardW <= w + 0.5
+    };
+  }
+  function restLayout(w, h, showAnother) {
+    var box = chromeBox(w, h);
+    var cardW = Math.min(460, Math.max(88, w - 16));
+    var x0 = Math.max(0, Math.floor((w - cardW) / 2));
+    var btnH = Math.min(72, Math.max(24, Math.floor((h - box.top - 80) * 0.4)));
+    var another = null;
+    if (showAnother) {
+      var ay = box.top + 56;
+      if (ay + btnH > h - 8) btnH = Math.max(16, h - 8 - ay);
+      another = { id: "another", x: x0 + 12, y: ay, w: Math.max(40, cardW - 24), h: btnH };
+    }
+    return { chrome: box.side, backW: box.backW, top: box.top, cardW: cardW, x0: x0, btnH: btnH, another: another, fit: !another || another.y + another.h <= h };
+  }
+  function bannerText() {
+    if (screen === "menu") return "Look at the first letter and the last letter.";
+    if (screen === "group") return "Pick a group.";
+    if (screen === "rest") return "All the words.";
+    if (revealed) return revealed;
+    if (anchorId) return "Look at the last letter.";
+    return "Look at the first letter.";
+  }
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+  function dropDwell() {
+    dwellId = null;
+    dwellAccrued = 0;
+    dwellSegStart = 0;
+    dwellOn = false;
+    dwellLeftAt = 0;
+    dwellLastOn = 0;
+    dwellFired = false;
+    dwellMs = PLAY_DWELL_MS;
+    dwellProgress = 0;
+  }
+  function syncEyes() {
+    var on = !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+    eyesEl.hidden = !on;
+  }
+  function clearPuzzle() {
+    placed = false;
+    groupId = null;
+    grid = [];
+    placements = [];
+    directions = [];
+    words = [];
+    found = [];
+    anchorId = null;
+    revealed = null;
+    picture = false;
+    said = null;
+    pulse = null;
+    pulseAt = 0;
+    pulsed = false;
+    fallbackUsed = false;
+    col0 = 0;
+    dropDwell();
+  }
+  function placementCells(p) {
+    var dir = DIR_BY[p.dir], cells = [];
+    for (var i = 0; i < p.word.length; i++) cells.push((p.row + dir.dr * i) + "-" + (p.col + dir.dc * i));
+    return cells;
+  }
+  function segmentCells(a, b) {
+    var ap = a.split("-"), bp = b.split("-");
+    var r1 = +ap[0], c1 = +ap[1], r2 = +bp[0], c2 = +bp[1];
+    var dr = r2 - r1, dc = c2 - c1;
+    var steps = Math.max(Math.abs(dr), Math.abs(dc));
+    if (steps === 0) return [a];
+    if (dr % steps !== 0 || dc % steps !== 0) return null;
+    var sr = dr / steps, sc = dc / steps;
+    if ((sr !== -1 && sr !== 0 && sr !== 1) || (sc !== -1 && sc !== 0 && sc !== 1)) return null;
+    var out = [];
+    for (var i = 0; i <= steps; i++) out.push((r1 + sr * i) + "-" + (c1 + sc * i));
+    return out;
+  }
+  function cellInGrid(id) {
+    if (!grid.length) return false;
+    var parts = String(id).split("-");
+    if (parts.length !== 2) return false;
+    var r = Number(parts[0]), c = Number(parts[1]);
+    if (!isFinite(r) || !isFinite(c) || String(r) !== parts[0] || String(c) !== parts[1]) return false;
+    return r >= 0 && c >= 0 && r < grid.length && c < grid[0].length;
+  }
+  function foundCell(id) {
+    for (var i = 0; i < placements.length; i++) {
+      if (found.indexOf(placements[i].word) === -1) continue;
+      if (placementCells(placements[i]).indexOf(id) !== -1) return true;
+    }
+    return false;
+  }
+  function applyResult(group, res) {
+    groupId = group.id;
+    grid = res.grid.slice();
+    placements = res.placements.map(function (p) { return { word: p.word, row: p.row, col: p.col, dir: p.dir }; });
+    directions = res.directions.slice();
+    words = group.words.slice();
+    found = [];
+    anchorId = null;
+    revealed = null;
+    picture = false;
+    fallbackUsed = !!res.fallbackUsed;
+    col0 = 0;
+    pulse = null;
+    pulseAt = 0;
+    pulsed = false;
+    idleSince = clock;
+    placed = true;
+    dropDwell();
+  }
+  function ensureAudio() {
+    if (audioStarted) {
+      if (master) master.gain.value = muted ? 0 : 0.5;
+      return;
+    }
+    audioStarted = true;
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      audioCtx = new AC();
+      master = audioCtx.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(audioCtx.destination);
+      if (audioCtx.state === "suspended" && audioCtx.resume) audioCtx.resume();
+    } catch (e) {}
+  }
+  function playTone() {
+    if (!audioCtx || !master) return;
+    try {
+      var o = audioCtx.createOscillator();
+      var g = audioCtx.createGain();
+      o.type = "sine";
+      o.frequency.value = 440;
+      g.gain.value = 1;
+      o.connect(g);
+      g.connect(master);
+      var t = audioCtx.currentTime;
+      o.start(t);
+      o.stop(t + 0.12);
+    } catch (e) {}
+  }
+  function bandWriter(band, launch) {
+    if (band !== "tiny" && band !== "little" && band !== "shop" && band !== "rush") return;
+    level = band;
+    if (!launch) { render(); return; }
+    clearPuzzle();
+    puzzlesDone = 0;
+    go("group");
+  }
+  function start(band) { bandWriter(band, true); }
+  function go(screenId) {
+    if (screenId !== "menu" && screenId !== "group" && screenId !== "puzzle" && screenId !== "rest") return;
+    if (screenId === "puzzle" && !placed) return;
+    screen = screenId;
+    render();
+  }
+  function group(id) {
+    var g = findPlay(level, id);
+    if (!g) return;
+    var s;
+    if (pin !== null) { s = pin; pin = null; }
+    else { s = playSeed(Date.now(), playCounter); playCounter += 1; }
+    var res = wordSearchGenerate(g, s, harder);
+    if (!res.ok) { render(); return; }
+    applyResult(g, res);
+    go("puzzle");
+  }
+  function anchor(cellId) {
+    if (!cellInGrid(cellId)) return;
+    revealed = null;
+    picture = false;
+    if (anchorId === cellId) anchorId = null;
+    else anchorId = cellId;
+    render();
+  }
+  function commit(cellId) {
+    if (!cellInGrid(cellId) || !anchorId) return;
+    revealed = null;
+    picture = false;
+    if (cellId === anchorId) { anchorId = null; render(); return; }
+    var seg = segmentCells(anchorId, cellId);
+    var hit = null;
+    if (seg) {
+      var key = seg.slice().sort().join("|");
+      for (var i = 0; i < placements.length; i++) {
+        var p = placements[i];
+        if (found.indexOf(p.word) !== -1) continue;
+        if (placementCells(p).slice().sort().join("|") === key) { hit = p; break; }
+      }
+    }
+    if (hit) {
+      found.push(hit.word);
+      anchorId = null;
+      playTone();
+      if (found.length === words.length) {
+        puzzlesDone = Math.min(2, puzzlesDone + 1);
+        go("rest");
+        return;
+      }
+      render();
+      return;
+    }
+    anchorId = cellId;
+    render();
+  }
+  function pressCell(cellId) {
+    if (!cellInGrid(cellId)) return;
+    if (!anchorId || anchorId === cellId) anchor(cellId);
+    else commit(cellId);
+  }
+  function reveal(wordId) {
+    if (words.indexOf(wordId) === -1) return;
+    revealed = wordId;
+    picture = level === "tiny" || level === "little";
+    said = wordId;
+    try {
+      if (window.speechSynthesis && typeof window.SpeechSynthesisUtterance === "function") {
+        window.speechSynthesis.cancel();
+        var u = new window.SpeechSynthesisUtterance(wordId);
+        window.speechSynthesis.speak(u);
+      }
+    } catch (e) {}
+    render();
+  }
+  function useFallback(id) {
+    var g = findPlay(level, id);
+    if (!g) return;
+    var res = acceptFallback(g, harder);
+    if (!res.ok) return;
+    applyResult(g, res);
+    go("puzzle");
+  }
+  function backward() {
+    if (level !== "rush") return;
+    harder = !harder;
+    render();
+  }
+  function another() {
+    if (puzzlesDone !== 1) return;
+    go("group");
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    try {
+      if (!document.fullscreenElement) {
+        if (document.documentElement.requestFullscreen) document.documentElement.requestFullscreen();
+      } else if (document.exitFullscreen) document.exitFullscreen();
+    } catch (e) {}
+  }
+  function runWriter(id) {
+    if (id === "go") { start(level); return; }
+    if (id === "back") { if (screen !== "menu") go("menu"); return; }
+    if (id === "mute") { toggleMute(); return; }
+    if (id === "full") { toggleFull(); return; }
+    if (id === "another") { another(); return; }
+    if (id === "backward") { backward(); return; }
+    if (id.indexOf("cell-") === 0) { pressCell(id.slice(5)); return; }
+    if (id.indexOf("bank-") === 0) { reveal(id.slice(5)); return; }
+    if (id.indexOf("group-") === 0) { group(id.slice(6)); return; }
+    if (id === "tiny" || id === "little" || id === "shop" || id === "rush") bandWriter(id, false);
+  }
+  function wire(btn) {
+    btn.addEventListener("click", function (ev) {
+      ev.preventDefault();
+      ensureAudio();
+      runWriter(btn.id);
+    });
+  }
+  function buttonAt(x, y) {
+    var el = document.elementFromPoint(x, y);
+    if (!el || !el.closest) return null;
+    var btn = el.closest("button");
+    if (!btn || btn.hidden) return null;
+    return btn;
+  }
+  function buttonVisible(btn) {
+    if (!btn || btn.hidden) return false;
+    var st = window.getComputedStyle(btn);
+    if (st.display === "none" || st.visibility === "hidden") return false;
+    var r = btn.getBoundingClientRect();
+    return r.width >= 1 && r.height >= 1;
+  }
+  function previewMap() {
+    var map = Object.create(null);
+    if (screen !== "puzzle" || !anchorId || !gazePoint || !grid.length) return map;
+    var btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn || btn.id.indexOf("cell-") !== 0) return map;
+    var gid = btn.id.slice(5);
+    if (gid === anchorId) return map;
+    var seg = segmentCells(anchorId, gid);
+    if (!seg) return map;
+    var letters = "";
+    for (var i = 0; i < seg.length; i++) {
+      var parts = seg[i].split("-");
+      letters += grid[+parts[0]][+parts[1]];
+    }
+    var ok = false;
+    for (var w = 0; w < words.length; w++) {
+      if (found.indexOf(words[w]) !== -1) continue;
+      var rev = words[w].split("").reverse().join("");
+      if (words[w].indexOf(letters) === 0 || rev.indexOf(letters) === 0) ok = true;
+    }
+    if (!ok) return map;
+    for (var s = 0; s < seg.length; s++) map[seg[s]] = true;
+    return map;
+  }
+  function playKey() {
+    var w = layoutWidth();
+    var h = layoutHeight();
+    if (screen === "group") {
+      var n = (PLAY[level] || []).length + (level === "rush" ? 1 : 0);
+      var g = groupLayout(w, h, n);
+      return "group|" + level + "|" + (g ? g.cols + "x" + g.side + "g" + g.gap : "0") + "|" + (harder ? 1 : 0);
+    }
+    if (screen === "puzzle" && grid.length) {
+      var young = level === "tiny" || level === "little";
+      var m = puzzleLayout(w, h, grid.length, grid[0].length, words.length, young, !!(picture && revealed));
+      var letters = "";
+      for (var r = 0; r < grid.length; r++) letters += grid[r] + "/";
+      var mark = m ? m.side + "g" + m.gap + "b" + m.bank.chipW + "x" + m.bank.chipH + "r" + m.bank.reveal : "0";
+      return "puzzle|" + level + "|" + grid.length + "x" + grid[0].length + "|" + mark + "|" + words.join(",") + "|" + letters + "|" + (picture && revealed ? revealed : "");
+    }
+    if (screen === "rest") return "rest|" + puzzlesDone + "|" + w + "x" + h;
+    return "menu";
+  }
+  function refreshMarks(preview) {
+    if (screen !== "puzzle") return;
+    var cells = playEl.querySelectorAll(".cell");
+    for (var i = 0; i < cells.length; i++) {
+      var id = cells[i].id.slice(5);
+      var foundHere = !!foundCell(id);
+      cells[i].classList.toggle("found", foundHere);
+      cells[i].classList.toggle("preview", !foundHere && !!preview[id]);
+      cells[i].classList.toggle("anchor", anchorId === id);
+      cells[i].classList.toggle("pulse", pulse === id);
+    }
+    var bank = playEl.querySelectorAll(".bank button");
+    for (var b = 0; b < bank.length; b++) {
+      bank[b].classList.toggle("found", found.indexOf(bank[b].id.slice(5)) !== -1);
+    }
+    drawBands();
+  }
+  function drawBands() {
+    var svg = playEl.querySelector(".bands");
+    if (!svg || screen !== "puzzle" || !grid.length) return;
+    var young = level === "tiny" || level === "little";
+    var m = puzzleLayout(layoutWidth(), layoutHeight(), grid.length, grid[0].length, words.length, young, !!(picture && revealed));
+    if (!m) return;
+    svg.setAttribute("width", String(m.gridW));
+    svg.setAttribute("height", String(m.gridH));
+    svg.setAttribute("viewBox", "0 0 " + m.gridW + " " + m.gridH);
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+    var thick = Math.max(6, m.side * 0.72);
+    for (var i = 0; i < placements.length; i++) {
+      if (found.indexOf(placements[i].word) === -1) continue;
+      var cells = placementCells(placements[i]);
+      if (!cells.length) continue;
+      var a = cells[0].split("-");
+      var b = cells[cells.length - 1].split("-");
+      var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("x1", String(m.pad + Number(a[1]) * (m.side + m.gap) + m.side / 2));
+      line.setAttribute("y1", String(m.pad + Number(a[0]) * (m.side + m.gap) + m.side / 2));
+      line.setAttribute("x2", String(m.pad + Number(b[1]) * (m.side + m.gap) + m.side / 2));
+      line.setAttribute("y2", String(m.pad + Number(b[0]) * (m.side + m.gap) + m.side / 2));
+      line.setAttribute("stroke", "#e2a62e");
+      line.setAttribute("stroke-opacity", "0.78");
+      line.setAttribute("stroke-width", String(thick));
+      line.setAttribute("stroke-linecap", "round");
+      svg.appendChild(line);
+    }
+  }
+  function applyChrome(box) {
+    var side = box.side;
+    muteEl.style.width = side + "px";
+    muteEl.style.height = side + "px";
+    fullEl.style.width = side + "px";
+    fullEl.style.height = side + "px";
+    fullEl.style.left = (8 + side + 8) + "px";
+    fullEl.style.fontSize = side < 60 ? "11px" : "13px";
+    var marks = muteEl.querySelectorAll("svg");
+    var svg = Math.max(16, Math.floor(side * 0.55));
+    for (var i = 0; i < marks.length; i++) {
+      marks[i].style.width = svg + "px";
+      marks[i].style.height = svg + "px";
+    }
+    backEl.style.width = box.backW + "px";
+    backEl.style.height = side + "px";
+    backEl.style.minWidth = "0px";
+    backEl.style.minHeight = "0px";
+    backEl.style.fontSize = box.backW >= 150 ? "16px" : "13px";
+    backEl.style.padding = "4px";
+    backEl.style.overflow = "hidden";
+    bannerEl.style.top = "8px";
+    bannerEl.style.height = side + "px";
+    bannerEl.style.left = (16 + side * 2 + 8) + "px";
+    bannerEl.style.right = (screen === "menu" ? 16 : box.backW + 16) + "px";
+    eyesEl.style.top = "8px";
+    eyesEl.style.left = "auto";
+    eyesEl.style.right = (box.backW + 24) + "px";
+  }
+  function applyMenu(m) {
+    menuEl.style.marginTop = m.top + "px";
+    menuEl.style.width = m.cardW + "px";
+    menuEl.style.padding = m.pad + "px";
+    var heading = menuEl.querySelector("h1");
+    heading.style.fontSize = m.title + "px";
+    heading.style.height = m.title + "px";
+    heading.style.lineHeight = "1";
+    heading.style.margin = "0 0 " + m.titleGap + "px";
+    heading.style.overflow = "hidden";
+    var lines = menuEl.querySelectorAll(".line");
+    for (var i = 0; i < lines.length; i++) {
+      lines[i].style.fontSize = m.line + "px";
+      lines[i].style.height = m.line + "px";
+      lines[i].style.lineHeight = "1";
+      lines[i].style.overflow = "hidden";
+      lines[i].style.margin = "0 0 " + (i === lines.length - 1 ? m.beforeBtns : m.lineGap) + "px";
+    }
+    for (var b = 0; b < m.buttons.length; b++) {
+      var spec = m.buttons[b];
+      var btn = document.getElementById(spec.id);
+      btn.style.width = "100%";
+      btn.style.height = spec.h + "px";
+      btn.style.minHeight = "0px";
+      btn.style.margin = (b === 0 ? 0 : m.gap) + "px 0 0";
+      btn.style.overflow = "hidden";
+      var name = btn.querySelector("b");
+      var sub = btn.querySelector("small");
+      if (name) {
+        name.style.fontSize = Math.max(13, Math.min(26, Math.floor(spec.h * 0.4))) + "px";
+        name.style.lineHeight = "1.05";
+      }
+      if (sub) {
+        sub.style.fontSize = Math.max(10, Math.min(15, Math.floor(spec.h * 0.26))) + "px";
+        sub.style.lineHeight = "1.05";
+      }
+      if (spec.id === "go") btn.style.fontSize = Math.max(14, Math.min(26, Math.floor(spec.h * 0.4))) + "px";
+    }
+  }
+  function render() {
+    var preview = previewMap();
+    var bands = ["tiny", "little", "shop", "rush"];
+    for (var i = 0; i < bands.length; i++) {
+      var b = document.getElementById(bands[i]);
+      var on = bands[i] === level;
+      b.classList.toggle("on", on);
+      b.setAttribute("aria-pressed", on ? "true" : "false");
+    }
+    menuEl.hidden = screen !== "menu";
+    playEl.hidden = !(screen === "group" || screen === "puzzle");
+    restEl.hidden = screen !== "rest";
+    backEl.hidden = screen === "menu";
+    bannerEl.textContent = bannerText();
+    muteEl.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    muteEl.setAttribute("aria-pressed", muted ? "true" : "false");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    var w = layoutWidth();
+    var h = layoutHeight();
+    var box = chromeBox(w, h);
+    applyChrome(box);
+    applyMenu(menuLayout(w, h));
+    var key = playKey();
+    if (key !== builtKey) {
+    clearNode(playEl);
+    clearNode(restEl);
+    if (screen === "group") {
+      var list = PLAY[level] || [];
+      var gLay = groupLayout(w, h, list.length + (level === "rush" ? 1 : 0));
+      playEl.style.marginTop = (gLay ? gLay.top : box.top) + "px";
+      playEl.style.width = (gLay ? gLay.contentW : 0) + "px";
+      var wrap = document.createElement("div");
+      wrap.className = "chips";
+      if (gLay) {
+        wrap.style.gridTemplateColumns = "repeat(" + gLay.cols + ", " + gLay.side + "px)";
+        wrap.style.gap = gLay.gap + "px";
+      }
+      for (var g = 0; g < list.length; g++) {
+        var gb = document.createElement("button");
+        gb.id = "group-" + list[g].id;
+        gb.type = "button";
+        gb.textContent = list[g].name;
+        if (gLay) {
+          gb.style.width = gLay.side + "px";
+          gb.style.height = gLay.side + "px";
+          gb.style.minHeight = "0px";
+          gb.style.fontSize = Math.max(12, Math.min(22, Math.floor(gLay.side / 7))) + "px";
+        }
+        wire(gb);
+        wrap.appendChild(gb);
+      }
+      if (level === "rush") {
+        var bw = document.createElement("button");
+        bw.id = "backward";
+        bw.type = "button";
+        bw.textContent = "Backward";
+        bw.setAttribute("aria-pressed", harder ? "true" : "false");
+        if (gLay) {
+          bw.style.width = gLay.side + "px";
+          bw.style.height = gLay.side + "px";
+          bw.style.minHeight = "0px";
+          bw.style.fontSize = Math.max(12, Math.min(22, Math.floor(gLay.side / 7))) + "px";
+        }
+        wire(bw);
+        wrap.appendChild(bw);
+      }
+      playEl.appendChild(wrap);
+    }
+    if (screen === "puzzle" && grid.length) {
+      var cols = grid[0].length;
+      var young = level === "tiny" || level === "little";
+      var m = puzzleLayout(w, h, grid.length, cols, words.length, young, !!(picture && revealed));
+      if (!m) m = { top: box.top, side: 16, gap: 2, pad: 2, gridW: cols * 18, contentW: cols * 18, bank: { per: 1, chipW: 24, chipH: 24, gap: 4, reveal: 0, usedW: 24 } };
+      playEl.style.marginTop = m.top + "px";
+      playEl.style.width = m.contentW + "px";
+      var gridEl = document.createElement("div");
+      gridEl.className = "grid";
+      gridEl.style.gridTemplateColumns = "repeat(" + cols + ", " + m.side + "px)";
+      gridEl.style.gap = m.gap + "px";
+      gridEl.style.padding = m.pad + "px";
+      gridEl.style.width = m.gridW + "px";
+      gridEl.style.marginLeft = Math.floor((m.contentW - m.gridW) / 2) + "px";
+      var bands = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      bands.setAttribute("class", "bands");
+      bands.setAttribute("aria-hidden", "true");
+      gridEl.appendChild(bands);
+      for (var r = 0; r < grid.length; r++) {
+        for (var c = 0; c < cols; c++) {
+          var id = r + "-" + c;
+          var cell = document.createElement("button");
+          cell.id = "cell-" + id;
+          cell.type = "button";
+          cell.className = "cell";
+          cell.setAttribute("data-play", "true");
+          cell.style.width = m.side + "px";
+          cell.style.height = m.side + "px";
+          cell.style.minWidth = "0px";
+          cell.style.minHeight = "0px";
+          cell.style.fontSize = Math.max(11, Math.floor(m.side * 0.42)) + "px";
+          cell.textContent = grid[r][c];
+          if (foundCell(id)) cell.classList.add("found");
+          else if (preview[id]) cell.classList.add("preview");
+          if (anchorId === id) cell.classList.add("anchor");
+          if (pulse === id) cell.classList.add("pulse");
+          wire(cell);
+          gridEl.appendChild(cell);
+        }
+      }
+      playEl.appendChild(gridEl);
+      var bank = document.createElement("div");
+      bank.className = "bank";
+      bank.style.gridTemplateColumns = "repeat(" + m.bank.per + ", " + m.bank.chipW + "px)";
+      bank.style.gap = m.bank.gap + "px";
+      bank.style.marginTop = "8px";
+      bank.style.width = m.bank.usedW + "px";
+      bank.style.marginLeft = Math.floor((m.contentW - m.bank.usedW) / 2) + "px";
+      var pic = Math.max(12, Math.min(m.bank.chipW, m.bank.chipH) - 10);
+      for (var wi = 0; wi < words.length; wi++) {
+        var chipBtn = document.createElement("button");
+        chipBtn.id = "bank-" + words[wi];
+        chipBtn.type = "button";
+        chipBtn.style.width = m.bank.chipW + "px";
+        chipBtn.style.height = m.bank.chipH + "px";
+        chipBtn.style.minHeight = "0px";
+        chipBtn.style.fontSize = Math.max(11, Math.floor(m.bank.chipH * 0.36)) + "px";
+        if (found.indexOf(words[wi]) !== -1) chipBtn.classList.add("found");
+        if (young) {
+          chipBtn.setAttribute("aria-label", words[wi]);
+          chipBtn.style.display = "flex";
+          chipBtn.style.alignItems = "center";
+          chipBtn.style.justifyContent = "center";
+          chipBtn.appendChild(paintCanvas(words[wi], pic));
+        } else {
+          chipBtn.textContent = words[wi];
+        }
+        wire(chipBtn);
+        bank.appendChild(chipBtn);
+      }
+      playEl.appendChild(bank);
+      if (picture && revealed && young) {
+        var panel = document.createElement("div");
+        panel.id = "reveal";
+        var revealSize = m.bank.reveal > 8 ? m.bank.reveal : pic;
+        panel.appendChild(paintCanvas(revealed, revealSize));
+        playEl.appendChild(panel);
+      }
+    }
+    if (screen === "rest") {
+      var rest = restLayout(w, h, puzzlesDone === 1);
+      restEl.style.marginTop = rest.top + "px";
+      restEl.style.width = rest.cardW + "px";
+      restEl.style.padding = "12px";
+      var line = document.createElement("p");
+      line.className = "line";
+      line.textContent = "All the words.";
+      line.style.height = "32px";
+      line.style.lineHeight = "32px";
+      line.style.margin = "0";
+      restEl.appendChild(line);
+      if (rest.another) {
+        var again = document.createElement("button");
+        again.id = "another";
+        again.type = "button";
+        again.textContent = "Another";
+        again.style.height = rest.another.h + "px";
+        again.style.minHeight = "0px";
+        again.style.margin = "12px 0 0";
+        again.style.fontSize = Math.max(14, Math.min(26, Math.floor(rest.another.h * 0.4))) + "px";
+        wire(again);
+        restEl.appendChild(again);
+      }
+    }
+    builtKey = key;
+    }
+    refreshMarks(preview);
+    syncEyes();
+  }
+  function targetsAt(w, h) {
+    var targets = [];
+    var box = chromeBox(w, h);
+    function add(id, x, y, tw, th) { targets.push({ id: id, x: x, y: y, w: tw, h: th }); }
+    function contained(t) {
+      return t.w >= 8 && t.h >= 8 && t.x >= -0.5 && t.y >= -0.5 && t.x + t.w <= w + 0.5 && t.y + t.h <= h + 0.5;
+    }
+    add("mute", 8, 8, box.side, box.side);
+    add("full", 8 + box.side + 8, 8, box.side, box.side);
+    if (screen !== "menu") add("back", w - 8 - box.backW, 8, box.backW, box.side);
+    var sceneFit = true;
+    if (screen === "menu") {
+      var menu = menuLayout(w, h);
+      sceneFit = menu.fit;
+      for (var i = 0; i < menu.buttons.length; i++) {
+        var b = menu.buttons[i];
+        add(b.id, b.x, b.y, b.w, b.h);
+      }
+    } else if (screen === "group") {
+      var list = PLAY[level] || [];
+      var names = [];
+      for (var g = 0; g < list.length; g++) names.push("group-" + list[g].id);
+      if (level === "rush") names.push("backward");
+      var gLay = groupLayout(w, h, names.length);
+      sceneFit = !!(gLay && gLay.fit);
+      if (gLay) {
+        for (var n = 0; n < names.length; n++) {
+          var col = n % gLay.cols;
+          var row = Math.floor(n / gLay.cols);
+          add(names[n], gLay.originX + col * (gLay.side + gLay.gap), gLay.top + row * (gLay.side + gLay.gap), gLay.side, gLay.side);
+        }
+      }
+    } else if (screen === "puzzle" && grid.length) {
+      var cols = grid[0].length;
+      var young = level === "tiny" || level === "little";
+      var m = puzzleLayout(w, h, grid.length, cols, words.length, young, !!(picture && revealed));
+      sceneFit = !!(m && m.fit);
+      if (m) {
+        var gridOffset = Math.floor((m.contentW - m.gridW) / 2);
+        for (var r = 0; r < grid.length; r++) {
+          for (var c = 0; c < cols; c++) {
+            add("cell-" + r + "-" + c, m.originX + gridOffset + m.pad + c * (m.side + m.gap), m.top + m.pad + r * (m.side + m.gap), m.side, m.side);
+          }
+        }
+        var bankX = m.originX + Math.floor((m.contentW - m.bank.usedW) / 2);
+        var bankY = m.top + m.gridH + 8;
+        for (var wi = 0; wi < words.length; wi++) {
+          add("bank-" + words[wi], bankX + (wi % m.bank.per) * (m.bank.chipW + m.bank.gap), bankY + Math.floor(wi / m.bank.per) * (m.bank.chipH + m.bank.gap), m.bank.chipW, m.bank.chipH);
+        }
+      }
+    } else if (screen === "rest") {
+      var rest = restLayout(w, h, puzzlesDone === 1);
+      sceneFit = rest.fit;
+      if (rest.another) add(rest.another.id, rest.another.x, rest.another.y, rest.another.w, rest.another.h);
+    }
+    var fit = sceneFit;
+    for (var t = 0; t < targets.length; t++) if (!contained(targets[t])) fit = false;
+    return { fit: fit, targets: targets };
+  }
+  function state() {
+    var on = screen === "puzzle" && grid.length > 0;
+    return {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      group: groupId,
+      rows: on ? grid.length : 0,
+      cols: on ? grid[0].length : 0,
+      grid: on ? grid.slice() : [],
+      anchor: anchorId,
+      found: found.slice(),
+      words: words.slice(),
+      directions: directions.slice(),
+      placements: placements.map(function (p) { return { word: p.word, row: p.row, col: p.col, dir: p.dir }; }),
+      revealed: revealed,
+      picture: !!(screen === "puzzle" && picture && revealed && (level === "tiny" || level === "little")),
+      said: said,
+      harder: harder,
+      fallbackUsed: fallbackUsed,
+      puzzlesDone: puzzlesDone,
+      cap: 2,
+      col0: 0,
+      pulse: pulse,
+      shared: on && cellsShare(placements, grid[0].length)
+    };
+  }
+  function seed(n) {
+    if (typeof n !== "number" || !isFinite(n)) return;
+    pin = n >>> 0;
+  }
+  function look(nx, ny) {
+    var x = nx * window.innerWidth, y = ny * window.innerHeight;
+    gazeHold = { x: x, y: y };
+    refreshHold = true;
+    smoothed = { x: x, y: y };
+    haveSmooth = true;
+    gazePoint = { x: x, y: y };
+    gazeAt = clock;
+    syncEyes();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    dropDwell();
+    gazeEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    syncEyes();
+  }
+  function hold() {
+    if (pointerDown) return;
+    pointerDown = true;
+    ensureAudio();
+    dropDwell();
+    dwellProgress = 0;
+  }
+  function release() { pointerDown = false; activePointer = null; }
+  function tap(nx, ny) {
+    ensureAudio();
+    var btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (!btn) return;
+    runWriter(btn.id);
+  }
+  function eyes() {
+    var on = !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+    var live = !!(on && gazePoint && (clock - gazeAt) < GAZE_FRESH_MS);
+    return { on: on, live: live };
+  }
+  function centers() {
+    var out = [], buttons = document.querySelectorAll("button");
+    for (var i = 0; i < buttons.length; i++) {
+      var btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      var r = btn.getBoundingClientRect();
+      out.push({
+        id: btn.id,
+        nx: (r.left + r.width / 2) / window.innerWidth,
+        ny: (r.top + r.height / 2) / window.innerHeight,
+        x: r.left, y: r.top, w: r.width, h: r.height
+      });
+    }
+    return out;
+  }
+  function dwell() {
+    if (dwellProgress < 0) return 0;
+    if (dwellProgress > 1) return 1;
+    return dwellProgress;
+  }
+  function fireButton(id) {
+    ensureAudio();
+    idleSince = clock;
+    runWriter(id);
+  }
+  function stepGaze(now) {
+    syncEyes();
+    var held = !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+    var fresh = !!(gazePoint && held && (now - gazeAt) < GAZE_FRESH_MS);
+    if (!fresh) {
+      dropDwell();
+      gazeEl.hidden = true;
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      dropDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    var btn = buttonAt(gazePoint.x, gazePoint.y);
+    var id = btn && btn.id ? btn.id : null;
+    if (dwellId && id !== dwellId) {
+      if (dwellOn) {
+        dwellAccrued = dwellAccrued + (dwellLastOn - dwellSegStart);
+        dwellOn = false;
+        dwellLeftAt = dwellLastOn;
+      }
+      if (now - dwellLeftAt >= LEAVE_MS) dropDwell();
+    } else if (dwellId && id === dwellId) {
+      if (!dwellOn) {
+        if (now - dwellLeftAt >= LEAVE_MS) dropDwell();
+        else { dwellOn = true; dwellSegStart = now; }
+      }
+    } else if (!dwellId && id) {
+      dwellId = id;
+      dwellAccrued = 0;
+      dwellSegStart = now;
+      dwellOn = true;
+      dwellLastOn = now;
+      dwellFired = false;
+      dwellMs = btn.getAttribute("data-play") === "true" ? PLAY_DWELL_MS : MENU_DWELL_MS;
+    }
+    if (dwellId && dwellOn) dwellLastOn = now;
+    var elapsed = 0;
+    if (dwellId) {
+      elapsed = dwellOn ? dwellAccrued + (now - dwellSegStart) : dwellAccrued;
+      if (dwellOn && !dwellFired && elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        gazeEl.style.setProperty("--p", "100%");
+        fireButton(dwellId);
+        return;
+      }
+    }
+    dwellProgress = dwellId && dwellMs ? Math.max(0, Math.min(1, elapsed / dwellMs)) : 0;
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function updatePulse(now) {
+    if (screen === "puzzle" && placed && !pulsed && words.length && now - idleSince >= 20000) {
+      var word = null;
+      for (var i = 0; i < words.length; i++) if (found.indexOf(words[i]) === -1) { word = words[i]; break; }
+      if (word) {
+        for (var p = 0; p < placements.length; p++) {
+          if (placements[p].word === word) { pulse = placements[p].row + "-" + placements[p].col; break; }
+        }
+        pulseAt = now;
+        pulsed = true;
+      }
+    }
+    if (pulse && now - pulseAt >= 650) pulse = null;
+  }
+  function step(now) {
+    clock = now;
+    if (gazeHold) {
+      gazePoint = { x: gazeHold.x, y: gazeHold.y };
+      smoothed = gazePoint;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    updatePulse(now);
+    render();
+  }
+
+  function concatBytes(a, b) {
+    var out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed.x += (raw.x - smoothed.x) * 0.45;
+      smoothed.y += (raw.y - smoothed.y) * 0.45;
+    }
+    gazePoint = smoothed;
+    gazeAt = clock || performance.now();
+  }
+  function warpPoint(x, y) {
+    var h = gazeWarp;
+    if (!h) return { x: x, y: y };
+    var w = h[6] * x + h[7] * y + h[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return { x: (h[0] * x + h[1] * y + h[2]) / w, y: (h[3] * x + h[4] * y + h[5]) / w };
+  }
+  function applyGaze(view) {
+    var mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      var left = (mask & 4) ? view.getUint32(8, true) : 4;
+      var right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    var x = view.getFloat64(40, true);
+    var y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    var point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    var next = new Float64Array(9);
+    for (var i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (var j = 0; j < 9; j++) if (!Number.isFinite(next[j])) return;
+    gazeWarp = next;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    var buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    var view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    var pos = 0;
+    while (pos + 5 <= buf.length) {
+      var len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      var payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () { gazeTimer = 0; connectGaze(); }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (window.location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    var sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (e) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target && (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA")) return;
+    if (e.key === "Escape") {
+      if (!backEl.hidden) { backEl.click(); e.preventDefault(); }
+      return;
+    }
+    var arrows = { ArrowLeft: 1, ArrowRight: 1, ArrowUp: 1, ArrowDown: 1 };
+    if (!arrows[e.key] || (screen !== "puzzle" && screen !== "group")) return;
+    var cells = screen === "puzzle" ? playEl.querySelectorAll(".cell") : playEl.querySelectorAll("button");
+    var list = Array.prototype.slice.call(cells);
+    if (!list.length) return;
+    e.preventDefault();
+    var cols = list.length;
+    if (screen === "puzzle" || screen === "group") {
+      var gridEl = playEl.querySelector(screen === "puzzle" ? ".grid" : ".chips");
+      var parts = gridEl && gridEl.style.gridTemplateColumns ? gridEl.style.gridTemplateColumns.split(" ").filter(Boolean) : [];
+      if (parts.length) cols = parts.length;
+    }
+    var i = list.indexOf(document.activeElement);
+    if (i < 0) { list[0].focus(); return; }
+    if (e.key === "ArrowRight" && (i % cols) < cols - 1) i += 1;
+    else if (e.key === "ArrowLeft" && (i % cols) > 0) i -= 1;
+    else if (e.key === "ArrowDown" && i + cols < list.length) i += cols;
+    else if (e.key === "ArrowUp" && i - cols >= 0) i -= cols;
+    list[i].focus();
+  });
+  document.addEventListener("pointerdown", function (e) {
+    if (pointerDown) return;
+    pointerDown = true;
+    activePointer = e.pointerId;
+    ensureAudio();
+    dropDwell();
+    dwellProgress = 0;
+  }, true);
+  document.addEventListener("pointerup", function (e) {
+    if (activePointer !== null && e.pointerId !== activePointer) return;
+    activePointer = null;
+    pointerDown = false;
+  }, true);
+  document.addEventListener("pointercancel", function (e) {
+    if (activePointer !== null && e.pointerId !== activePointer) return;
+    activePointer = null;
+    pointerDown = false;
+  }, true);
+  wire(muteEl);
+  wire(fullEl);
+  wire(backEl);
+  wire(document.getElementById("tiny"));
+  wire(document.getElementById("little"));
+  wire(document.getElementById("shop"));
+  wire(document.getElementById("rush"));
+  wire(document.getElementById("go"));
+
+  function lengthsOk(band, list) {
+    for (var i = 0; i < list.length; i++) {
+      var n = list[i].length;
+      if (band === "tiny" && n !== 3) return false;
+      if (band === "little" && (n < 3 || n > 4)) return false;
+      if (band === "shop" && (n < 4 || n > 5)) return false;
+      if (band === "rush" && (n < 4 || n > 7)) return false;
+    }
+    return true;
+  }
+  function lettersOk(rows) {
+    for (var i = 0; i < rows.length; i++) if (!/^[A-Z]+$/.test(rows[i])) return false;
+    return true;
+  }
+  function denyOk(rows) {
+    for (var i = 0; i < DENY.length; i++) if (wordSpans(rows, DENY[i]) !== 0) return false;
+    return true;
+  }
+  function engineSelfCheck() {
+    var failures = [];
+    function fail(s) { failures.push(s); }
+    var rng = makeRng(1);
+    var uints = [rngUint(rng), rngUint(rng), rngUint(rng), rngUint(rng)];
+    var expectU = [0xA087EAF3, 0x00B349C9, 0x8706C4EB, 0xFB2627FD];
+    for (var i = 0; i < 4; i++) if (uints[i] !== expectU[i]) fail("The rng uint " + i + " did not match the locked vector.");
+    if (playSeed(1, 1) !== 0x3B230FE8) fail("playSeed of 1 and 1 did not match the locked value.");
+    var rng2 = makeRng(1);
+    for (var n = 0; n < 8; n++) {
+      var v = rngInt(rng2, 0, 3);
+      if (v < 0 || v > 3) fail("rngInt left the range from 0 to 3.");
+    }
+    if (wordHygiene(["CAT", "CATCH"]).reason !== "substring") fail("CAT inside CATCH was not a substring.");
+    if (wordHygiene(["RAT", "TAR"]).reason !== "substring") fail("RAT with TAR was not a substring.");
+    if (wordHygiene(["CAT", "CAT"]).reason !== "duplicate") fail("A repeated CAT was not a duplicate.");
+    if (wordHygiene(["CA T"]).reason !== "alphabet") fail("A spaced word was not an alphabet failure.");
+    if (wordHygiene(["cat"]).reason !== "alphabet") fail("A lowercase word was not an alphabet failure.");
+    if (wordHygiene([]).reason !== "empty") fail("An empty list was not empty.");
+    if (!wordHygiene(["MOM", "CAT"]).ok) fail("MOM with CAT was rejected.");
+    if (!wordHygiene(["CAT", "ATE"]).ok) fail("CAT with ATE was rejected.");
+    if (wordSpans(["MOM"], "MOM") !== 1) fail("MOM did not have one span.");
+    if (wordSpans(["CAT", "CAT"], "CAT") !== 2) fail("CAT on two rows did not have two spans.");
+    if (wordSpans(["CATE"], "CAT") !== 1 || wordSpans(["CATE"], "ATE") !== 1) fail("CATE did not give CAT and ATE one span each.");
+    var catCells = wordSpanList(["CATE"].split ? [["C", "A", "T", "E"]] : [["C", "A", "T", "E"]], "CAT");
+    var gCate = [["C", "A", "T", "E"]];
+    var catS = wordSpanList(gCate, "CAT")[0], ateS = wordSpanList(gCate, "ATE")[0];
+    var share = false;
+    for (var cs = 0; cs < catS.length; cs++) for (var as = 0; as < ateS.length; as++) if (catS[cs].c === ateS[as].c) share = true;
+    if (!share) fail("CAT and ATE on CATE did not share a cell.");
+    for (var f = 0; f < FIXTURES.length; f++) {
+      var fx = FIXTURES[f];
+      var res = wordSearchGenerate(fx, 1, false);
+      if (!res.ok) { fail("Fixture " + fx.id + " did not generate."); continue; }
+      if (res.fallbackUsed) fail("Fixture " + fx.id + " used the fallback at seed 1.");
+      if (res.grid.join("|") !== fx.fallback.join("|")) fail("Fixture " + fx.id + " did not match its seed 1 rows.");
+      if (!lengthsOk(fx.band, fx.words)) fail("Fixture " + fx.id + " had a word length outside its band.");
+      if (!lettersOk(res.grid) || !denyOk(res.grid)) fail("Fixture " + fx.id + " had a bad letter or a denylist span.");
+      var playNames = {};
+      for (var d = 0; d < res.directions.length; d++) playNames[res.directions[d]] = true;
+      for (var p = 0; p < res.placements.length; p++) {
+        if (!playNames[res.placements[p].dir]) fail("Fixture " + fx.id + " used a direction outside the play set.");
+        if (wordSpans(res.grid, res.placements[p].word) !== 1) fail("Fixture " + fx.id + " did not keep one span.");
+        if (fx.band === "shop" && DIAGONAL[res.placements[p].dir]) fail("The shop fixture used a diagonal.");
+        if (fx.band === "rush" && BACKWARD[res.placements[p].dir]) fail("The rush fixture used a backward direction.");
+      }
+      if (!cellsShare(res.placements, res.grid[0].length)) fail("Fixture " + fx.id + " did not share a cell.");
+      var fb = acceptFallback(fx, false);
+      if (!fb.ok || !denyOk(fb.grid) || !cellsShare(fb.placements, fb.grid[0].length)) fail("Fixture " + fx.id + " fallback did not pass.");
+      for (var w = 0; w < fx.words.length; w++) if (wordSpans(fx.fallback, fx.words[w]) !== 1) fail("Fixture " + fx.id + " fallback span was not one.");
+    }
+    if (wordSpans(["EARME", "STRMX", "EYEDH"], "EYE") !== 1) fail("EYE did not have one span on the body fallback.");
+    var rushFx = null;
+    for (var rf = 0; rf < FIXTURES.length; rf++) if (FIXTURES[rf].id === "rush-animals") rushFx = FIXTURES[rf];
+    var hard = wordSearchGenerate(rushFx, 1, true);
+    var hardRows = ["KCUDHD", "CGYEGG", "WRBEOL", "BEARAI", "PNFBTO", "EWOLFN"];
+    if (!hard.ok || hard.fallbackUsed || hard.grid.join("|") !== hardRows.join("|")) fail("The harder rush animals grid did not match.");
+    var hardExpect = [
+      ["DUCK", "left", 0, 3], ["DEER", "down", 0, 3], ["CRAB", "downRight", 1, 0], ["GOAT", "down", 1, 4],
+      ["LION", "down", 2, 5], ["BEAR", "right", 3, 0], ["FROG", "upRight", 4, 2], ["WOLF", "right", 5, 1]
+    ];
+    if (!hard.ok) return { ok: false, failures: failures };
+    if (hard.directions.join(",") !== "right,down,downRight,downLeft,left,up,upLeft,upRight") fail("The harder play set was not the eight names.");
+    if (hard.placements.length !== hardExpect.length) fail("The harder placement count was wrong.");
+    for (var he = 0; he < hardExpect.length; he++) {
+      var got = false;
+      for (var hp = 0; hp < hard.placements.length; hp++) {
+        var hp0 = hard.placements[hp];
+        if (hp0.word === hardExpect[he][0] && hp0.dir === hardExpect[he][1] && hp0.row === hardExpect[he][2] && hp0.col === hardExpect[he][3]) got = true;
+      }
+      if (!got) fail("A harder placement was missing.");
+    }
+    var backUsed = false;
+    for (var hb = 0; hb < hard.placements.length; hb++) if (BACKWARD[hard.placements[hb].dir]) backUsed = true;
+    if (!backUsed) fail("The harder grid did not use a backward direction.");
+    if (!cellsShare(hard.placements, 6) || !denyOk(hard.grid)) fail("The harder grid missed a share or kept a denylist word.");
+    for (var hw = 0; hw < rushFx.words.length; hw++) if (wordSpans(hard.grid, rushFx.words[hw]) !== 1) fail("A harder word did not have one span.");
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  function selfCheck() {
+    var failures = [];
+    function fail(s) { failures.push(s); }
+    function runCase(name, fn) {
+      try { fn(); }
+      catch (e) { failures.push(name + " threw " + (e && e.message ? e.message : "an error") + "."); }
+    }
+    var utterances = [];
+    if (window.speechSynthesis && window.speechSynthesis.speak) {
+      var origSpeak = window.speechSynthesis.speak.bind(window.speechSynthesis);
+      window.speechSynthesis.speak = function (u) {
+        utterances.push(String(u && u.text || ""));
+        try { return origSpeak(u); } catch (err) { return undefined; }
+      };
+    }
+    var storageCalls = 0;
+    var popBefore = null;
+    var storageReadable = false;
+    try {
+      popBefore = window.localStorage.getItem("pop-pals-v1");
+      storageReadable = true;
+      var proto = window.Storage.prototype;
+      var origSet = proto.setItem;
+      var origRemove = proto.removeItem;
+      proto.setItem = function () { storageCalls += 1; return origSet.apply(this, arguments); };
+      proto.removeItem = function () { storageCalls += 1; return origRemove.apply(this, arguments); };
+    } catch (errStore) { storageReadable = false; }
+
+    var tick = 10000;
+    function pointOf(id) {
+      render();
+      var el = document.getElementById(id);
+      if (!el) return null;
+      var r = el.getBoundingClientRect();
+      return { nx: (r.left + r.width / 2) / window.innerWidth, ny: (r.top + r.height / 2) / window.innerHeight };
+    }
+    function tapId(id) {
+      var p = pointOf(id);
+      if (!p) return false;
+      tap(p.nx, p.ny);
+      return true;
+    }
+    function arm(id) {
+      release();
+      releaseLook();
+      var p = pointOf(id);
+      if (!p) throw new Error("missing " + id);
+      look(p.nx, p.ny);
+      tick += 40;
+      step(tick);
+      return tick;
+    }
+    function deadPoint() {
+      return { nx: 18 / window.innerWidth, ny: (window.innerHeight - 18) / window.innerHeight };
+    }
+    function near(a, b) { return Math.abs(a - b) <= 0.03; }
+
+    runCase("family-guards", function () {
+      if (!checking) fail("family-guards found checking off.");
+      if (!suppressReconnect) fail("family-guards found reconnect armed.");
+      if (gazeSock) fail("family-guards found a socket.");
+    });
+    runCase("family-play-dwell", function () {
+      seed(1); start("tiny"); group("body"); releaseLook();
+      var t0 = arm("cell-0-0");
+      if (dwell() !== 0) fail("family-play-dwell filled the ring on the first step.");
+      step(t0 + 200);
+      if (!near(dwell(), 200 / 650)) fail("family-play-dwell did not fill the ring across the whole dwell at 200 ms.");
+      step(t0 + 640);
+      if (state().anchor !== null) fail("family-play-dwell set the anchor at 640 ms.");
+      if (!near(dwell(), 640 / 650)) fail("family-play-dwell did not fill the ring as elapsed over 650 at 640 ms.");
+      tick = t0 + 640;
+      var t1 = arm("cell-0-0");
+      step(t1 + 660);
+      if (state().anchor !== "0-0") fail("family-play-dwell did not set the anchor at 660 ms.");
+      tick = t1 + 660;
+      seed(1); group("body");
+      if (!tapId("cell-0-0") || state().anchor !== "0-0") fail("family-play-dwell tap did not set the anchor.");
+      var kept = document.getElementById("cell-0-0");
+      step(tick + 40);
+      tick += 40;
+      if (!kept || !kept.isConnected || document.getElementById("cell-0-0") !== kept) {
+        fail("click-survives-frame replaced the letter button.");
+      } else {
+        kept.click();
+        if (state().anchor !== null) fail("click-survives-frame did not take the click.");
+      }
+    });
+    runCase("family-menu-dwell", function () {
+      go("menu");
+      var t0 = arm("go");
+      step(t0 + 600);
+      if (state().screen !== "menu") fail("family-menu-dwell left the menu at 600 ms.");
+      if (!(dwell() > 0.42 && dwell() < 0.5)) fail("family-menu-dwell did not fill the menu ring across the whole dwell.");
+      tick = t0 + 600;
+      releaseLook();
+      var t1 = arm("go");
+      step(t1 + 1300);
+      tick = t1 + 1300;
+      if (state().screen !== "group" || state().level !== "tiny") fail("family-menu-dwell did not open Tiny Tots at 1300 ms.");
+    });
+    runCase("family-pointer-blocks", function () {
+      seed(1); start("tiny"); group("body");
+      releaseLook();
+      var p = pointOf("cell-0-0");
+      hold(p.nx, p.ny);
+      look(p.nx, p.ny);
+      tick += 40;
+      var t0 = tick;
+      step(t0);
+      step(t0 + 660);
+      tick = t0 + 660;
+      if (state().anchor !== null || dwell() !== 0) fail("family-pointer-blocks let a look commit while the pointer was down.");
+      release();
+      releaseLook();
+      var t1 = arm("cell-0-0");
+      step(t1 + 660);
+      tick = t1 + 660;
+      if (state().anchor !== "0-0") fail("family-pointer-blocks did not set the anchor after release.");
+    });
+    runCase("family-stale", function () {
+      seed(1); group("body");
+      releaseLook();
+      var p = pointOf("cell-0-0");
+      look(p.nx, p.ny);
+      tick += 40;
+      var t0 = tick;
+      step(t0);
+      refreshHold = false;
+      step(t0 + 499);
+      if (!(dwell() > 0) || state().anchor !== null) fail("family-stale dropped a fresh look before 500 ms.");
+      step(t0 + 500);
+      tick = t0 + 500;
+      if (dwell() !== 0 || state().anchor !== null) fail("family-stale kept a dwell at 500 ms.");
+      refreshHold = true;
+      releaseLook();
+    });
+    function sceneFits(box, w, h, label) {
+      if (!box.fit) fail(label + " did not fit " + w + " by " + h + ".");
+      for (var i = 0; i < box.targets.length; i++) {
+        var t = box.targets[i];
+        if (t.id === "prev" || t.id === "next") fail(label + " still paged the grid.");
+        if (t.w < 8 || t.h < 8) fail(label + " collapsed " + t.id + ".");
+        if (t.x < -0.5 || t.y < -0.5 || t.x + t.w > w + 0.5 || t.y + t.h > h + 0.5) fail(label + " placed " + t.id + " outside the screen.");
+      }
+    }
+    runCase("family-target-size", function () {
+      go("menu");
+      releaseLook();
+      var sizes = [[390, 844], [1024, 768], [300, 600], [1280, 800], [2000, 1125], [780, 493]];
+      for (var i = 0; i < sizes.length; i++) {
+        sceneFits(targetsAt(sizes[i][0], sizes[i][1]), sizes[i][0], sizes[i][1], "family-target-size menu");
+      }
+    });
+    runCase("family-eyes", function () {
+      releaseLook();
+      var keys = Object.keys(eyes());
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes returned extra keys.");
+      look(0.5, 0.2);
+      if (!eyes().live || gazeSock) fail("family-eyes did not show a live test look with the socket closed.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes hid the Eyes chip.");
+    });
+    runCase("family-mute", function () {
+      var visible = (muteEl.innerText || "").replace(/\s+/g, "");
+      if (visible !== "") fail("family-mute showed text on the mute button.");
+      if (visible.indexOf("Mute") !== -1 || visible.indexOf("Sound") !== -1) fail("family-mute showed Mute or Sound.");
+      var svgs = muteEl.querySelectorAll("svg");
+      if (svgs.length !== 2) fail("family-mute did not keep two speaker drawings.");
+      var hiddenCount = 0;
+      for (var i = 0; i < svgs.length; i++) if (svgs[i].hidden) hiddenCount++;
+      if (hiddenCount !== 1) fail("family-mute did not hide one speaker drawing.");
+      var was = state().muted;
+      if (!tapId("mute") || state().muted !== !was) fail("family-mute did not toggle muted.");
+      tapId("mute");
+      if (state().muted !== was) fail("family-mute did not toggle muted back.");
+    });
+    runCase("family-query-inert", function () {
+      if (state().screen !== "menu") go("menu");
+      var host = ["ev", "il"].join("") + "." + "example";
+      var tag = "<" + "b" + ">";
+      var junk = "htt" + "p://" + host + "/" + tag;
+      function appears(s) {
+        if (!s) return false;
+        var walker = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT);
+        var node;
+        while ((node = walker.nextNode())) if (node.nodeValue.indexOf(s) !== -1) return true;
+        var all = document.getElementsByTagName("*");
+        for (var i = 0; i < all.length; i++) {
+          var attrs = all[i].attributes;
+          for (var j = 0; j < attrs.length; j++) if (attrs[j].value.indexOf(s) !== -1) return true;
+        }
+        return false;
+      }
+      var zz = new URLSearchParams(window.location.search).get("zz");
+      if ((zz && appears(zz)) || appears(host) || appears(tag) || appears(junk)) fail("family-query-inert wrote the junk flag into the page.");
+      if (state().screen !== "menu" || gazeSock) fail("family-query-inert left the menu or opened a socket.");
+    });
+    runCase("family-plain-state", function () {
+      var json = "";
+      try { json = JSON.stringify(state()); }
+      catch (e) { fail("family-plain-state could not encode state."); return; }
+      var st = state();
+      if (!("level" in st) || !("screen" in st) || !("banner" in st) || !("muted" in st)) fail("family-plain-state missed a required field.");
+      if (json.indexOf("ws://") !== -1 || json.indexOf("127.0.0.1") !== -1) fail("family-plain-state exposed the socket.");
+      if (window.location.search && json.indexOf(window.location.search) !== -1) fail("family-plain-state exposed the query.");
+      if (/"nx"|"ny"|"gaze"/.test(json)) fail("family-plain-state exposed a gaze coordinate.");
+    });
+
+    var eng = engineSelfCheck();
+    for (var ei = 0; ei < eng.failures.length; ei++) failures.push(eng.failures[ei]);
+
+    function placeBand(band, id) {
+      start(band);
+      seed(1);
+      group(id);
+    }
+    runCase("hygiene-shipped", function () {
+      var bands = ["tiny", "little", "shop", "rush"];
+      for (var b = 0; b < bands.length; b++) {
+        var list = PLAY[bands[b]];
+        for (var i = 0; i < list.length; i++) {
+          if (!wordHygiene(list[i].words).ok) fail("hygiene-shipped rejected a play list.");
+          for (var d = 0; d < DENY.length; d++) if (list[i].words.indexOf(DENY[d]) !== -1) fail("hygiene-shipped found a denylist word in a play list.");
+        }
+      }
+      for (var f = 0; f < FIXTURES.length; f++) {
+        if (!wordHygiene(FIXTURES[f].words).ok) fail("hygiene-shipped rejected a fixture.");
+        for (var d2 = 0; d2 < DENY.length; d2++) if (FIXTURES[f].words.indexOf(DENY[d2]) !== -1) fail("hygiene-shipped found a denylist word in a fixture.");
+      }
+    });
+    runCase("seed1-groups", function () {
+      var bands = ["tiny", "little", "shop", "rush"];
+      var littleFree = { snack: 1, toys: 1, animals: 1, clothes: 1, home: 1, outside: 1 };
+      for (var b = 0; b < bands.length; b++) {
+        var list = PLAY[bands[b]];
+        for (var i = 0; i < list.length; i++) {
+          var g = list[i];
+          placeBand(bands[b], g.id);
+          var st = state();
+          if (st.fallbackUsed) fail("seed1-groups used a fallback for " + bands[b] + " " + g.id + ".");
+          if (st.grid.join("|") !== g.fallback.join("|")) fail("seed1-groups mismatched rows for " + bands[b] + " " + g.id + ".");
+          if (!denyOk(st.grid)) fail("seed1-groups kept a denylist span.");
+          for (var w = 0; w < g.words.length; w++) if (wordSpans(st.grid, g.words[w]) !== 1) fail("seed1-groups did not keep one span.");
+          for (var p = 0; p < st.placements.length; p++) if (st.directions.indexOf(st.placements[p].dir) === -1) fail("seed1-groups used a direction outside the play set.");
+          var wantShare = !(bands[b] === "little" && littleFree[g.id]);
+          if (st.shared !== wantShare) fail("seed1-groups reported the wrong share for " + bands[b] + " " + g.id + ".");
+          if ((g.id === "body" || g.id === "farm") && bands[b] === "tiny" && (st.rows !== 3 || st.cols !== 5)) fail("seed1-groups did not keep Tiny Tots at 3 by 5.");
+          if (bands[b] === "little" && (st.rows !== 5 || st.cols !== 4)) fail("seed1-groups did not keep Little Pals at 5 by 4.");
+          if (bands[b] === "shop" && (st.rows !== 6 || st.cols !== 6)) fail("seed1-groups did not keep Shopkeeper at 6 by 6.");
+          if (bands[b] === "rush" && (g.id === "clothing" || g.id === "wild-animals") && (st.rows !== 7 || st.cols !== 6)) fail("seed1-groups did not grow the long rush list.");
+          if (bands[b] === "rush" && g.id !== "clothing" && g.id !== "wild-animals" && (st.rows !== 6 || st.cols !== 6)) fail("seed1-groups grew a rush list that stays 6 by 6.");
+        }
+      }
+    });
+    runCase("one-span", function () {
+      placeBand("tiny", "body");
+      if (wordSpans(state().grid, "EYE") !== 1) fail("one-span gave EYE more than one span.");
+      var farm = null;
+      for (var i = 0; i < FIXTURES.length; i++) if (FIXTURES[i].id === "little-farm") farm = FIXTURES[i];
+      for (var w = 0; w < farm.words.length; w++) if (wordSpans(farm.fallback, farm.words[w]) !== 1) fail("one-span failed a little-farm word.");
+    });
+    runCase("chain-tiny", function () {
+      placeBand("tiny", "body");
+      var st = state();
+      var ear = null, arm = null;
+      for (var i = 0; i < st.placements.length; i++) {
+        if (st.placements[i].word === "EAR") ear = st.placements[i];
+        if (st.placements[i].word === "ARM") arm = st.placements[i];
+        if (st.placements[i].dir !== "right") fail("chain-tiny used a direction other than right.");
+      }
+      var set = Object.create(null);
+      for (var e = 0; e < 3; e++) set[(ear.row) + "-" + (ear.col + e)] = true;
+      var shared = false;
+      for (var a = 0; a < 3; a++) if (set[arm.row + "-" + (arm.col + a)]) shared = true;
+      if (!shared) fail("chain-tiny did not share a cell between EAR and ARM.");
+    });
+    runCase("anchor-clear", function () {
+      placeBand("tiny", "body");
+      releaseLook();
+      var t0 = arm("cell-0-0");
+      step(t0 + 640);
+      if (state().anchor !== null) fail("anchor-clear set the anchor at 640 ms.");
+      tick = t0 + 640;
+      var t1 = arm("cell-0-0");
+      step(t1 + 660);
+      tick = t1 + 660;
+      if (state().anchor !== "0-0") fail("anchor-clear missed the anchor at 660 ms.");
+      var t2 = arm("cell-0-0");
+      step(t2 + 660);
+      tick = t2 + 660;
+      if (state().anchor !== null) fail("anchor-clear did not clear the anchor.");
+      if (state().found.length !== 0) fail("anchor-clear changed found.");
+    });
+    runCase("commit-either-order", function () {
+      placeBand("tiny", "body");
+      tapId("cell-0-0"); tapId("cell-0-2");
+      if (state().found.join(",") !== "EAR") fail("commit-either-order did not lock EAR from the first cell.");
+      var bandSvg = playEl.querySelector(".bands");
+      var bandLine = bandSvg && bandSvg.querySelector("line");
+      if (!bandSvg || !bandLine || bandSvg.querySelectorAll("line").length !== 1) fail("commit-either-order did not draw one band.");
+      if (window.getComputedStyle(bandSvg).pointerEvents !== "none") fail("commit-either-order let the band take a click.");
+      var midCell = document.getElementById("cell-0-1");
+      var midRect = midCell.getBoundingClientRect();
+      var hit = document.elementFromPoint(midRect.left + midRect.width / 2, midRect.top + midRect.height / 2);
+      if (!hit || !hit.closest || hit.closest("button") !== midCell) fail("commit-either-order band covered the letter.");
+      if (window.getComputedStyle(midCell).borderTopWidth !== "0px") fail("commit-either-order kept a letter border.");
+      var y1 = Number(bandLine.getAttribute("y1"));
+      var y2 = Number(bandLine.getAttribute("y2"));
+      var x1 = Number(bandLine.getAttribute("x1"));
+      var x2 = Number(bandLine.getAttribute("x2"));
+      if (Math.abs(y1 - y2) > 1 || x2 <= x1) fail("commit-either-order did not run the band through EAR.");
+      placeBand("tiny", "body");
+      tapId("cell-0-2"); tapId("cell-0-0");
+      if (state().found.join(",") !== "EAR") fail("commit-either-order did not lock EAR from the last cell.");
+      tapId("cell-0-0"); tapId("cell-0-2");
+      if (state().found.join(",") !== "EAR") fail("commit-either-order appended EAR again.");
+    });
+    runCase("not-a-word", function () {
+      placeBand("tiny", "body");
+      var saidBefore = state().said;
+      var foundBefore = state().found.slice();
+      tapId("cell-0-0"); tapId("cell-1-0");
+      var st = state();
+      if (st.found.join(",") !== foundBefore.join(",") || st.anchor !== "1-0") fail("not-a-word changed found or the anchor.");
+      if ("miss" in st || "wrongs" in st || "score" in st) fail("not-a-word stored a miss.");
+      var banner = st.banner.toLowerCase();
+      if (banner.indexOf("fail") !== -1 || banner.indexOf("wrong") !== -1 || banner.indexOf("lose") !== -1 || banner.indexOf("miss") !== -1) fail("not-a-word scolded in the banner.");
+      if (st.said !== saidBefore) fail("not-a-word changed said.");
+    });
+    runCase("preview-no-commit", function () {
+      placeBand("tiny", "body");
+      tapId("cell-0-0");
+      releaseLook();
+      var p = pointOf("cell-0-1");
+      look(p.nx, p.ny);
+      tick += 40;
+      var t0 = tick;
+      step(t0);
+      var cell = document.getElementById("cell-0-1");
+      if (!cell || !cell.classList.contains("preview")) fail("preview-no-commit waited to light the next letter.");
+      if (state().found.length !== 0 || dwell() !== 0) fail("preview-no-commit committed on arrival.");
+      step(t0 + 200);
+      tick = t0 + 200;
+      if (state().found.length !== 0) fail("preview-no-commit added a found word.");
+      if (!(dwell() > 0.2 && dwell() < 0.45)) fail("preview-no-commit hid the first part of the dwell.");
+      releaseLook();
+    });
+    runCase("leave-grace", function () {
+      placeBand("tiny", "body");
+      releaseLook();
+      var p = pointOf("cell-0-0");
+      look(p.nx, p.ny);
+      tick += 50;
+      var t = tick;
+      step(t);
+      step(t + 400);
+      if (!near(dwell(), 400 / 650)) fail("leave-grace did not count the first 400 ms.");
+      var away = deadPoint();
+      look(away.nx, away.ny);
+      step(t + 600);
+      if (!near(dwell(), 400 / 650) || dwell() === 0) fail("leave-grace dropped a 200 ms slip.");
+      look(p.nx, p.ny);
+      step(t + 601);
+      step(t + 851);
+      tick = t + 851;
+      if (state().anchor !== "0-0") fail("leave-grace did not commit after the short slip.");
+      releaseLook();
+      var p2 = pointOf("cell-2-4");
+      look(p2.nx, p2.ny);
+      tick += 50;
+      var t2 = tick;
+      step(t2);
+      step(t2 + 400);
+      look(away.nx, away.ny);
+      step(t2 + 680);
+      if (dwell() !== 0) fail("leave-grace kept a dwell after 280 ms away.");
+      if (state().anchor !== "0-0") fail("leave-grace cleared the finished anchor.");
+      look(p2.nx, p2.ny);
+      step(t2 + 681);
+      step(t2 + 931);
+      if (state().anchor !== "0-0") fail("leave-grace committed the dropped dwell.");
+      step(t2 + 1591);
+      tick = t2 + 1591;
+      if (state().anchor !== "2-4") fail("leave-grace did not start a fresh dwell after the drop.");
+      releaseLook();
+    });
+    runCase("bank-speaks", function () {
+      placeBand("tiny", "body");
+      releaseLook();
+      var before = utterances.length;
+      var t0 = arm("bank-EAR");
+      step(t0 + 600);
+      tick = t0 + 600;
+      if (state().revealed !== null || state().said !== null) fail("bank-speaks revealed EAR at 600 ms.");
+      releaseLook();
+      var t1 = arm("bank-EAR");
+      step(t1 + 640);
+      var away = deadPoint();
+      look(away.nx, away.ny);
+      step(t1 + 640 + 280);
+      tick = t1 + 920;
+      if (state().said !== null || utterances.length !== before) fail("bank-speaks spoke on a look that left.");
+      var t2 = arm("bank-EAR");
+      step(t2 + 1300);
+      tick = t2 + 1300;
+      var st = state();
+      if (st.revealed !== "EAR" || st.said !== "EAR" || st.picture !== true) fail("bank-speaks did not show EAR.");
+      if (st.found.length !== 0) fail("bank-speaks marked EAR found.");
+      if (window.speechSynthesis) {
+        var heard = utterances.slice(before);
+        if (heard.length !== 1 || heard[0] !== "EAR") fail("bank-speaks did not speak only EAR.");
+      }
+    });
+    runCase("cell-silent", function () {
+      var saidBefore = state().said;
+      var t0 = arm("cell-0-0");
+      step(t0 + 660);
+      tick = t0 + 660;
+      if (state().said !== saidBefore) fail("cell-silent spoke on a cell.");
+      if (state().revealed !== null) fail("cell-silent kept the reveal after a cell press.");
+      tapId("cell-1-0");
+      if (state().said !== saidBefore) fail("cell-silent spoke on a bad segment.");
+      releaseLook();
+    });
+    runCase("shop-no-diagonal", function () {
+      placeBand("shop", "kitchen");
+      var st = state();
+      if (st.directions.join(",") !== "right,down") fail("shop-no-diagonal changed the play set.");
+      for (var i = 0; i < st.placements.length; i++) {
+        if (st.placements[i].dir !== "right" && st.placements[i].dir !== "down") fail("shop-no-diagonal placed a diagonal.");
+      }
+      tapId("cell-0-0"); tapId("cell-1-1");
+      st = state();
+      if (st.found.length !== 0 || st.anchor !== "1-1") fail("shop-no-diagonal locked the diagonal.");
+    });
+    runCase("harder-off", function () {
+      if (state().harder) fail("harder-off started with Backward on.");
+      start("rush");
+      seed(1);
+      group("orchard");
+      var st = state();
+      if (st.directions.join(",") !== "right,down,downRight,downLeft") fail("harder-off changed the rush directions.");
+      for (var i = 0; i < st.placements.length; i++) if (BACKWARD[st.placements[i].dir]) fail("harder-off placed a backward word.");
+      var p = st.placements[0];
+      var dir = DIR_BY[p.dir];
+      var end = (p.row + dir.dr * (p.word.length - 1)) + "-" + (p.col + dir.dc * (p.word.length - 1));
+      var startId = p.row + "-" + p.col;
+      tapId("cell-" + end); tapId("cell-" + startId);
+      if (state().found.indexOf(p.word) === -1 || state().found.length !== 1) fail("harder-off did not lock a forward word from the far end.");
+    });
+    runCase("harder-on", function () {
+      start("tiny");
+      backward();
+      if (state().harder) fail("harder-on let Backward change Tiny Tots.");
+      start("rush");
+      backward();
+      if (!state().harder) fail("harder-on did not turn Backward on.");
+      var fx = null;
+      for (var i = 0; i < FIXTURES.length; i++) if (FIXTURES[i].id === "rush-animals") fx = FIXTURES[i];
+      var res = wordSearchGenerate(fx, 1, true);
+      var hardRows = ["KCUDHD", "CGYEGG", "WRBEOL", "BEARAI", "PNFBTO", "EWOLFN"];
+      if (!res.ok || res.grid.join("|") !== hardRows.join("|")) fail("harder-on did not match the harder grid.");
+      if (res.directions.join(",") !== "right,down,downRight,downLeft,left,up,upLeft,upRight") fail("harder-on did not list the eight directions.");
+      for (var w = 0; w < fx.words.length; w++) if (wordSpans(res.grid, fx.words[w]) !== 1) fail("harder-on lost a one-span word.");
+      var hv = new URLSearchParams(window.location.search).get("harder");
+      if (hv && document.documentElement.textContent.indexOf(hv) !== -1) fail("harder-on wrote the flag value into the page.");
+    });
+    runCase("fallback-unique", function () {
+      start("tiny"); useFallback("body");
+      var body = findPlay("tiny", "body");
+      if (state().grid.join("|") !== body.fallback.join("|") || !state().shared || !state().fallbackUsed) fail("fallback-unique missed the body rows.");
+      start("little"); useFallback("snack");
+      var snack = findPlay("little", "snack");
+      var st = state();
+      if (st.grid.join("|") !== snack.fallback.join("|") || st.shared || st.rows !== 5 || st.cols !== 4 || !st.fallbackUsed) fail("fallback-unique changed the snack rows.");
+      for (var i = 0; i < snack.words.length; i++) if (wordSpans(st.grid, snack.words[i]) !== 1) fail("fallback-unique gave snack an extra span.");
+      start("shop"); useFallback("kitchen");
+      var kitchen = findPlay("shop", "kitchen");
+      if (state().grid.join("|") !== kitchen.fallback.join("|") || !state().shared || !state().fallbackUsed) fail("fallback-unique missed the kitchen rows.");
+      start("rush"); useFallback("orchard");
+      var orchard = findPlay("rush", "orchard");
+      if (state().grid.join("|") !== orchard.fallback.join("|") || !state().shared || !state().fallbackUsed) fail("fallback-unique missed the orchard rows.");
+    });
+    runCase("no-drag", function () {
+      placeBand("tiny", "farm");
+      var p = pointOf("cell-2-0");
+      hold(p.nx, p.ny);
+      release();
+      if (state().found.length !== 0 || state().anchor !== null) fail("no-drag treated a press as a stroke.");
+      tapId("cell-2-0"); tapId("cell-2-2");
+      if (state().found.join(",") !== "HEN") fail("no-drag did not lock HEN with two taps.");
+    });
+    function columnCount(box, prefix) {
+      var xs = {};
+      var n = 0;
+      var side = 0;
+      for (var i = 0; i < box.targets.length; i++) {
+        if (box.targets[i].id.indexOf(prefix) !== 0) continue;
+        xs[box.targets[i].x] = true;
+        side = box.targets[i].w;
+        n += 1;
+      }
+      return { n: n, cols: Object.keys(xs).length, side: side };
+    }
+    runCase("cell-size", function () {
+      var views = [[390, 844], [1024, 768], [300, 600], [1280, 800], [2000, 1125], [780, 493]];
+      placeBand("shop", "kitchen");
+      for (var i = 0; i < views.length; i++) {
+        var box = targetsAt(views[i][0], views[i][1]);
+        sceneFits(box, views[i][0], views[i][1], "cell-size shop");
+        var shop = columnCount(box, "cell-");
+        if (shop.n !== 36 || shop.cols !== 6) fail("cell-size hid a Shopkeeper column.");
+        if (shop.side > 168) fail("cell-size grew a Shopkeeper cell past 168.");
+      }
+      var wide = columnCount(targetsAt(2000, 1125), "cell-");
+      if (wide.side > 180 || wide.side < 80) fail("cell-size did not scale the wide Shopkeeper grid to the screen.");
+      placeBand("tiny", "body");
+      var tiny = columnCount(targetsAt(390, 844), "cell-");
+      sceneFits(targetsAt(390, 844), 390, 844, "cell-size tiny");
+      if (tiny.n !== 15 || tiny.cols !== 5) fail("cell-size did not show five Tiny Tots columns.");
+      placeBand("little", "snack");
+      var little = columnCount(targetsAt(390, 844), "cell-");
+      sceneFits(targetsAt(390, 844), 390, 844, "cell-size little");
+      if (little.n !== 20 || little.cols !== 4) fail("cell-size did not show four Little Pals columns.");
+      placeBand("rush", "clothing");
+      if (state().rows !== 7 || state().cols !== 6) fail("cell-size did not keep the Clothing rows.");
+      var rush = columnCount(targetsAt(2000, 1090), "cell-");
+      sceneFits(targetsAt(2000, 1090), 2000, 1090, "cell-size clothing");
+      sceneFits(targetsAt(390, 844), 390, 844, "cell-size clothing narrow");
+      if (rush.n !== 42 || rush.cols !== 6) fail("cell-size hid a Clothing column.");
+    });
+    runCase("fit-no-scroll", function () {
+      var views = [[390, 844], [1024, 768], [300, 600], [1280, 800], [2000, 1125], [780, 493]];
+      start("shop");
+      for (var i = 0; i < views.length; i++) sceneFits(targetsAt(views[i][0], views[i][1]), views[i][0], views[i][1], "fit-no-scroll shop groups");
+      var shopGroups = columnCount(targetsAt(2000, 1125), "group-");
+      if (shopGroups.n !== 8 || shopGroups.side > 160) fail("fit-no-scroll grew the Shopkeeper groups.");
+      start("rush");
+      for (var r = 0; r < views.length; r++) sceneFits(targetsAt(views[r][0], views[r][1]), views[r][0], views[r][1], "fit-no-scroll rush groups");
+      if (!targetsAt(390, 844).targets.some(function (t) { return t.id === "backward"; })) fail("fit-no-scroll hid Backward.");
+      function onScreen(label) {
+        render();
+        var buttons = document.querySelectorAll("button");
+        for (var b = 0; b < buttons.length; b++) {
+          var btn = buttons[b];
+          if (!buttonVisible(btn)) continue;
+          var rect = btn.getBoundingClientRect();
+          if (rect.left < -1 || rect.top < -1 || rect.right > window.innerWidth + 1 || rect.bottom > window.innerHeight + 1) {
+            fail(label + " let " + btn.id + " leave the window.");
+          }
+        }
+        if (document.documentElement.scrollHeight > window.innerHeight + 2) fail(label + " grew taller than the window.");
+      }
+      go("menu");
+      onScreen("fit-no-scroll menu");
+      placeBand("shop", "kitchen");
+      onScreen("fit-no-scroll puzzle");
+      if (document.getElementById("prev") || document.getElementById("next")) fail("fit-no-scroll drew a pager.");
+      if (state().col0 !== 0) fail("fit-no-scroll moved the first column.");
+      var liveCells = document.querySelectorAll(".cell");
+      if (liveCells.length !== 36) fail("fit-no-scroll did not draw every Shopkeeper letter.");
+      start("tiny");
+      onScreen("fit-no-scroll tiny groups");
+      seed(1); group("body");
+      if (!tapId("bank-EAR")) fail("fit-no-scroll could not open a picture.");
+      onScreen("fit-no-scroll reveal");
+      forceWidth = 0;
+      forceHeight = 0;
+      go("menu");
+    });
+    runCase("group-reject", function () {
+      forceWidth = 0;
+      var screenBefore = state().screen;
+      group("not-a-group");
+      if (state().screen !== screenBefore || document.getElementById("group-not-a-group")) fail("group-reject inserted an unknown id.");
+      if ((document.body.innerText || "").indexOf("not-a-group") !== -1) fail("group-reject showed the unknown id.");
+      start("tiny");
+      group("kitchen");
+      if (state().screen !== "group" || (state().words || []).indexOf("FORK") !== -1) fail("group-reject opened a shop list on Tiny Tots.");
+      start("shop");
+      group("animals");
+      var want = ["FROG", "DUCK", "BEAR", "WOLF", "LION", "GOAT", "MULE"].join(",");
+      if (state().words.join(",") !== want) fail("group-reject opened the fixture animals list.");
+    });
+    runCase("cap-rest", function () {
+      placeBand("tiny", "body");
+      tapId("cell-0-0"); tapId("cell-0-2");
+      tapId("cell-0-1"); tapId("cell-0-3");
+      tapId("cell-2-0"); tapId("cell-2-2");
+      var st = state();
+      if (st.screen !== "rest" || st.puzzlesDone !== 1 || st.banner !== "All the words.") fail("cap-rest did not rest after the first puzzle.");
+      var ids = centers().map(function (c) { return c.id; });
+      if (ids.indexOf("another") === -1) fail("cap-rest hid Another.");
+      if ((restEl.innerText || "").toLowerCase().indexOf("grade") !== -1) fail("cap-rest showed a grade.");
+      var band = st.level;
+      var t0 = arm("another");
+      step(t0 + 600);
+      if (state().screen !== "rest") fail("cap-rest left rest at 600 ms.");
+      tick = t0 + 600;
+      releaseLook();
+      var t1 = arm("another");
+      step(t1 + 1300);
+      tick = t1 + 1300;
+      if (state().screen !== "group" || state().level !== band || state().puzzlesDone !== 1) fail("cap-rest did not return to the same band.");
+      seed(1); group("body");
+      tapId("cell-0-0"); tapId("cell-0-2");
+      tapId("cell-0-1"); tapId("cell-0-3");
+      tapId("cell-2-0"); tapId("cell-2-2");
+      st = state();
+      if (st.puzzlesDone !== 2 || document.getElementById("another")) fail("cap-rest offered Another after the second puzzle.");
+      var before = st.screen;
+      another();
+      if (state().screen !== before) fail("cap-rest let a direct Another call change the screen.");
+      var banned = ["miss", "score", "clock", "wrongs", "lives", "rank", "msLeft"];
+      for (var i = 0; i < banned.length; i++) if (banned[i] in st) fail("cap-rest stored a " + banned[i] + " field.");
+    });
+    runCase("pulse-once", function () {
+      placeBand("tiny", "body");
+      releaseLook();
+      var startAt = idleSince;
+      step(startAt + 19999);
+      if (state().pulse !== null || state().anchor !== null) fail("pulse-once pulsed too early.");
+      step(startAt + 20000);
+      if (state().pulse !== "0-0" || state().found.length !== 0 || state().anchor !== null) fail("pulse-once missed the first letter.");
+      step(startAt + 20650);
+      if (state().pulse !== null) fail("pulse-once kept the pulse.");
+      step(startAt + 40650);
+      tick = startAt + 40650;
+      if (state().pulse !== null) fail("pulse-once pulsed a second time.");
+    });
+    runCase("seed-pin", function () {
+      placeBand("tiny", "body");
+      var before = state().grid.join("|");
+      seed(4);
+      if (state().grid.join("|") !== before) fail("seed-pin changed the grid already on screen.");
+      var body = findPlay("tiny", "body");
+      group("body");
+      var gen4 = wordSearchGenerate(body, 4, state().harder);
+      if (state().grid.join("|") !== gen4.grid.join("|")) fail("seed-pin did not use seed 4.");
+      if (pin !== null) fail("seed-pin kept the pin.");
+      var counterBefore = playCounter;
+      var realNow = Date.now;
+      Date.now = function () { return 123456789; };
+      try { group("body"); }
+      finally { Date.now = realNow; }
+      var expectSeed = playSeed(123456789, counterBefore);
+      var genU = wordSearchGenerate(body, expectSeed, state().harder);
+      if (state().grid.join("|") !== genU.grid.join("|")) fail("seed-pin reused the old pin.");
+      seed(1); group("body");
+      if (state().grid.join("|") !== body.fallback.join("|")) fail("seed-pin did not return the Body rows.");
+    });
+    runCase("no-remote", function () {
+      var all = document.getElementsByTagName("*");
+      for (var i = 0; i < all.length; i++) {
+        if (all[i].tagName === "IMG") fail("no-remote found an image file.");
+        var src = all[i].getAttribute("src");
+        var href = all[i].getAttribute("href");
+        if ((src && /^[a-z]+:/i.test(src)) || (href && /^[a-z]+:/i.test(href))) fail("no-remote found a network URL.");
+      }
+      var authored = Object.create(null);
+      var bands = ["tiny", "little", "shop", "rush"];
+      for (var b = 0; b < bands.length; b++) for (var g = 0; g < PLAY[bands[b]].length; g++) for (var w = 0; w < PLAY[bands[b]][g].words.length; w++) authored[PLAY[bands[b]][g].words[w]] = true;
+      for (var f = 0; f < FIXTURES.length; f++) for (var fw = 0; fw < FIXTURES[f].words.length; fw++) authored[FIXTURES[f].words[fw]] = true;
+      for (var u = 0; u < utterances.length; u++) if (!authored[utterances[u]]) fail("no-remote spoke a word that was not authored.");
+    });
+    runCase("family-no-storage", function () {
+      if (storageCalls !== 0) fail("family-no-storage saw a storage write.");
+      if (storageReadable) {
+        if (window.localStorage.getItem("word-search") !== null) fail("family-no-storage found a word-search key.");
+        if (window.localStorage.getItem("pop-pals-v1") !== popBefore) fail("family-no-storage changed pop-pals-v1.");
+      }
+    });
+    forceWidth = 0;
+    forceHeight = 0;
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.wordSearch = {
+    start: start, go: go, look: look, releaseLook: releaseLook, hold: hold, release: release,
+    tap: tap, step: step, dwell: dwell, eyes: eyes, centers: centers, targetsAt: targetsAt,
+    state: state, seed: seed, selfCheck: selfCheck, group: group, anchor: anchor, commit: commit,
+    pressCell: pressCell, reveal: reveal, useFallback: useFallback, backward: backward
+  };
+  render();
+  var params = new URLSearchParams(window.location.search);
+  function hasFlag(name) { return params.has(name); }
+  if (hasFlag("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) { try { gazeSock.close(); } catch (e) {} gazeSock = null; }
+    var result;
+    try { result = selfCheck(); }
+    catch (e) { result = { ok: false, failures: ["The self-check stopped on an error."] }; }
+    var pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+    return;
+  }
+  if (hasFlag("harder")) harder = true;
+  if (hasFlag("rush")) start("rush");
+  else if (hasFlag("play")) start("tiny");
+  connectGaze();
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    window.requestAnimationFrame(frame);
+  }
+  window.requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

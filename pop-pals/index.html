@@ -209,8 +209,8 @@
     </div>
     <p class="section-label">Speed</p>
     <div class="levels" id="level-choices">
-      <button class="choice" type="button" data-level="tots" aria-pressed="true"><b>Tiny Tots</b><small>Ages 2 to 3. Slow pals, big taps, no tricks.</small></button>
-      <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Little Pals</b><small>Ages 4 to 5. A little quicker, with a few visitors.</small></button>
+      <button class="choice" type="button" data-level="tots" aria-pressed="true"><b>Burrow</b><small>Ages 2 to 3. Slow pals, big taps, no tricks.</small></button>
+      <button class="choice" type="button" data-level="little" aria-pressed="false"><b>Meadow</b><small>Ages 4 to 5. A little quicker, with a few visitors.</small></button>
       <button class="choice" type="button" data-level="explorer" aria-pressed="false"><b>Explorer</b><small>Ages 6 to 8. Know which animals live here.</small></button>
       <button class="choice" type="button" data-level="ranger" aria-pressed="false"><b>Ranger</b><small>Ages 9 and up. Fast pops. Names only flash.</small></button>
       <button class="choice" type="button" data-level="rush" aria-pressed="false"><b>Ranger Rush</b><small>Ages 9 and up. Fast pops, and a ride hides the holes.</small></button>
@@ -257,7 +257,7 @@
       <li>Pick a place and a speed. You look down at the holes.</li>
       <li>Animals pop up. Tap one that lives in that place. It goes back down and makes its sound. Its name shows on it.</li>
       <li>If Eyes is showing, look at an animal until the ring closes. That pops it too. Look away to cancel. Menu buttons take twice as long, so reading one does not press it.</li>
-      <li>On Tiny Tots and Little Pals, green means the one to choose and red means leave it.</li>
+      <li>On Burrow and Meadow, green means the one to choose and red means leave it.</li>
       <li>Other animals, and people, add an oops. Fill the oops dots and the burrow goes boing. Everyone flies out.</li>
       <li>Send home the number of pals on the counter before the timer ends.</li>
       <li>On Ranger Rush, a safari bus, submarine, bubble, pet van, or forest jeep rolls past and hides the holes. Wait, then tap.</li>
@@ -279,8 +279,8 @@
   const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const LEVELS = {
-    tots: { id: "tots", name: "Tiny Tots", holes: 3, rise: 529, stay: 4140, fall: 437, gap: 1495, maxUp: 1, goal: 5, time: 104, oopsMax: 5, decoy: 0, human: 0, vehicle: false, assist: "full", forgive: 1.75 },
-    little: { id: "little", name: "Little Pals", holes: 4, rise: 391, stay: 2645, fall: 345, gap: 1208, maxUp: 1, goal: 8, time: 81, oopsMax: 4, decoy: 0.16, human: 0.08, vehicle: false, assist: "full", forgive: 1.4 },
+    tots: { id: "tots", name: "Burrow", holes: 3, rise: 529, stay: 4140, fall: 437, gap: 1495, maxUp: 1, goal: 5, time: 104, oopsMax: 5, decoy: 0, human: 0, vehicle: false, assist: "full", forgive: 1.75 },
+    little: { id: "little", name: "Meadow", holes: 4, rise: 391, stay: 2645, fall: 345, gap: 1208, maxUp: 1, goal: 8, time: 81, oopsMax: 4, decoy: 0.16, human: 0.08, vehicle: false, assist: "full", forgive: 1.4 },
     explorer: { id: "explorer", name: "Explorer", holes: 5, rise: 299, stay: 1668, fall: 276, gap: 897, maxUp: 2, goal: 12, time: 63, oopsMax: 3, decoy: 0.22, human: 0.12, vehicle: false, assist: "names", forgive: 1.12 },
     ranger: { id: "ranger", name: "Ranger", holes: 6, rise: 230, stay: 1058, fall: 230, gap: 621, maxUp: 2, goal: 16, time: 52, oopsMax: 3, decoy: 0.28, human: 0.14, vehicle: false, assist: "peek", forgive: 1 },
     rush: { id: "rush", name: "Ranger Rush", holes: 6, rise: 207, stay: 989, fall: 207, gap: 552, maxUp: 2, goal: 18, time: 52, oopsMax: 3, decoy: 0.3, human: 0.14, vehicle: true, assist: "peek", forgive: 1 }
