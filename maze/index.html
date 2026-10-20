@@ -631,7 +631,9 @@
     if (maze.solution.length - 1 !== L) return null;
     if (!stoneChecks(maze)) return null;
     if (mazeLit(maze, maze.start).length !== 1) return null;
-    return maze;
+    const filled = fillMaze(rng, maze, spec);
+    if (largestEmpty(filled.rows, filled.cols, new Set(filled.cells)) > 1) return null;
+    return filled;
   }
 
   function stoneChecks(maze) {
@@ -678,8 +680,68 @@
     return out;
   }
 
+  function mazeAdj(maze) {
+    const adj = {};
+    maze.cells.forEach(function (id) { adj[id] = []; });
+    maze.edges.forEach(function (e) {
+      const parts = e.split("|");
+      if (!adj[parts[0]]) adj[parts[0]] = [];
+      if (!adj[parts[1]]) adj[parts[1]] = [];
+      adj[parts[0]].push(parts[1]);
+      adj[parts[1]].push(parts[0]);
+    });
+    return adj;
+  }
+  function followToStone(adj, stoneSet, from, first) {
+    let prev = from;
+    let cur = first;
+    let guard = 0;
+    while (cur && !stoneSet.has(cur) && guard < 300) {
+      const nxts = (adj[cur] || []).filter(function (n) { return n !== prev; });
+      if (nxts.length !== 1) return null;
+      prev = cur;
+      cur = nxts[0];
+      guard += 1;
+    }
+    return cur && stoneSet.has(cur) ? cur : null;
+  }
+  function graphMazeLit(maze, stoneId) {
+    const adj = mazeAdj(maze);
+    const stoneSet = new Set(maze.stones);
+    if (!stoneSet.has(stoneId)) return [];
+    const out = [];
+    const ns = adj[stoneId] || [];
+    for (let i = 0; i < ns.length; i++) {
+      const s = followToStone(adj, stoneSet, stoneId, ns[i]);
+      if (s && out.indexOf(s) < 0) out.push(s);
+    }
+    return out;
+  }
+  function graphMazeWalk(maze, fromId, toId) {
+    const adj = mazeAdj(maze);
+    const stoneSet = new Set(maze.stones);
+    const ns = adj[fromId] || [];
+    for (let i = 0; i < ns.length; i++) {
+      const seq = [fromId];
+      let prev = fromId;
+      let cur = ns[i];
+      let guard = 0;
+      while (cur && guard < 300) {
+        seq.push(cur);
+        if (cur === toId) return seq;
+        if (stoneSet.has(cur)) break;
+        const nxts = (adj[cur] || []).filter(function (n) { return n !== prev; });
+        if (nxts.length !== 1) break;
+        prev = cur;
+        cur = nxts[0];
+        guard += 1;
+      }
+    }
+    return null;
+  }
   function mazeLit(maze, stoneId) {
     if (!maze) return [];
+    if (maze.band !== "tiny") return graphMazeLit(maze, stoneId);
     const spurs = maze.spurs || [];
     for (let i = 0; i < spurs.length; i++) {
       const along = spurLit(spurs[i], stoneId);
@@ -694,20 +756,15 @@
       }
       return out;
     }
-    const s = maze.solution;
-    const i = s.indexOf(stoneId);
-    if (i < 0) return [];
-    const out = [];
-    if (i > 0) out.push(s[i - 1]);
-    if (i + 1 < s.length) out.push(s[i + 1]);
-    for (let k = 0; k < spurs.length; k++) {
-      if (spurs[k].attach === stoneId && spurs[k].stops && spurs[k].stops[0]) out.push(spurs[k].stops[0]);
-    }
-    return out;
+    return [];
   }
 
   function mazeWalk(maze, fromId, toId) {
     if (!maze) return null;
+    if (maze.band !== "tiny") {
+      if (mazeLit(maze, fromId).indexOf(toId) < 0) return null;
+      return graphMazeWalk(maze, fromId, toId);
+    }
     if (maze.band === "tiny") {
       const i = maze.path.indexOf(fromId);
       if (i >= 0) {
@@ -721,30 +778,302 @@
       }
       return null;
     }
-    const neigh = mazeLit(maze, fromId);
-    if (neigh.indexOf(toId) < 0) return null;
-    const s = maze.solution;
-    const i = s.indexOf(fromId);
-    const j = s.indexOf(toId);
-    if (i >= 0 && j >= 0 && Math.abs(i - j) === 1) {
-      const a = maze.path.indexOf(fromId);
-      const b = maze.path.indexOf(toId);
-      if (a < 0 || b < 0) return null;
-      const stepDir = a < b ? 1 : -1;
-      const out = [];
-      for (let k = a; k !== b; k += stepDir) out.push(maze.path[k]);
-      out.push(toId);
-      return out;
-    }
-    const spurs = maze.spurs || [];
-    for (let k = 0; k < spurs.length; k++) {
-      const walked = spurCorridor(spurs[k], fromId, toId);
-      if (walked) return walked;
-    }
     return null;
   }
 
   function mazeSolution(maze) { return maze.solution.slice(); }
+
+  function copyAdj(adj) {
+    const out = {};
+    Object.keys(adj).forEach(function (id) { out[id] = adj[id].slice(); });
+    return out;
+  }
+  function linkCells(adj, a, b) {
+    if (!adj[a]) adj[a] = [];
+    if (!adj[b]) adj[b] = [];
+    if (adj[a].indexOf(b) < 0) adj[a].push(b);
+    if (adj[b].indexOf(a) < 0) adj[b].push(a);
+  }
+  function isStraightId(id, a, b) {
+    const p = parseId(id);
+    const q = parseId(a);
+    const r = parseId(b);
+    return (q[0] - p[0] === -(r[0] - p[0])) && (q[1] - p[1] === -(r[1] - p[1]));
+  }
+  function leafPaths(adj, attach, first) {
+    const paths = [];
+    const stack = [[attach, first, [first]]];
+    while (stack.length) {
+      const prev = stack[stack.length - 1][0];
+      const cur = stack[stack.length - 1][1];
+      const cells = stack.pop()[2];
+      const ns = (adj[cur] || []).filter(function (n) { return n !== prev; });
+      if (!ns.length) {
+        paths.push(cells);
+        continue;
+      }
+      for (let i = 0; i < ns.length; i++) stack.push([cur, ns[i], cells.concat([ns[i]])]);
+    }
+    return paths;
+  }
+  function deriveMaze(band, rows, cols, adj, start, goal, pathIds) {
+    const cells = Object.keys(adj);
+    for (let i = 0; i < cells.length; i++) {
+      const deg = (adj[cells[i]] || []).length;
+      if (deg < 1 || deg > 3) return null;
+    }
+    cells.sort(function (a, b) { return idxOf(a, cols) - idxOf(b, cols); });
+    const edgeSet = new Set();
+    cells.forEach(function (id) {
+      (adj[id] || []).forEach(function (n) { edgeSet.add(edgeKey(id, n, cols)); });
+    });
+    const edges = Array.from(edgeSet);
+    if (edges.length !== cells.length - 1) return null;
+    const stoneSet = new Set();
+    cells.forEach(function (id) {
+      const ns = adj[id] || [];
+      if (id === start || id === goal || ns.length !== 2 || !isStraightId(id, ns[0], ns[1])) stoneSet.add(id);
+    });
+    const solution = [];
+    for (let i = 0; i < pathIds.length; i++) {
+      if (stoneSet.has(pathIds[i])) solution.push(pathIds[i]);
+    }
+    const spurs = [];
+    const deadEnds = [];
+    for (let i = 0; i < pathIds.length; i++) {
+      const id = pathIds[i];
+      const prev = i > 0 ? pathIds[i - 1] : null;
+      const next = i + 1 < pathIds.length ? pathIds[i + 1] : null;
+      const ns = adj[id] || [];
+      for (let k = 0; k < ns.length; k++) {
+        const n = ns[k];
+        if (n === prev || n === next) continue;
+        const routes = leafPaths(adj, id, n);
+        for (let r = 0; r < routes.length; r++) {
+          const route = routes[r];
+          const rc = route.map(function (cell) {
+            const p = parseId(cell);
+            return [p[0], p[1]];
+          });
+          spurs.push({
+            attach: id,
+            leaf: route[route.length - 1],
+            len: route.length,
+            cells: route.slice(),
+            stops: spurStops(id, rc)
+          });
+          deadEnds.push({ id: route[route.length - 1], length: route.length });
+        }
+      }
+    }
+    const stones = solution.slice();
+    cells.forEach(function (id) {
+      if (stoneSet.has(id) && stones.indexOf(id) < 0) stones.push(id);
+    });
+    return {
+      band: band, rows: rows, cols: cols, cells: cells, edges: edges,
+      start: start, goal: goal, stones: stones, solution: solution,
+      deadEnds: deadEnds, fallbackUsed: false, path: pathIds.slice(), spurs: spurs
+    };
+  }
+  function fillAccept(built, spec) {
+    if (!built) return false;
+    const win = WINDOWS[built.band];
+    if (!win) return false;
+    const dwells = built.solution.length - 1;
+    if (dwells < win.L[0] || dwells > win.L[1]) return false;
+    if (built.deadEnds.length < win.D[0] || built.deadEnds.length > win.D[1]) return false;
+    for (let i = 0; i < built.deadEnds.length; i++) {
+      const len = built.deadEnds[i].length;
+      if (len < win.spur[0] || len > win.spur[1]) return false;
+    }
+    if (!stoneChecks(built)) return false;
+    if (mazeLit(built, built.start).length !== 1) return false;
+    let deceptive = 0;
+    for (let i = 0; i < built.spurs.length; i++) {
+      const sp = built.spurs[i];
+      const ai = built.path.indexOf(sp.attach);
+      if (ai < 0) return false;
+      const rem = built.path.length - 1 - ai;
+      const bends = (sp.stops ? sp.stops.length : 1) - 1;
+      if (bends < spec.bend && sp.len > rem) return false;
+      if (bends >= spec.bend && sp.len > rem && rem >= spec.minRem) deceptive += 1;
+    }
+    if (!deceptive) return false;
+    if (built.band === "rush") {
+      let long = 0;
+      built.deadEnds.forEach(function (d) { if (d.length >= 3) long += 1; });
+      if (long < 2) return false;
+    }
+    return true;
+  }
+  function largestEmpty(rows, cols, occ) {
+    const seen = new Set();
+    let best = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const id = idOf(r, c);
+        if (occ.has(id) || seen.has(id)) continue;
+        let n = 0;
+        const stack = [id];
+        seen.add(id);
+        while (stack.length) {
+          const cur = stack.pop();
+          n += 1;
+          const rc = parseId(cur);
+          for (let d = 0; d < COMPASS.length; d++) {
+            const nr = rc[0] + COMPASS[d][0];
+            const nc = rc[1] + COMPASS[d][1];
+            if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+            const nid = idOf(nr, nc);
+            if (occ.has(nid) || seen.has(nid)) continue;
+            seen.add(nid);
+            stack.push(nid);
+          }
+        }
+        if (n > best) best = n;
+      }
+    }
+    return best;
+  }
+  function planSnake(rng, adj, rows, cols, door) {
+    const blocked = new Set(Object.keys(adj));
+    function free(rr, cc) {
+      return rr >= 0 && cc >= 0 && rr < rows && cc < cols && !blocked.has(idOf(rr, cc));
+    }
+    const snake = [];
+    let r = door.r;
+    let c = door.c;
+    let dir = door.dir;
+    let dirSteps = 0;
+    if (!free(r, c)) return snake;
+    snake.push([r, c]);
+    blocked.add(idOf(r, c));
+    dirSteps = 1;
+    while (snake.length < rows * cols) {
+      const options = [];
+      for (let d = 0; d < COMPASS.length; d++) {
+        const step = COMPASS[d];
+        if (step[0] === -dir[0] && step[1] === -dir[1]) continue;
+        const nr = r + step[0];
+        const nc = c + step[1];
+        if (!free(nr, nc)) continue;
+        let score = 0;
+        for (let k = 0; k < COMPASS.length; k++) {
+          if (free(nr + COMPASS[k][0], nc + COMPASS[k][1])) score += 1;
+        }
+        options.push({ step: step, score: score, straight: step[0] === dir[0] && step[1] === dir[1] });
+      }
+      if (!options.length) break;
+      let straightOpt = null;
+      for (let i = 0; i < options.length; i++) if (options[i].straight) straightOpt = options[i];
+      let choice = straightOpt;
+      if (!(dirSteps < 2 && straightOpt)) {
+        let best = -1;
+        const pool = [];
+        for (let i = 0; i < options.length; i++) if (options[i].score > best) best = options[i].score;
+        for (let i = 0; i < options.length; i++) if (options[i].score === best) pool.push(options[i]);
+        choice = rngShuffle(rng, pool)[0];
+      }
+      dirSteps = choice.straight ? dirSteps + 1 : 1;
+      dir = choice.step;
+      r += dir[0];
+      c += dir[1];
+      snake.push([r, c]);
+      blocked.add(idOf(r, c));
+    }
+    return snake;
+  }
+  function pickDoor(rng, adj, rows, cols, start, goal, blockedDoors) {
+    const occ = new Set(Object.keys(adj));
+    const doors = [];
+    const ids = Object.keys(adj);
+    for (let i = 0; i < ids.length; i++) {
+      const id = ids[i];
+      if (id === start || id === goal) continue;
+      if ((adj[id] || []).length >= 3) continue;
+      const rc = parseId(id);
+      for (let d = 0; d < COMPASS.length; d++) {
+        const nr = rc[0] + COMPASS[d][0];
+        const nc = rc[1] + COMPASS[d][1];
+        if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+        const nid = idOf(nr, nc);
+        if (occ.has(nid)) continue;
+        const key = id + ">" + nid;
+        if (blockedDoors.has(key)) continue;
+        doors.push({ from: id, r: nr, c: nc, dir: COMPASS[d], key: key, deg: adj[id].length });
+      }
+    }
+    if (!doors.length) return null;
+    const cache = {};
+    function compSize(id) {
+      if (cache[id]) return cache[id];
+      const seen = new Set();
+      const stack = [id];
+      seen.add(id);
+      let n = 0;
+      while (stack.length) {
+        const cur = stack.pop();
+        n += 1;
+        const rc = parseId(cur);
+        for (let d = 0; d < COMPASS.length; d++) {
+          const nr = rc[0] + COMPASS[d][0];
+          const nc = rc[1] + COMPASS[d][1];
+          if (nr < 0 || nc < 0 || nr >= rows || nc >= cols) continue;
+          const nid = idOf(nr, nc);
+          if (occ.has(nid) || seen.has(nid)) continue;
+          seen.add(nid);
+          stack.push(nid);
+        }
+      }
+      seen.forEach(function (sid) { cache[sid] = n; });
+      return n;
+    }
+    let best = 0;
+    for (let i = 0; i < doors.length; i++) {
+      doors[i].comp = compSize(idOf(doors[i].r, doors[i].c));
+      if (doors[i].comp > best) best = doors[i].comp;
+    }
+    let pool = doors.filter(function (d) { return d.comp === best; });
+    let minDeg = 9;
+    pool.forEach(function (d) { if (d.deg < minDeg) minDeg = d.deg; });
+    pool = pool.filter(function (d) { return d.deg === minDeg; });
+    return rngShuffle(rng, pool)[0];
+  }
+  function fillMaze(rng, maze, spec) {
+    let live = mazeAdj(maze);
+    const blocked = new Set();
+    const rows = maze.rows;
+    const cols = maze.cols;
+    let guard = rows * cols * 4;
+    while (guard-- > 0) {
+      const door = pickDoor(rng, live, rows, cols, maze.start, maze.goal, blocked);
+      if (!door) break;
+      const snake = planSnake(rng, live, rows, cols, door);
+      let trial = copyAdj(live);
+      let added = 0;
+      let prev = door.from;
+      for (let i = 0; i < snake.length; i++) {
+        const id = idOf(snake[i][0], snake[i][1]);
+        const next = copyAdj(trial);
+        linkCells(next, prev, id);
+        const built = deriveMaze(maze.band, rows, cols, next, maze.start, maze.goal, maze.path);
+        if (!fillAccept(built, spec)) break;
+        trial = next;
+        prev = id;
+        added += 1;
+      }
+      if (!added) {
+        blocked.add(door.key);
+        continue;
+      }
+      live = trial;
+      blocked.clear();
+    }
+    const built = deriveMaze(maze.band, rows, cols, live, maze.start, maze.goal, maze.path);
+    if (built && fillAccept(built, spec)) return built;
+    return maze;
+  }
 
   function genOlder(band, seed) {
     const spec = BANDS[band];
@@ -1966,9 +2295,9 @@
 
   const WINDOWS = {
     tiny: { L: [2, 4], D: [0, 1], spur: [3, 8], litMax: 2 },
-    little: { L: [4, 7], D: [1, 2], spur: [1, 14], litMax: 3 },
-    shop: { L: [8, 14], D: [3, 6], spur: [1, 20], litMax: 3 },
-    rush: { L: [12, 20], D: [6, 12], spur: [1, 24], litMax: 3 }
+    little: { L: [4, 7], D: [1, 8], spur: [1, 24], litMax: 3 },
+    shop: { L: [8, 14], D: [3, 16], spur: [1, 64], litMax: 3 },
+    rush: { L: [12, 20], D: [6, 36], spur: [1, 144], litMax: 3 }
   };
 
   function checkMaze(built, label, failures, ignoreFallback) {
@@ -2002,6 +2331,7 @@
       if (long < 2) fail("Rush had fewer than two spurs of length at least 3.");
     }
     if (!ignoreFallback && !built.fallbackUsed && built.band !== "tiny") {
+      if (largestEmpty(built.rows, built.cols, new Set(built.cells)) > 1) fail("The maze left a large empty block.");
       const spec = BANDS[built.band];
       let deceptive = 0;
       for (let i = 0; i < built.spurs.length; i++) {

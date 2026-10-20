@@ -86,7 +86,7 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 
 ## Maze
 
-A maze for ages 2 and up. A blue meeple stands on the path. Look at the next dot and the meeple walks there. The eyes do not have to follow the corridor. A wrong turn bends, and you walk back out. It is not a lost game. First Steps is a short path, and some deals add one wrong turn. Hedge Row, Twisty, and Long Trail light up to three dots. On those mazes one wrong path is longer than the way out, so the longest walk is not always the exit. There is no clock.
+A maze for ages 2 and up. A blue meeple stands on the path. Look at the next dot and the meeple walks there. The eyes do not have to follow the corridor. The hedges fill the clearing, so a wide empty block does not sit beside the path. A wrong turn bends, and you walk back out. It is not a lost game. First Steps is a short path, and some deals add one wrong turn. Hedge Row, Twisty, and Long Trail light up to three dots. On those mazes one wrong path is longer than the way out, so the longest walk is not always the exit. There is no clock.
 
 Open `maze/index.html` in a browser, or play [Maze](https://calledtoconstruct.github.io/games/maze/).
 
