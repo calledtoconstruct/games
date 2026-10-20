@@ -121,6 +121,8 @@ The body, in this order:
 
 The rest card repeats "That is enough for now." It does not show a grade, a count of misses, a time, a star, or the index.
 
+**Finished stem revised 2026-10-20.** The last equation stays on the page. The answer cards are not targets, and a further answer does not change the screen. The banner still says "That is enough for now." Another sits under the equation. The rest card does not cover the stem.
+
 No screen shows the index, the cap, a score, a streak, a mistake total, or a clock.
 
 ### Hook

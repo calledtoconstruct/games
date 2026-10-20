@@ -24,6 +24,8 @@ One child, ages 2 and up, one device. Mouse, touch, and gaze do the same acts. A
 6. When every word is found, the page opens the rest card. The banner is "All the words." There is no grade, no count, no time, and no rank.
 7. Another, when it is offered, goes back to the group screen for the same band. It does not pick a group by itself and it does not roll a new band. The child may play one more puzzle. After that second puzzle, the rest card has no Another. Back to Menu is always there. Leaving early is not a miss.
 
+**Finished board revised 2026-10-20.** The finished grid stays on the page, read-only, with the gold bands and the found chips. Letters and bank chips are not targets. The banner still says "All the words." Another stays in the top chrome row. On a narrow window that sentence and Back to Menu wrap inside the row, so Another does not cover the letters or the chips. Showing Another does not resize or move the letters, and the finished letters stay centered in their squares. The rest card does not cover the grid. After the second puzzle, Another is still gone. Each gold band has a thin darker edge so a crossing stays visible. The edge is drawn under the same gold stroke (`#e2a62e`, opacity 0.78, width `max(6, 0.72 × cell)`).
+
 There is no countdown. There is no mistake tally. A wrong look never says fail, wrong, no, miss, or lose.
 
 ## Bands

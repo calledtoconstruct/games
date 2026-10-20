@@ -1389,8 +1389,21 @@
     return {
       card: { x: cardX, y: y, w: cardW, h: 180 },
       line: { x: cardX, y: y + 28, w: cardW, h: 40 },
-      another: { id: "another", x: cardX + 16, y: y + 88, w: Math.max(72, cardW - 32), h: 72 }
+      another: anotherBox(w, h)
     };
+  }
+  function anotherBox(w, h) {
+    if (finished !== 1) return null;
+    const chrome = chromeBoxes(w);
+    const gap = 8;
+    const aw = 140;
+    const x = chrome.back.x - gap - aw;
+    const bannerLeft = chrome.full.x + chrome.full.w + gap;
+    if (aw >= 72 && x >= bannerLeft + 120 + gap) {
+      return { id: "another", x: x, y: 8, w: aw, h: 72 };
+    }
+    const bw = Math.min(220, Math.max(140, w - 32));
+    return { id: "another", x: (w - bw) / 2, y: Math.max(96, h - 8 - 72), w: bw, h: 72, floor: true };
   }
 
   function dotDiameter(pitch) {
@@ -1438,7 +1451,10 @@
       if (!stones || stones.length !== ids.length) return null;
       for (let i = 0; i < stones.length; i++) targets.push(stones[i]);
     }
-    if (screen === "rest" && finished === 1) targets.push(restLayout(w, h).another);
+    if (screen === "rest" && finished === 1) {
+      const again = anotherBox(w, h);
+      if (again) targets.push(again);
+    }
     for (let i = 0; i < targets.length; i++) {
       if (String(targets[i].id).indexOf("stone-") === 0) continue;
       if (Math.min(targets[i].w, targets[i].h) < 72) return null;
@@ -1508,10 +1524,14 @@
     }
   }
 
-  function bannerBox(w) {
+  function bannerBox(w, h) {
     const chrome = chromeBoxes(w);
     const left = chrome.full.x + chrome.full.w + 8;
-    const right = screen === "menu" ? w - 8 : chrome.back.x - 8;
+    let right = screen === "menu" ? w - 8 : chrome.back.x - 8;
+    if (screen === "rest") {
+      const extra = anotherBox(w, h || window.innerHeight);
+      if (extra && !extra.floor) right = extra.x - 8;
+    }
     const bw = right - left;
     if (bw >= 140) return { x: left, y: 16, w: bw, h: 52 };
     return { x: 8, y: w < 700 ? 88 : 16, w: Math.min(220, w - 16), h: 36 };
@@ -1528,8 +1548,10 @@
     menuEl.hidden = screen !== "menu";
     restEl.hidden = screen !== "rest";
     playEl.hidden = screen !== "maze";
+    restCard.hidden = true;
+    restLine.hidden = true;
     bannerEl.textContent = bannerText();
-    place(bannerEl, bannerBox(w));
+    place(bannerEl, bannerBox(w, h));
     for (let i = 0; i < BAND_IDS.length; i++) {
       const btn = document.getElementById(BAND_IDS[i]);
       if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
@@ -1544,10 +1566,7 @@
     for (let i = 0; i < menu.buttons.length; i++) {
       place(document.getElementById(menu.buttons[i].id), menu.buttons[i]);
     }
-    const rest = restLayout(w, h);
-    place(restCard, rest.card);
-    place(restLine, rest.line);
-    syncAnother(rest.another);
+    syncAnother(screen === "rest" ? anotherBox(w, h) : null);
     if (screen === "maze" && maze) {
       const boxes = stoneBoxes(litIds(), w, h) || [];
       syncStones(boxes);
@@ -1578,7 +1597,12 @@
     const pfX = 8;
     const pfY = 92;
     const pfW = Math.max(0, w - 16);
-    const pfH = Math.max(0, h - 92 - 8);
+    let floor = 8;
+    if (screen === "rest" && finished === 1) {
+      const again = anotherBox(w, h);
+      if (again && again.floor) floor = h - again.y + 8;
+    }
+    const pfH = Math.max(0, h - 92 - floor);
     const cols = maze ? maze.cols : 1;
     const rows = maze ? maze.rows : 1;
     const pitch = Math.min(pfW / cols, pfH / rows);
@@ -1636,7 +1660,7 @@
     ctx.clearRect(0, 0, w, h);
     ctx.fillStyle = "#f4f0d8";
     ctx.fillRect(0, 0, w, h);
-    if (screen !== "maze" || !maze) return;
+    if ((screen !== "maze" && screen !== "rest") || !maze) return;
     const m = gridMetrics();
     const edgeSet = new Set(maze.edges);
     ctx.fillStyle = "#4a2c14";
@@ -3003,6 +3027,10 @@
       const snap = state();
       if (snap.screen !== "rest") fail("goal-rest", "Landing on the goal did not open rest.");
       if (snap.banner !== "You made it.") fail("goal-rest", "The rest banner was not the calm sentence.");
+      if (!restCard.hidden || playEl.querySelector("button")) fail("goal-rest", "The finished maze was covered or still had a stone.");
+      const held = snap.token;
+      move("0,0");
+      if (state().screen !== "rest" || state().token !== held) fail("goal-rest", "The finished maze still walked.");
       const low = snap.banner.toLowerCase();
       if (low.indexOf("lose") >= 0 || low.indexOf("fail") >= 0) fail("goal-rest", "The banner said lose or fail.");
       const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank"];

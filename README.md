@@ -15,6 +15,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Word Search](https://calledtoconstruct.github.io/games/word-search/)
 - [Flash Cards](https://calledtoconstruct.github.io/games/flash-cards/)
 - [Maze](https://calledtoconstruct.github.io/games/maze/)
+- [Coloring Book](https://calledtoconstruct.github.io/games/coloring-book/)
 
 ## Pop Pals
 
@@ -50,11 +51,11 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 
 ## Sudoku
 
-A picture and digit board for ages 2 and up. Look at an empty square until it holds, then look at the symbol that belongs there. The first look does not fill the square. Nothing is timed, and nothing counts mistakes. Picture Squares plays four pictures on a 4 by 4 board that starts with 12 of the 16 squares filled, and each empty square has only one picture that fits. Open Board uses the same four pictures on a 4 by 4 board that starts with 8, 9, or 10 squares filled. Number Grid uses the digits 1 through 6 on a 6 by 6 board that starts with 24 to 28 squares filled. Big Board uses those digits on a 6 by 6 board that starts with 18 to 22 squares filled, or the digits 1 through 9 on a 9 by 9 board that starts with 40 to 48 filled, and only when the squares stay large enough. Another deals one more board after a finished one, and then the sitting stops.
+A picture and digit board for ages 2 and up. Look at an empty square until it holds, then look at a symbol. The first look does not fill the square, and the tray does not mark the one that fits. Nothing is timed, and nothing counts mistakes. Every new board follows the same rules: each symbol once in every row, every column, and every box, with one solution. Picture Squares plays four pictures on a 4 by 4 board that starts with 12 of the 16 squares filled, and each empty square has only one picture that fits. Open Board uses the same four pictures on a 4 by 4 board that starts with 8, 9, or 10 squares filled. Number Grid uses the digits 1 through 6 on a 6 by 6 board that starts with 24 to 28 squares filled. Big Board uses those digits on a 6 by 6 board that starts with 18 to 22 squares filled, or the digits 1 through 9 on a 9 by 9 board that starts with 40 to 48 filled, and only when the squares stay large enough. Number Grid and Big Board keep the whole board and the digits on one screen: look at an empty square, then look at a digit, without leaving the board. Another deals one more board after a finished one, and then the sitting stops.
 
 Open `sudoku/index.html` in a browser, or play [Sudoku](https://calledtoconstruct.github.io/games/sudoku/).
 
-If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at an empty square, a box, a tray symbol, Undo, or Hint until the ring fills. That look takes 650 ms. Menu buttons take twice that, so reading one does not press it. Mouse and touch work in the same board. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at an empty square, then a tray symbol, Undo, or Hint until the ring fills. That look takes 650 ms. Menu buttons take twice that, so reading one does not press it. Mouse and touch work in the same board. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
 ## Math Practice
 
@@ -91,6 +92,14 @@ A maze for ages 2 and up. A blue meeple stands on the path. Look at the next dot
 Open `maze/index.html` in a browser, or play [Maze](https://calledtoconstruct.github.io/games/maze/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a lit stone for 650 ms, until the ring fills, and the token walks there. Walls, the floor, and a stone that is not lit do nothing. Menu buttons take twice that, 1300 ms, so reading one does not press it. Mouse and touch work in the same maze. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Coloring Book
+
+A coloring book for ages 2 and up. Big Dots has four large colors and a simple picture. Fat Crayons has six colors and a few pictures. Color Box and Sketchbook add more colors, smaller dots, a blank page for free drawing, and busier pictures. The lines stay on top of the color, so a picture can be colored inside them. Keep saves the picture in this browser. Your pictures opens the ones you kept, and New picture starts a blank page or another theme. Nothing keeps a score.
+
+Open `coloring-book/index.html` in a browser, or play [Coloring Book](https://calledtoconstruct.github.io/games/coloring-book/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a color until the ring fills, then look at the page and the color follows. Looking away lifts the brush. Menu buttons take twice as long. Mouse and touch draw the same stroke. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
 ## Add a game
 

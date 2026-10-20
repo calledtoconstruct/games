@@ -568,12 +568,7 @@
     }
     screenId = screen;
     if (screen === "menu") dropSitting();
-    if (screen === "rest") {
-      phase = null;
-      problem = null;
-      filled = null;
-      cooledValue = null;
-    }
+    if (screen === "rest") showUntil = 0;
     render();
   }
   function start(band) {
@@ -613,7 +608,7 @@
     render();
   }
   function answer(value) {
-    if (phase !== "ask" || typeof value !== "number" || !problem || problem.cards.indexOf(value) < 0) {
+    if (screenId !== "ask" || phase !== "ask" || typeof value !== "number" || !problem || problem.cards.indexOf(value) < 0) {
       render();
       return;
     }
@@ -635,7 +630,7 @@
     render();
   }
   function next() {
-    if (phase !== "show") {
+    if (screenId !== "ask" || phase !== "show") {
       render();
       return;
     }
@@ -751,7 +746,13 @@
     }
     if (screenId === "rest") {
       const bw = Math.max(160, Math.min(280, w - 32));
-      add("another", (w - bw) / 2, Math.max(220, h * 0.52), bw, 76);
+      const ah = 76;
+      add("another", (w - bw) / 2, h - 8 - ah, bw, ah);
+      if (problem) {
+        const top = 132;
+        const stemH = Math.max(96, Math.min(320, h - 8 - ah - 16 - top));
+        stem = { left: edge, top: top, w: Math.max(0, w - edge * 2), h: stemH };
+      }
     }
     return { targets: targets, ok: w >= 320, stem: stem, menu: menu };
   }
@@ -979,18 +980,17 @@
     const view = resizeCanvas();
     ctx.clearRect(0, 0, view.w, view.h);
     const lay = layoutFor(view.w, view.h);
-    if (screenId === "ask" && lay.stem && problem) {
+    if ((screenId === "ask" || screenId === "rest") && lay.stem && problem) {
       if (problem.kind === "quantity") paintQuantity(lay.stem);
       else paintTokens(lay.stem, stemTokens(problem, phase === "show" ? filled : null), level === "little");
-      for (let i = 0; i < lay.targets.length; i++) {
-        const box = lay.targets[i];
-        if (box.id.indexOf("card-") !== 0) continue;
-        const n = Number(box.id.slice(5));
-        if (problem.cards && n < problem.cards.length) paintCardFace(box, problem.cards[n]);
+      if (screenId === "ask") {
+        for (let i = 0; i < lay.targets.length; i++) {
+          const box = lay.targets[i];
+          if (box.id.indexOf("card-") !== 0) continue;
+          const n = Number(box.id.slice(5));
+          if (problem.cards && n < problem.cards.length) paintCardFace(box, problem.cards[n]);
+        }
       }
-    }
-    if (screenId === "rest") {
-      drawApple(view.w / 2, view.h * 0.28, false);
     }
   }
   function render() {
@@ -1018,6 +1018,7 @@
     menuEl.hidden = screenId !== "menu";
     playEl.hidden = screenId !== "ask";
     restEl.hidden = screenId !== "rest";
+    document.getElementById("rest-line").hidden = true;
     if (lay.menu) {
       menuEl.style.left = lay.menu.left + "px";
       menuEl.style.top = lay.menu.top + "px";
@@ -1286,7 +1287,7 @@
       if (refreshHold) gazeAt = now;
     }
     stepGaze(now);
-    if (phase === "show" && now >= showUntil) next();
+    if (screenId === "ask" && phase === "show" && now >= showUntil) next();
     render();
   }
   function look(nx, ny) {
@@ -1980,6 +1981,8 @@
         step(t);
       }
       if (state().screen !== "rest" || state().index !== 4) fail("tiny-cap", "Four correct cards did not rest at the cap.");
+      if (!problem) fail("tiny-cap", "The last problem was cleared.");
+      if (buttonVisible(document.getElementById("card-0"))) fail("tiny-cap", "The finished problem still offered a card.");
       const restText = document.getElementById("screen-rest").innerText || "";
       if (/grade|star|score|miss|streak/i.test(restText) || /\d/.test(restText)) fail("tiny-cap", "The rest card showed a grade or a count.");
       const restScreen = state().screen;

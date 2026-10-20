@@ -71,6 +71,16 @@
     display: flex; flex-direction: column; align-items: center; justify-content: center;
     gap: 12px; padding: 96px 16px 24px;
   }
+  #screen-rest.keep {
+    display: block;
+    padding: 0;
+    background: transparent;
+  }
+  #screen-rest.keep p {
+    position: fixed; z-index: 44; pointer-events: none;
+    margin: 0; height: 36px; line-height: 36px;
+    background: var(--paper, #f4f0d8); border-radius: 999px;
+  }
   #screen-menu {
     justify-content: flex-start;
     gap: 8px;
@@ -1431,7 +1441,8 @@
   function playTop(w) {
     const backW = screen === "menu" ? 0 : Math.min(200, Math.max(72, w - 176));
     const rightLimit = screen === "menu" ? w - 12 : w - 8 - backW - 8;
-    return rightLimit - 168 >= 120 ? 88 : 132;
+    const base = rightLimit - 168 >= 120 ? 88 : 132;
+    return screen === "rest" && choices.length ? base + 44 : base;
   }
 
   function trialLayout(w, h, n) {
@@ -1504,8 +1515,9 @@
       lay.choices.forEach(function (box) { targets.push(box); });
       targets.push(lay.stop);
     } else if (screen === "rest") {
-      const bw = Math.min(360, w - 32);
-      targets.push({ id: "another", x: (w - bw) / 2, y: Math.round(h * 0.55), w: bw, h: 76 });
+      const bw = Math.min(240, Math.max(120, w - 32));
+      const y = choices.length ? h - 8 - 72 : Math.round(h * 0.55);
+      targets.push({ id: "another", x: (w - bw) / 2, y: y, w: bw, h: choices.length ? 72 : 76 });
     }
     return { targets: targets };
   }
@@ -1593,7 +1605,7 @@
     const h = window.innerHeight;
     ctx.fillStyle = CREAM;
     ctx.fillRect(0, 0, w, h);
-    if (screen !== "trial" || !lay || !lay.prompt) return;
+    if ((screen !== "trial" && screen !== "rest") || !lay || !lay.prompt) return;
     const box = lay.prompt;
     if (phase === "show") {
       const picH = Math.max(0, box.h * 0.72);
@@ -1637,8 +1649,10 @@
   function render() {
     const w = window.innerWidth;
     const h = window.innerHeight;
+    const keep = screen === "rest" && choices.length > 0;
+    restEl.classList.toggle("keep", keep);
     menuEl.hidden = screen !== "menu";
-    playEl.hidden = screen !== "subject" && screen !== "trial";
+    playEl.hidden = screen !== "subject" && screen !== "trial" && !keep;
     restEl.hidden = screen !== "rest";
     backBtn.hidden = screen === "menu";
     place(muteBtn, { x: 8, y: 8, w: 72, h: 72 });
@@ -1670,7 +1684,7 @@
         btn.hidden = true;
       }
     });
-    const showTrial = screen === "trial" && choices.length > 0;
+    const showTrial = (screen === "trial" || keep) && choices.length > 0;
     const mode = promptMode();
     const lay = showTrial ? trialLayout(w, h, choices.length) : null;
     promptBtn.hidden = !showTrial || !lay;
@@ -1726,6 +1740,26 @@
       }
       if (phase === "show" && card.id === prompt) btn.style.outline = "6px solid #e2a62e";
       else btn.style.outline = "none";
+      if (keep) {
+        btn.style.pointerEvents = "none";
+        btn.removeAttribute("data-play");
+      }
+    }
+    if (keep) {
+      promptBtn.style.pointerEvents = "none";
+      promptBtn.removeAttribute("data-play");
+      const restLine = restEl.querySelector("p");
+      if (restLine) {
+        restLine.style.left = "12px";
+        restLine.style.right = "12px";
+        restLine.style.top = (playTop(w) - 40) + "px";
+        restLine.style.width = "auto";
+      }
+    }
+    if (screen === "rest") {
+      const bw = Math.min(240, Math.max(120, w - 24));
+      const y = keep ? h - 8 - 72 : Math.round(h * 0.55);
+      place(anotherBtn, { x: (w - bw) / 2, y: y, w: bw, h: keep ? 72 : 76 });
     }
     if (screen === "subject" || screen === "trial") {
       stopBtn.hidden = false;
@@ -2846,6 +2880,13 @@
       });
       if (state().banner !== "That was a good sitting.") fail("cap-rest", "The rest banner changed.");
       if (restText.indexOf("We can play again.") < 0) fail("cap-rest", "The rest card lost its sentence.");
+      if (promptBtn.hidden || playEl.hidden) fail("cap-rest", "The last card was hidden.");
+      if (promptBtn.getAttribute("data-play") === "true") fail("cap-rest", "The finished prompt was still a target.");
+      for (let ci = 0; ci < choiceBtns.length; ci++) {
+        if (!choiceBtns[ci].hidden && choiceBtns[ci].getAttribute("data-play") === "true") {
+          fail("cap-rest", "A finished choice was still a target.");
+        }
+      }
       let T = clock + 1000;
       step(T);
       seed(31);

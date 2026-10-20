@@ -16,11 +16,17 @@ The child looks at an empty square until the look commits. That look only latche
 
 Real Sudoku rules hold on every band. Each symbol appears once in its row, once in its column, and once in its box. The board has one solution. A singles-only solver finishes it. There is no pencil mark, no clock, no countdown, no mistake tally, no life, no score, no streak, and no rank.
 
-A miss does nothing. Looking at a given, at a dim symbol, at the background, or at a symbol while nothing is latched does not write, does not buzz, does not say fail, wrong, or no, does not reset the board, and does not clear symbols already placed. An illegal symbol is not a control, so it cannot be written.
+A miss does nothing. Looking at a given, at the background, or at a symbol while nothing is latched does not write, does not buzz, does not say fail, wrong, or no, does not reset the board, and does not clear symbols already placed. Every symbol stays a button and looks the same. A symbol that would repeat in the row, the column, or the box is not written.
 
-Undo removes the last symbol the child placed. It does not remove a given and it does not drag. Hint latches one cell that is a single right now and marks that tray symbol. Hint does not write. The child still dwells the symbol.
+Undo removes the last symbol the child placed. It does not remove a given and it does not drag. Hint latches one cell that is a single right now. It does not mark, dim, or pulse a tray symbol, and it does not write. The child still chooses the symbol.
+
+**One screen revised 2026-10-20.** Number Grid and Big Board stay on one screen. The whole grid and every digit are showing together. Looking at an empty square latches it and does not open another screen. The sentences below that describe a box chooser, a zoomed box, or a separate symbol screen are superseded for play. A finished board is the same full grid, read-only. The banner is a pill in the open part of the top row, so "Look at an empty square.", "Now look at the symbol.", and "That board is done." stay readable beside New board and Back to Menu. On a narrow window that pill moves to its own row under those buttons, and the grid starts below it.
+
+**Play revised 2026-10-19.** The tray shows every symbol for that board, on every band, and none of them is marked as the answer. Picture Squares still starts with 12 of 16 filled, so each empty square has one picture that fits, but the tray shows all four pictures. A 6×6 box chooser is two boxes across and three bands down, the same shape as the grid. A 9×9 chooser stays three by three. When the tray does not fit under a zoomed box, latching an empty square opens the symbol screen. A deal is shown only when the finished grid and the givens each use a symbol once per row, column, and box, the givens match that finished grid, and the puzzle has one solution. The sentences below that say a dim tray, a one-symbol Picture Squares tray, a 3×2 of six boxes, or a hint symbol are superseded by this note. The README block at the end of this file is the 2026-10-18 text. The live README was updated with this revision.
 
 When the grid matches the solution, the board is finished. The page goes to the rest card. The banner is one calm sentence. It is not a number, a time, or a rank. Another, if the sitting still has a board left, deals the next board. After the second finished board, Another is gone. Back to Menu ends the sitting early. Caps are ceilings, not quotas.
+
+**Finished board revised 2026-10-20.** The finished grid stays on the page, read-only, with no tray. Undo, hint, and a placed symbol do not change it. The banner still says "That board is done." Another sits under the grid when another board remains. The rest card does not cover the grid.
 
 Mouse, touch, and gaze share the same writers. A click or a tap is that writer with no wait. A gaze commit is the same writer after the dwell below. Nothing in the game drags.
 
@@ -61,7 +67,7 @@ Tiny Tots and Little Pals use four pictures, shuffled onto the values 1, 2, 3, a
 | Star | A five-point gold star, `#e2b007`, point up, outer radius about 42% of the short side. No face. |
 | Heart | A red heart, `#d62828`, two round lobes and a point at the bottom, centered. No face. |
 
-The shuffle is `rngShuffle(makeRng(seed), ["sun", "moon", "star", "heart"])` on a new generator seeded with the same seed as the puzzle. It does not share the puzzle generator's state. Value 1 draws entry 0, value 2 draws entry 1, and so on. Picture buttons use those names as their accessible names. Digit buttons show the digit in the page font at about 60% of the button's short side, ink `#2c2416`.
+The shuffle is `rngShuffle(makeRng(seed), ["sun", "moon", "star", "heart"])` on a new generator seeded with the same seed as the puzzle. It does not share the puzzle generator's state. Value 1 draws entry 0, value 2 draws entry 1, and so on. Picture buttons use those names as their accessible names. Digit buttons show the digit in the page font at about 60% of the button's short side, ink `#2c2416`, centered in the square and in the tray.
 
 Given cells and child-placed cells draw the same symbol. A child-placed cell uses a sun-gold ground `#fff6df` so it can be told from a given. A given uses the card ground `#fffdf6`. Neither cell is a stack of candidates.
 
@@ -134,7 +140,7 @@ New board is shown for the whole board screen and hidden on the menu and on rest
 
 ### Rest
 
-`#screen-rest` holds the sentence `That board is done.` and `#another` labeled Another. It uses the same Back control. It does not show a grade, a miss count, a time, or a rank. Another is in the tree only when the board was solved and `dealt` is 1. After the second board, Another is not in the tree.
+`#screen-rest` holds the sentence `That board is done.` and `#another` labeled Another. It uses the same Back control. It does not show a grade, a miss count, a time, or a rank. Another is in the tree only when the board was solved and `dealt` is 1. After the second board, Another is not in the tree. The 2026-10-20 note above keeps the grid visible; this card does not cover it, and the banner is the sentence.
 
 ### Sitting counter
 

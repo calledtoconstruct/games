@@ -43,15 +43,18 @@
   }
   #eyes {
     position: fixed; z-index: 47; pointer-events: none;
-    top: 22px; left: 50%; transform: translateX(-50%);
+    top: 18px; left: 168px;
     background: var(--card); border-radius: 999px; padding: 6px 12px;
     font-weight: 800; font-size: 16px;
   }
   #banner {
     position: fixed; z-index: 45; pointer-events: none;
-    left: 168px; right: 168px; top: 22px;
-    text-align: center; font-size: 18px; font-weight: 800;
-    color: var(--ink);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 4px 14px; text-align: center;
+    font-size: 18px; font-weight: 800; line-height: 1.15;
+    overflow: hidden;
   }
   #mute, #full, #back, #new-board {
     position: fixed; z-index: 46; border: none; border-radius: 18px;
@@ -59,6 +62,7 @@
     box-shadow: 0 4px 0 #d5c4a1;
     font-size: 15px;
   }
+  #back, #new-board { padding: 4px 8px; overflow: hidden; white-space: nowrap; }
   #mute, #full { width: 72px; height: 72px; }
   #mute { display: grid; place-items: center; padding: 0; }
   #mute svg { width: 34px; height: 34px; }
@@ -111,6 +115,9 @@
     border: none; border-radius: 16px;
     font-weight: 800; color: var(--ink);
     padding: 0; overflow: hidden;
+  }
+  .cell, .sym {
+    display: grid; place-items: center; text-align: center; line-height: 1;
   }
   .hole { background: var(--card); box-shadow: inset 0 0 0 3px #e4d3b0; }
   .given { background: var(--card); }
@@ -469,10 +476,63 @@
     return !!(solved && eqArr(solved, solution));
   }
   function keepOk(band, size, grid, solution, spec) {
+    if (unitRepeats(size, grid)) return false;
     if (distinctCount(grid) < spec.distinct) return false;
     if (spec.row && !rowMinOk(size, grid, spec.row)) return false;
     if (!techOk(band, size, grid, solution)) return false;
     if (sudokuCountSolutions(size, grid) !== 1) return false;
+    return true;
+  }
+  function unitRepeats(size, grid) {
+    const g = geom(size);
+    function bad(cells) {
+      const seen = [];
+      for (let k = 0; k < cells.length; k++) {
+        const v = grid[cells[k]];
+        if (!v) continue;
+        if (seen.indexOf(v) >= 0) return true;
+        seen.push(v);
+      }
+      return false;
+    }
+    for (let r = 0; r < size; r++) {
+      const cells = [];
+      for (let c = 0; c < size; c++) cells.push(r * size + c);
+      if (bad(cells)) return true;
+    }
+    for (let c = 0; c < size; c++) {
+      const cells = [];
+      for (let r = 0; r < size; r++) cells.push(r * size + c);
+      if (bad(cells)) return true;
+    }
+    const nBoxes = (size / g.boxRows) * (size / g.boxCols);
+    for (let b = 0; b < nBoxes; b++) if (bad(cellsInBox(size, b))) return true;
+    return false;
+  }
+  function solutionComplete(size, grid) {
+    if (!grid || grid.length !== size * size) return false;
+    for (let i = 0; i < grid.length; i++) {
+      if (grid[i] < 1 || grid[i] > size) return false;
+    }
+    return !unitRepeats(size, grid);
+  }
+  function cluesMatch(puzzle, solution) {
+    for (let i = 0; i < puzzle.length; i++) {
+      if (puzzle[i] && puzzle[i] !== solution[i]) return false;
+    }
+    return true;
+  }
+  function dealOk(band, size, puzzle, solution, spec) {
+    if (!solutionComplete(size, solution)) return false;
+    if (unitRepeats(size, puzzle)) return false;
+    if (!cluesMatch(puzzle, solution)) return false;
+    const g = givenCount(puzzle);
+    if (g < spec.min || g > spec.max) return false;
+    if (!spreadOk(size, puzzle)) return false;
+    if (distinctCount(puzzle) < spec.distinct) return false;
+    if (spec.row && !rowMinOk(size, puzzle, spec.row)) return false;
+    if (!techOk(band, size, puzzle, solution)) return false;
+    if (sudokuCountSolutions(size, puzzle) !== 1) return false;
     return true;
   }
   function parseRows(rows) {
@@ -488,9 +548,9 @@
   }
   function sudokuGenerate(band, size, seed) {
     const spec = specOf(band, size);
-    const rng = makeRng(seed >>> 0);
-    for (let attempt = 0; attempt < 8; attempt++) {
+    function digOnce(rng) {
       const solution = fillComplete(size, rng);
+      if (!solutionComplete(size, solution)) return null;
       const puzzle = solution.slice();
       const order = rngShuffle(rng, seq(size * size));
       let stop = false;
@@ -516,24 +576,33 @@
         if (stop) break;
         if (!cleared) break;
       }
-      const g = givenCount(puzzle);
-      const ok = g >= spec.min && g <= spec.max && spreadOk(size, puzzle) &&
-        distinctCount(puzzle) >= spec.distinct &&
-        (!spec.row || rowMinOk(size, puzzle, spec.row)) &&
-        techOk(band, size, puzzle, solution) &&
-        sudokuCountSolutions(size, puzzle) === 1;
-      if (ok) {
-        return { band: band, size: size, puzzle: puzzle, solution: solution, givens: g, fallbackUsed: false };
-      }
+      if (!dealOk(band, size, puzzle, solution, spec)) return null;
+      return { puzzle: puzzle, solution: solution, givens: givenCount(puzzle) };
+    }
+    function pack(built, fallbackUsed) {
+      return {
+        band: band, size: size, puzzle: built.puzzle, solution: built.solution,
+        givens: built.givens, fallbackUsed: fallbackUsed
+      };
+    }
+    const rng = makeRng(seed >>> 0);
+    for (let attempt = 0; attempt < 8; attempt++) {
+      const built = digOnce(rng);
+      if (built) return pack(built, false);
     }
     const fb = fallbackPack(band, size);
-    return {
-      band: band, size: size, puzzle: fb.puzzle, solution: fb.solution,
-      givens: givenCount(fb.puzzle), fallbackUsed: true
-    };
+    if (dealOk(band, size, fb.puzzle, fb.solution, spec)) {
+      return pack({ puzzle: fb.puzzle, solution: fb.solution, givens: givenCount(fb.puzzle) }, true);
+    }
+    for (let extra = 1; extra <= 24; extra++) {
+      const built = digOnce(makeRng((seed + extra * 0x9E3779B9) >>> 0));
+      if (built) return pack(built, false);
+    }
+    return pack({ puzzle: fb.puzzle, solution: fb.solution, givens: givenCount(fb.puzzle) }, true);
   }
 
   let screenId = "menu";
+  let gridTop = TOP;
   let level = "tiny";
   let muted = false;
   let bandStarted = false;
@@ -617,22 +686,8 @@
   }
   function trayEntries() {
     if (!sizeN || !puzzle) return [];
-    if (level === "tiny") {
-      let idx = latched;
-      if (idx === null) {
-        for (let i = 0; i < puzzle.length; i++) if (puzzle[i] === 0) { idx = i; break; }
-      }
-      if (idx === null) return [];
-      const cands = sudokuCandidates(sizeN, puzzle, idx);
-      if (!cands.length) return [];
-      return [{ symbol: cands[0], live: true }];
-    }
     const all = [];
-    let cands = [];
-    if (latched !== null) cands = sudokuCandidates(sizeN, puzzle, latched);
-    for (let s = 1; s <= sizeN; s++) {
-      all.push({ symbol: s, live: latched !== null && cands.indexOf(s) >= 0 });
-    }
+    for (let s = 1; s <= sizeN; s++) all.push({ symbol: s, live: true });
     return all;
   }
   function clearBoard() {
@@ -663,8 +718,10 @@
   function fullCell(width, size) {
     return Math.floor((width - 16 - 8 * (size - 1)) / size);
   }
-  function rushSize(width) {
-    return fullCell(width, 9) >= 72 ? 9 : 6;
+  function rushSize(w, h) {
+    const plan = sheetPlan(w, h, 9);
+    if (plan.cell >= 72 && plan.symW >= 72 && plan.symH >= 72) return 9;
+    return 6;
   }
   function canFlat(w, h, size) {
     if (size === 4) return true;
@@ -688,13 +745,9 @@
     if (grid <= sideMaxH && trayOk(sideMaxW, sideMaxH)) return true;
     return false;
   }
-  function pretendView(w, h) {
+  function pretendView() {
     if (screenId !== "board" || !sizeN) return null;
-    if (sizeN === 4) return "flat";
-    if (canFlat(w, h, sizeN)) return "flat";
-    if (viewMode === "symbols") return "symbols";
-    if (viewMode === "zoom" && zoomId) return "zoom";
-    return "boxes";
+    return "flat";
   }
   function reconcileView(w, h) {
     if (screenId !== "board" || !sizeN) return;
@@ -706,11 +759,11 @@
     if (w < 320) return { mode: "stack", cell: natural, gap: 8, fit: false };
     function stackH(cell, gap) {
       const grid = 4 * cell + 3 * gap;
-      return TOP + grid + 8 + (112 * 2 + 8) + 8 + UNDO_H;
+      return gridTop + grid + 8 + (112 * 2 + 8) + 8 + UNDO_H;
     }
     const capped = Math.min(112, natural);
     if (natural >= 72 && stackH(capped, 8) <= h) return { mode: "stack", cell: capped, gap: 8, fit: true };
-    const availH = h - TOP - 8 - UNDO_H;
+    const availH = h - gridTop - 8 - UNDO_H;
     let gap = 8;
     let cell = Math.min(112, Math.floor((availH - 24) / 4));
     if (cell < 72) {
@@ -728,32 +781,102 @@
     return { mode: "stack", cell: natural, gap: 8, fit: false };
   }
   function pushTarget(targets, item) {
-    targets.push({ id: item.id, x: item.x, y: item.y, w: item.w, h: item.h, play: !!item.play });
+    const target = { id: item.id, x: item.x, y: item.y, w: item.w, h: item.h, play: !!item.play };
+    if (item.font) target.font = item.font;
+    targets.push(target);
   }
-  function chromeItems(w, screen) {
-    const y = 8;
-    const items = [
-      { id: "mute", x: 8, y: y, w: 72, h: 72, play: false, button: true, role: "chrome" },
-      { id: "full", x: 88, y: y, w: 72, h: 72, play: false, button: true, role: "chrome" }
-    ];
-    if (screen === "menu") return items;
-    const edge = 8;
-    const gap = 8;
-    const right = w - edge;
-    const leftLimit = 168;
-    const space = right - leftLimit;
-    if (screen === "board") {
-      const usable = space - gap;
-      let backW = Math.max(72, Math.floor(usable * 0.55));
-      let newW = usable - backW;
-      if (newW < 72) { newW = 72; backW = usable - newW; }
-      items.push({ id: "new-board", x: leftLimit, y: y, w: newW, h: 72, play: false, button: true, role: "chrome" });
-      items.push({ id: "back", x: right - backW, y: y, w: backW, h: 72, play: false, button: true, role: "chrome" });
-    } else {
-      const backW = Math.max(72, Math.min(200, space));
-      items.push({ id: "back", x: right - backW, y: y, w: backW, h: 72, play: false, button: true, role: "chrome" });
+  function placeEyes(bannerItem) {
+    eyesEl.style.transform = "none";
+    if (!bannerItem) {
+      eyesEl.style.left = "168px";
+      eyesEl.style.right = "auto";
+      eyesEl.style.top = "18px";
+      return;
     }
-    return items;
+    eyesEl.style.top = (bannerItem.y + Math.max(8, Math.floor((bannerItem.h - 36) / 2))) + "px";
+    eyesEl.style.left = "auto";
+    eyesEl.style.right = (window.innerWidth - (bannerItem.x + bannerItem.w) + 10) + "px";
+  }
+  function newFont(width) {
+    if (width >= 136) return 20;
+    if (width >= 112) return 18;
+    if (width >= 100) return 16;
+    return 13;
+  }
+  function backFont(width) {
+    if (width >= 140) return 16;
+    if (width >= 120) return 15;
+    if (width >= 104) return 13;
+    return 12;
+  }
+  function fitPair(space) {
+    const gap = 8;
+    if (136 + gap + 140 <= space) return { newW: 136, backW: 140 };
+    if (128 + gap + 120 <= space) return { newW: 128, backW: 120 };
+    if (100 + gap + 104 <= space) return { newW: 100, backW: 104 };
+    const each = Math.max(36, Math.floor((space - gap) / 2));
+    return { newW: each, backW: Math.max(36, space - gap - each) };
+  }
+  function fitBack(space) {
+    if (space >= 140) return 140;
+    if (space >= 120) return 120;
+    if (space >= 104) return 104;
+    return Math.max(36, space);
+  }
+  function chromePlan(w, screen) {
+    const y = 8;
+    const gap = 8;
+    const edge = 8;
+    const rowH = 72;
+    const items = [
+      { id: "mute", x: edge, y: y, w: 72, h: rowH, play: false, button: true, role: "chrome" },
+      { id: "full", x: edge + 72 + gap, y: y, w: 72, h: rowH, play: false, button: true, role: "chrome" }
+    ];
+    if (screen === "menu") return { items: items, top: TOP };
+    const bannerLeft = 168;
+    const right = w - edge;
+    const buttonSpace = Math.max(36, right - bannerLeft);
+    const onBoard = screen === "board";
+    let newW = 0;
+    let backW = fitBack(buttonSpace);
+    if (onBoard) {
+      const pair = fitPair(buttonSpace);
+      newW = pair.newW;
+      backW = pair.backW;
+    }
+    const cluster = (newW > 0 ? newW + gap : 0) + backW;
+    const clusterLeft = right - cluster;
+    const bannerW = clusterLeft - gap - bannerLeft;
+    const strip = bannerW < 120;
+    let x = clusterLeft;
+    if (onBoard) {
+      items.push({
+        id: "new-board", x: x, y: y, w: newW, h: rowH,
+        play: false, button: true, role: "chrome", font: newFont(newW)
+      });
+      x += newW + gap;
+    }
+    items.push({
+      id: "back", x: x, y: y, w: backW, h: rowH,
+      play: false, button: true, role: "chrome", font: backFont(backW)
+    });
+    let top = TOP;
+    if (!strip) {
+      const oneLine = bannerW >= 260;
+      items.push({
+        id: "banner", x: bannerLeft, y: oneLine ? y + 6 : y, w: bannerW, h: oneLine ? rowH - 12 : rowH,
+        font: bannerW >= 180 ? 18 : 16, role: "banner"
+      });
+    } else {
+      const stripY = y + rowH + 6;
+      const stripH = 44;
+      items.push({
+        id: "banner", x: edge, y: stripY, w: Math.max(40, w - edge * 2), h: stripH,
+        font: 18, role: "banner"
+      });
+      top = stripY + stripH + 6;
+    }
+    return { items: items, top: top };
   }
   function actionItems(w, y, withBoxes) {
     const n = withBoxes ? 3 : 2;
@@ -807,7 +930,7 @@
       const gridW = 4 * cell + 3 * gap;
       const gridH = gridW;
       let gridX = 8;
-      let gridY = TOP;
+      let gridY = gridTop;
       let trayX;
       let trayY;
       let trayBW;
@@ -819,10 +942,10 @@
         actY = trayY + 232 + 8;
       } else {
         trayX = gridX + gridW + 16;
-        trayY = TOP;
+        trayY = gridTop;
         const remain = w - trayX - 16;
         trayBW = Math.floor((remain - 8) / 2);
-        actY = TOP + Math.max(gridH, 232) + 8;
+        actY = gridTop + Math.max(gridH, 232) + 8;
       }
       const indexes = seq(16);
       for (let i = 0; i < indexes.length; i++) {
@@ -863,28 +986,17 @@
       for (let i = 0; i < actions.length; i++) items.push(actions[i]);
       return;
     }
-    const cell = fullCell(w, sizeN);
-    const gap = 8;
-    const grid = sizeN * cell + (sizeN - 1) * gap;
+    const plan = sheetPlan(w, h, sizeN, gridTop);
     const entries = trayEntries();
-    const cols = Math.max(1, Math.floor((w - 32 + gap) / (112 + gap)));
-    const bw = Math.floor((w - 32 - (Math.min(cols, entries.length) - 1) * gap) / Math.max(1, Math.min(cols, Math.max(1, entries.length))));
-    const useCols = Math.min(entries.length, Math.max(1, Math.floor((w - 32 + gap) / (112 + gap))));
-    const symW = Math.max(112, Math.floor((w - 32 - (useCols - 1) * gap) / useCols));
-    const symRows = Math.ceil(entries.length / useCols);
-    const trayH = symRows * 112 + (symRows - 1) * gap;
-    const gridY = TOP;
-    const trayY = gridY + grid + 8;
-    const actY = trayY + trayH + 8;
     for (let index = 0; index < puzzle.length; index++) {
       const r = Math.floor(index / sizeN);
       const c = index % sizeN;
       const box = {
         id: "cell-" + index,
-        x: 8 + c * (cell + gap),
-        y: gridY + r * (cell + gap),
-        w: cell,
-        h: cell,
+        x: plan.gridX + c * (plan.cell + plan.gap),
+        y: plan.gridY + r * (plan.cell + plan.gap),
+        w: plan.cell,
+        h: plan.cell,
         index: index
       };
       if (puzzle[index] === 0) { box.play = true; box.button = true; box.role = "cell"; }
@@ -894,27 +1006,67 @@
     }
     for (let i = 0; i < entries.length; i++) {
       const e = entries[i];
-      const col = i % useCols;
-      const row = Math.floor(i / useCols);
+      const col = i % plan.symCols;
+      const row = Math.floor(i / plan.symCols);
       items.push({
         id: "symbol-" + e.symbol,
-        x: 16 + col * (symW + gap),
-        y: trayY + row * (112 + gap),
-        w: symW,
-        h: 112,
+        x: plan.trayX + col * (plan.symW + plan.gap),
+        y: plan.trayY + row * (plan.symH + plan.gap),
+        w: plan.symW,
+        h: plan.symH,
         play: true,
         button: !!e.live,
         role: e.live ? "symbol" : "dim",
         symbol: e.symbol
       });
     }
-    const actions = actionItems(w, actY, false);
+    const actions = actionItems(w, plan.actY, false);
     for (let i = 0; i < actions.length; i++) items.push(actions[i]);
   }
+  function sheetPlan(w, h, size, topY) {
+    const gap = 8;
+    const edge = 8;
+    const origin = topY == null ? TOP : topY;
+    const availW = Math.max(32, w - edge * 2);
+    const availH = Math.max(32, h - origin - 8 - UNDO_H - 8);
+    let symRows = 1;
+    let symCols = size;
+    let symW = Math.floor((availW - gap * (symCols - 1)) / symCols);
+    if (symW < 72) {
+      symRows = 2;
+      symCols = Math.ceil(size / 2);
+      symW = Math.floor((availW - gap * (symCols - 1)) / symCols);
+    }
+    let symH = 72;
+    const trayH0 = symRows * symH + (symRows - 1) * gap;
+    const gridBudgetH = availH - trayH0 - 8;
+    let cell = Math.floor(Math.min(
+      (availW - gap * (size - 1)) / size,
+      (gridBudgetH - gap * (size - 1)) / size
+    ));
+    if (cell < 8) cell = 8;
+    const cellCap = size >= 9 ? 120 : 148;
+    if (cell > cellCap) cell = cellCap;
+    const gridH = size * cell + (size - 1) * gap;
+    const gridW = size * cell + (size - 1) * gap;
+    const spare = availH - gridH - 8 - trayH0;
+    if (spare > 8) symH += Math.min(40, Math.floor(spare / symRows));
+    const trayH = symRows * symH + (symRows - 1) * gap;
+    const trayW = symCols * symW + (symCols - 1) * gap;
+    return {
+      cell: cell, gap: gap, symW: symW, symH: symH, symCols: symCols, symRows: symRows,
+      gridX: edge + Math.max(0, Math.floor((availW - gridW) / 2)),
+      gridY: origin,
+      trayX: edge + Math.max(0, Math.floor((availW - trayW) / 2)),
+      trayY: origin + gridH + 8,
+      actY: origin + gridH + 8 + trayH + 8
+    };
+  }
   function layoutBoxes(w, h, items) {
-    const nBoxes = sizeN === 9 ? 9 : 6;
-    const cols = 3;
-    const rows = nBoxes / 3;
+    const g = geom(sizeN);
+    const cols = sizeN / g.boxCols;
+    const rows = sizeN / g.boxRows;
+    const nBoxes = cols * rows;
     const gap = 8;
     const byW = Math.floor((w - 32 - (cols - 1) * gap) / cols);
     const availH = h - TOP - gap - UNDO_H;
@@ -941,6 +1093,74 @@
     const actY = y0 + rows * side + (rows - 1) * gap + 8;
     const actions = actionItems(w, actY, false);
     for (let i = 0; i < actions.length; i++) items.push(actions[i]);
+  }
+  function doneReserve() {
+    return screenId === "rest" && solved && dealt === 1 ? 88 : 16;
+  }
+  function anotherItem(w, h) {
+    if (!(screenId === "rest" && solved && dealt === 1)) return null;
+    const bw = Math.max(72, Math.min(240, w - 32));
+    return {
+      id: "another", x: Math.floor((w - bw) / 2), y: h - 8 - 72,
+      w: bw, h: 72, play: false, button: true, role: "another"
+    };
+  }
+  function layoutDoneFlat(w, h, items) {
+    const gap = 8;
+    const availH = h - gridTop - doneReserve();
+    const byW = Math.floor((w - 16 - gap * (sizeN - 1)) / sizeN);
+    const byH = Math.floor((availH - gap * (sizeN - 1)) / sizeN);
+    let cell = Math.min(byW, byH);
+    cell = Math.min(cell, sizeN === 4 ? 168 : 160);
+    if (cell < 8) cell = 8;
+    const grid = sizeN * cell + (sizeN - 1) * gap;
+    const x0 = Math.floor((w - grid) / 2);
+    const y0 = gridTop;
+    for (let index = 0; index < puzzle.length; index++) {
+      const r = Math.floor(index / sizeN);
+      const c = index % sizeN;
+      const box = {
+        id: "cell-" + index,
+        x: x0 + c * (cell + gap),
+        y: y0 + r * (cell + gap),
+        w: cell,
+        h: cell,
+        index: index,
+        play: false,
+        button: false,
+        role: clue[index] ? "given" : "placed"
+      };
+      items.push(box);
+    }
+  }
+  function layoutDoneBoxes(w, h, items) {
+    const g = geom(sizeN);
+    const cols = sizeN / g.boxCols;
+    const rows = sizeN / g.boxRows;
+    const nBoxes = cols * rows;
+    const gap = 8;
+    const availH = h - TOP - doneReserve();
+    const byW = Math.floor((w - 32 - (cols - 1) * gap) / cols);
+    const byH = Math.floor((availH - (rows - 1) * gap) / rows);
+    const side = Math.max(8, Math.min(byW, byH));
+    const gridW = cols * side + (cols - 1) * gap;
+    const x0 = Math.floor((w - gridW) / 2);
+    const y0 = TOP;
+    for (let b = 0; b < nBoxes; b++) {
+      const col = b % cols;
+      const row = Math.floor(b / cols);
+      items.push({
+        id: "box-" + b,
+        x: x0 + col * (side + gap),
+        y: y0 + row * (side + gap),
+        w: side,
+        h: side,
+        play: false,
+        button: false,
+        role: "box",
+        box: b
+      });
+    }
   }
   function zoomBoxIndex() {
     if (!zoomId) return -1;
@@ -1059,19 +1279,22 @@
     for (let i = 0; i < actions.length; i++) items.push(actions[i]);
   }
   function layout(w, h) {
-    const items = chromeItems(w, screenId);
+    const chrome = chromePlan(w, screenId);
+    gridTop = chrome.top;
+    const items = chrome.items;
     const view = pretendView(w, h);
+    let shown = view;
     if (screenId === "board" && sizeN && puzzle) {
       if (view === "flat") layoutFlat(w, h, items);
       else if (view === "boxes") layoutBoxes(w, h, items);
       else if (view === "zoom") layoutZoom(w, h, items);
       else if (view === "symbols") layoutSymbols(w, h, items);
     }
-    if (screenId === "rest" && solved && dealt === 1) {
-      items.push({
-        id: "another", x: Math.floor(w / 2 - 120), y: Math.floor(h / 2 + 20),
-        w: 240, h: 72, play: false, button: true, role: "another"
-      });
+    if (screenId === "rest" && sizeN && puzzle) {
+      shown = "flat";
+      layoutDoneFlat(w, h, items);
+      const again = anotherItem(w, h);
+      if (again) items.push(again);
     }
     const targets = [];
     for (let i = 0; i < items.length; i++) if (items[i].button) pushTarget(targets, items[i]);
@@ -1079,7 +1302,7 @@
     for (let i = 0; i < targets.length; i++) {
       if (Math.min(targets[i].w, targets[i].h) < 72) fit = false;
     }
-    return { fit: fit, view: view, items: items, targets: targets };
+    return { fit: fit, view: shown, items: items, targets: targets };
   }
 
   function drawSun(ctx, w, h) {
@@ -1181,18 +1404,25 @@
     el.style.height = item.h + "px";
     if (z) el.style.zIndex = String(z);
   }
-  function syncAnother() {
-    const existing = document.getElementById("another");
-    const show = screenId === "rest" && solved && dealt === 1;
-    if (show && !existing) {
-      const btn = document.createElement("button");
-      btn.id = "another";
-      btn.type = "button";
-      btn.textContent = "Another";
-      btn.addEventListener("click", again);
-      restEl.appendChild(btn);
-    } else if (!show && existing) {
-      existing.remove();
+  function syncAnother(lay) {
+    let item = null;
+    for (let i = 0; i < lay.items.length; i++) {
+      if (lay.items[i].id === "another") item = lay.items[i];
+    }
+    let btn = document.getElementById("another");
+    if (item) {
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.id = "another";
+        btn.type = "button";
+        btn.textContent = "Another";
+        btn.addEventListener("click", again);
+        document.body.appendChild(btn);
+      }
+      place(btn, item, 46);
+      btn.hidden = false;
+    } else if (btn) {
+      btn.remove();
     }
   }
   function pieceHost(lay, item) {
@@ -1203,13 +1433,10 @@
     if (item.role === "cell" || item.role === "given" || item.role === "placed") {
       let name = "cell " + (item.role === "cell" ? "hole" : item.role);
       if (item.index === latched) name += " latched";
-      if (hintInfo && hintInfo.index === item.index && !reduceMotion) name += " pulse";
       return name;
     }
     if (item.role === "symbol" || item.role === "dim") {
-      let name = "sym " + (item.button ? "live" : "dim");
-      if (hintInfo && hintInfo.symbol === item.symbol && item.button && !reduceMotion) name += " pulse";
-      return name;
+      return "sym " + (item.button ? "live" : "dim");
     }
     return "boxbtn";
   }
@@ -1249,7 +1476,7 @@
   }
   function syncPieces(lay) {
     const wanted = [];
-    if (screenId === "board") {
+    if (screenId === "board" || screenId === "rest") {
       for (let i = 0; i < lay.items.length; i++) {
         const item = lay.items[i];
         if (item.role === "cell" || item.role === "given" || item.role === "placed" ||
@@ -1322,8 +1549,8 @@
     if (screenId === "board" && sizeN) reconcileView(window.innerWidth, window.innerHeight);
     const lay = layout(window.innerWidth, window.innerHeight);
     menuEl.hidden = screenId !== "menu";
-    playEl.hidden = screenId !== "board";
-    restEl.hidden = screenId !== "rest";
+    playEl.hidden = screenId !== "board" && !(screenId === "rest" && puzzle);
+    restEl.hidden = screenId !== "rest" || !!puzzle;
     backBtn.hidden = screenId === "menu";
     newBtn.hidden = screenId !== "board";
     boxesBtn.hidden = !(screenId === "board" && (lay.view === "zoom" || lay.view === "symbols"));
@@ -1339,15 +1566,25 @@
     ["tiny", "little", "shop", "rush"].forEach(function (id) {
       document.getElementById(id).setAttribute("aria-pressed", id === level ? "true" : "false");
     });
+    let bannerItem = null;
     for (let i = 0; i < lay.items.length; i++) {
       const item = lay.items[i];
+      if (item.role === "banner") {
+        bannerItem = item;
+        place(bannerEl, item, 45);
+        bannerEl.style.right = "auto";
+        bannerEl.style.fontSize = item.font + "px";
+        continue;
+      }
       if (item.role !== "chrome" && item.role !== "action") continue;
       const el = document.getElementById(item.id);
       if (!el) continue;
       place(el, item, item.role === "chrome" ? 46 : 32);
+      if (item.font) el.style.fontSize = item.font + "px";
     }
+    placeEyes(bannerItem);
     syncPieces(lay);
-    syncAnother();
+    syncAnother(lay);
   }
   function drawBox(canvas, b, w, h) {
     const ctx = canvas.getContext("2d");
@@ -1393,7 +1630,7 @@
     level = band;
   }
   function generate() {
-    const size = level === "shop" ? 6 : level === "rush" ? rushSize(window.innerWidth) : 4;
+    const size = level === "shop" ? 6 : level === "rush" ? rushSize(window.innerWidth, window.innerHeight) : 4;
     const seed = takeSeed();
     const gen = sudokuGenerate(level, size, seed);
     sizeN = gen.size;
@@ -1408,7 +1645,7 @@
     hintInfo = null;
     solved = false;
     zoomId = null;
-    viewMode = sizeN === 4 || canFlat(window.innerWidth, window.innerHeight, sizeN) ? "flat" : "boxes";
+    viewMode = "flat";
   }
   function start(band) {
     if (!isBand(band)) { render(); return; }
@@ -1429,7 +1666,7 @@
     render();
   }
   function latch(cellId) {
-    if (typeof cellId !== "string" || !sizeN || !puzzle) { render(); return; }
+    if (screenId !== "board" || typeof cellId !== "string" || !sizeN || !puzzle) { render(); return; }
     const m = /^cell-(\d+)$/.exec(cellId);
     if (!m) { render(); return; }
     const idx = +m[1];
@@ -1438,7 +1675,7 @@
     render();
   }
   function write(symbol) {
-    if (!sizeN || !puzzle || latched === null) { render(); return; }
+    if (screenId !== "board" || solved || !sizeN || !puzzle || latched === null) { render(); return; }
     if (typeof symbol !== "number" || !Number.isInteger(symbol) || symbol < 1 || symbol > sizeN) { render(); return; }
     const cands = sudokuCandidates(sizeN, puzzle, latched);
     if (cands.indexOf(symbol) < 0) { render(); return; }
@@ -1447,11 +1684,12 @@
     placed.push({ index: idx, symbol: symbol });
     latched = null;
     hintInfo = null;
-    if (viewMode === "symbols") viewMode = "zoom";
     let done = true;
     for (let i = 0; i < puzzle.length; i++) if (puzzle[i] !== solution[i]) done = false;
     if (done) {
       solved = true;
+      latched = null;
+      hintInfo = null;
       beep(659, 90);
       go("rest");
       return;
@@ -1460,7 +1698,7 @@
     render();
   }
   function undo() {
-    if (!placed.length || !puzzle) { render(); return; }
+    if (screenId !== "board" || solved || !placed.length || !puzzle) { render(); return; }
     const last = placed.pop();
     if (!clue[last.index]) puzzle[last.index] = 0;
     hintInfo = null;
@@ -1486,16 +1724,11 @@
     const found = findHintCell();
     if (!found) { render(); return; }
     latched = found.index;
-    hintInfo = { index: found.index, symbol: found.symbol };
-    if (sizeN !== 4 && viewMode !== "flat") {
-      const b = boxIndexAt(sizeN, Math.floor(found.index / sizeN), found.index % sizeN);
-      zoomId = "box-" + b;
-      viewMode = trayFitsZoom(window.innerWidth, window.innerHeight, sizeN) ? "zoom" : "symbols";
-    }
+    hintInfo = { index: found.index };
     render();
   }
   function zoom(boxId) {
-    if (!sizeN || sizeN === 4) { render(); return; }
+    if (screenId !== "board" || !sizeN || sizeN === 4) { render(); return; }
     if (boxId === null) {
       zoomId = null;
       viewMode = "boxes";
@@ -1522,7 +1755,7 @@
     render();
   }
   function newBoard() {
-    if (!bandStarted) { render(); return; }
+    if (screenId !== "board" || !bandStarted) { render(); return; }
     latched = null;
     placed = [];
     hintInfo = null;
@@ -1775,7 +2008,13 @@
   function targetsAt(w, h) {
     const lay = layout(w, h);
     render();
-    return { fit: lay.fit, targets: lay.targets };
+    const cells = [];
+    let banner = null;
+    for (let i = 0; i < lay.items.length; i++) {
+      if (lay.items[i].id.indexOf("cell-") === 0) cells.push(lay.items[i]);
+      if (lay.items[i].id === "banner") banner = lay.items[i];
+    }
+    return { fit: lay.fit, targets: lay.targets, cells: cells, banner: banner };
   }
   function singlesNow() {
     if (!sizeN || !puzzle || !solution) return false;
@@ -1810,7 +2049,7 @@
       puzzle: puzzle ? puzzle.slice() : null,
       solution: solution ? solution.slice() : null,
       solved: solved,
-      hint: hintInfo ? { index: hintInfo.index, symbol: hintInfo.symbol } : null,
+      hint: hintInfo ? { index: hintInfo.index } : null,
       singles: singlesNow(),
       solutions: sizeN && puzzle ? sudokuCountSolutions(sizeN, puzzle) : 0,
       zoom: zoomId,
@@ -1937,6 +2176,8 @@
     function checkGrid(name, band, size, grid, solution, floorExact) {
       const spec = specOf(band, size);
       if (sudokuCountSolutions(size, grid) !== 1) fail(name, "solution count was not 1.");
+      if (unitRepeats(size, grid)) fail(name, "a row, column, or box repeated a symbol.");
+      if (!solutionComplete(size, solution)) fail(name, "the solution broke a row, column, or box.");
       for (let i = 0; i < grid.length; i++) {
         if (grid[i] && grid[i] !== solution[i]) fail(name, "a clue contradicted the solution.");
       }
@@ -2032,6 +2273,25 @@
       synth.speak = function () { speakCalls++; return origSpeak.apply(synth, arguments); };
     }
     function same(a, b) { return eqArr(a, b); }
+    function writeForced() {
+      const st = state();
+      if (!st.puzzle || !st.size) return false;
+      let idx = -1;
+      let sym = 0;
+      for (let i = 0; i < st.puzzle.length; i++) {
+        if (st.puzzle[i] !== 0) continue;
+        const cands = sudokuCandidates(st.size, st.puzzle, i);
+        if (cands.length === 1) { idx = i; sym = cands[0]; break; }
+      }
+      if (idx < 0 && (st.level === "shop" || st.level === "rush")) {
+        const hid = findHidden(st.size, st.puzzle);
+        if (hid) { idx = hid.index; sym = hid.symbol; }
+      }
+      if (idx < 0) return false;
+      latch("cell-" + idx);
+      write(sym);
+      return true;
+    }
     function emptyCenters() {
       return centers().filter(function (t) { return t.id.indexOf("cell-") === 0; });
     }
@@ -2261,10 +2521,7 @@
         let guard = 0;
         const cap = state().size * state().size;
         while (!state().solved && guard < cap) {
-          hint();
-          const h = state().hint;
-          if (!h) break;
-          write(h.symbol);
+          if (!writeForced()) break;
           guard++;
         }
         if (!state().solved || state().screen !== "rest") fail("singles-only", band + " did not finish on the rest card.");
@@ -2285,7 +2542,13 @@
           if (state().latched !== Number(keptId.slice(5))) fail("click-survives-frame", "the click did not latch the cell.");
         }
       }
-      if (tiny.tray.length !== 1 || tiny.tray[0].live !== true) fail("tiny-forced", "the tray did not offer one live symbol.");
+      if (tiny.tray.length !== 4) fail("tiny-forced", "the tray did not show all four pictures.");
+      for (let i = 0; i < tiny.tray.length; i++) {
+        if (!tiny.tray[i].live) fail("tiny-forced", "a picture was marked as the answer.");
+      }
+      if (document.querySelector(".dim") || document.querySelector(".pulse")) {
+        fail("tiny-forced", "the board marked a picture.");
+      }
       for (let i = 0; i < tiny.puzzle.length; i++) {
         if (tiny.puzzle[i] === 0 && sudokuCandidates(4, tiny.puzzle, i).length !== 1) {
           fail("tiny-forced", "an empty cell had more than one candidate.");
@@ -2345,7 +2608,8 @@
           fail("latch-not-fill", "a 660 ms look did not latch without writing.");
         }
         releaseLook();
-        const sym = centers().filter(function (item) { return item.id.indexOf("symbol-") === 0; })[0];
+        const cand = sudokuCandidates(4, state().puzzle, state().latched)[0];
+        const sym = centers().filter(function (item) { return item.id === "symbol-" + cand; })[0];
         if (!sym) fail("latch-not-fill", "no live symbol was on screen.");
         else {
           t = 74000;
@@ -2405,8 +2669,7 @@
       const fresh = state().puzzle.slice();
       undo();
       if (!same(state().puzzle, fresh)) fail("undo-child-only", "undo changed a fresh board.");
-      hint();
-      write(state().hint.symbol);
+      writeForced();
       if (!state().placed.length) fail("undo-child-only", "the child write was not recorded.");
       undo();
       if (state().placed.length !== 0) fail("undo-child-only", "undo left the child symbol in place.");
@@ -2419,11 +2682,18 @@
       const beforeHint = state().puzzle.slice();
       hint();
       const hinted = state();
-      if (!hinted.hint || hinted.latched === null || hinted.placed.length !== 0) {
-        fail("hint-does-not-write", "hint did not latch a cell without writing.");
+      if (!hinted.hint || hinted.hint.symbol || hinted.latched === null || hinted.placed.length !== 0) {
+        fail("hint-does-not-write", "hint did not latch a cell without naming the symbol.");
       }
-      if (!hinted.hint || hinted.puzzle[hinted.hint.index] !== 0 || !same(hinted.puzzle, beforeHint)) {
+      if (hinted.puzzle[hinted.latched] !== 0 || !same(hinted.puzzle, beforeHint)) {
         fail("hint-does-not-write", "hint filled the cell.");
+      }
+      if (document.querySelector(".pulse") || document.querySelector(".dim")) {
+        fail("hint-does-not-write", "hint marked a symbol.");
+      }
+      if (hinted.tray.length !== hinted.size) fail("hint-does-not-write", "the tray hid a symbol.");
+      for (let i = 0; i < hinted.tray.length; i++) {
+        if (!hinted.tray[i].live) fail("hint-does-not-write", "a symbol was marked as the answer.");
       }
 
       seed(1);
@@ -2435,13 +2705,19 @@
       }
       let guard = 0;
       while (!state().solved && guard < 16) {
-        hint();
-        const h = state().hint;
-        if (!h) break;
-        write(h.symbol);
+        if (!writeForced()) break;
         guard++;
       }
       if (!state().solved || state().screen !== "rest") fail("another-gated", "the first board did not reach rest.");
+      if (playEl.hidden || !restEl.hidden) fail("another-gated", "the finished board was hidden or covered.");
+      const shownCells = document.querySelectorAll("#board .cell");
+      if (shownCells.length !== 16) fail("another-gated", "the finished grid was not on screen.");
+      if (document.querySelector("#board button, #tray button")) fail("another-gated", "the finished board still had a writer.");
+      const frozen = state().puzzle.slice();
+      undo();
+      latch("cell-0");
+      write(1);
+      if (state().screen !== "rest" || !same(state().puzzle, frozen)) fail("another-gated", "the finished board was still editable.");
       seed(2);
       again();
       const second = sudokuGenerate("tiny", 4, 2);
@@ -2450,10 +2726,7 @@
       }
       guard = 0;
       while (!state().solved && guard < 16) {
-        hint();
-        const h = state().hint;
-        if (!h) break;
-        write(h.symbol);
+        if (!writeForced()) break;
         guard++;
       }
       if (document.getElementById("another")) fail("another-gated", "Another was offered after the second board.");
@@ -2467,16 +2740,117 @@
       seed(1);
       start("rush");
       const rushView = targetsAt(390, 844);
-      const rushCells = rushView.targets.filter(function (item) { return item.id.indexOf("cell-") === 0; });
       const rushBoxes = rushView.targets.filter(function (item) { return item.id.indexOf("box-") === 0; });
-      if (rushCells.length >= 81) fail("rush-narrow", "a full 9 by 9 of cells was listed.");
-      for (let i = 0; i < rushCells.length; i++) {
-        if (Math.min(rushCells[i].w, rushCells[i].h) < 72) fail("rush-narrow", "a cell was under 72.");
+      const rushSyms = rushView.targets.filter(function (item) { return item.id.indexOf("symbol-") === 0; });
+      if (rushBoxes.length) fail("rush-narrow", "the board split into boxes.");
+      if (state().view !== "flat") fail("rush-narrow", "the board left the single screen.");
+      if (rushView.cells.length !== state().size * state().size) fail("rush-narrow", "the full grid was not on the screen.");
+      if (rushSyms.length !== state().size) fail("rush-narrow", "the digits were not on the same screen.");
+      const rushWide = targetsAt(2000, 1090);
+      if (rushWide.cells.length !== state().size * state().size) fail("rush-narrow", "a wide window hid a square.");
+      for (let i = 0; i < rushWide.targets.length; i++) {
+        if (Math.min(rushWide.targets[i].w, rushWide.targets[i].h) < 72) fail("rush-narrow", "a wide target was under 72.");
       }
-      if (!rushBoxes.length && !rushCells.length) fail("rush-narrow", "no box or cell targets were listed.");
-      for (let i = 0; i < rushBoxes.length; i++) {
-        if (rushBoxes[i].w !== 114 || rushBoxes[i].h !== 114) {
-          fail("rush-narrow", "a box button was " + rushBoxes[i].w + " by " + rushBoxes[i].h + ".");
+
+      seed(1);
+      start("shop");
+      if (unitRepeats(6, state().puzzle) || !solutionComplete(6, state().solution)) {
+        fail("shop-rows", "a row, column, or box repeated a digit.");
+      }
+      const digitCells = document.querySelectorAll("#board .given, #board .placed, #tray .sym");
+      let digitOff = 0;
+      for (let di = 0; di < digitCells.length; di++) {
+        const digitEl = digitCells[di];
+        if (!digitEl.textContent) continue;
+        const range = document.createRange();
+        range.selectNodeContents(digitEl);
+        const ink = range.getBoundingClientRect();
+        const box = digitEl.getBoundingClientRect();
+        if (ink.width < 1 || ink.height < 1) continue;
+        const dx = (ink.left + ink.width / 2) - (box.left + box.width / 2);
+        const dy = (ink.top + ink.height / 2) - (box.top + box.height / 2);
+        digitOff = Math.max(digitOff, Math.sqrt(dx * dx + dy * dy));
+      }
+      if (digitOff > 3) fail("shop-rows", "a digit was off the middle of its square (" + digitOff.toFixed(1) + ").");
+      function shopSheet(w, h, label) {
+        const view = targetsAt(w, h);
+        const boxes = view.targets.filter(function (item) { return item.id.indexOf("box-") === 0; });
+        const symbols = view.targets.filter(function (item) { return item.id.indexOf("symbol-") === 0; });
+        if (boxes.length) fail("shop-rows", label + " split the board into boxes.");
+        if (view.cells.length !== 36) fail("shop-rows", label + " did not show every square.");
+        if (symbols.length !== 6) fail("shop-rows", label + " hid a digit.");
+        if (w >= 1000 && h >= 1000) {
+          for (let i = 0; i < view.targets.length; i++) {
+            if (Math.min(view.targets[i].w, view.targets[i].h) < 72) fail("shop-rows", label + " target was under 72.");
+          }
+        }
+      }
+      shopSheet(390, 844, "390");
+      shopSheet(2000, 1090, "2000");
+      function overlaps(a, b) {
+        return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+      }
+      function checkBanner(w, h, label) {
+        const view = targetsAt(w, h);
+        const box = view.banner;
+        if (!box || box.w < 120 || box.h < 36) {
+          fail("banner-room", label + " sentence was " + (box ? box.w + " by " + box.h : "missing") + ".");
+          return;
+        }
+        const watch = ["mute", "full", "new-board", "back"];
+        for (let i = 0; i < view.targets.length; i++) {
+          const target = view.targets[i];
+          if (watch.indexOf(target.id) < 0) continue;
+          if (overlaps(box, target)) fail("banner-room", label + " covered the sentence with " + target.id + ".");
+          if (target.id !== "new-board" && target.id !== "back") continue;
+          const el = document.getElementById(target.id);
+          el.style.width = target.w + "px";
+          el.style.height = target.h + "px";
+          el.style.fontSize = (target.font || 16) + "px";
+          if (el.scrollWidth > el.clientWidth + 1) fail("banner-room", label + " clipped " + target.id + ".");
+        }
+        const sentences = ["Look at an empty square.", "Now look at the symbol.", "That board is done."];
+        bannerEl.hidden = false;
+        bannerEl.style.left = box.x + "px";
+        bannerEl.style.top = box.y + "px";
+        bannerEl.style.width = box.w + "px";
+        bannerEl.style.height = box.h + "px";
+        bannerEl.style.right = "auto";
+        bannerEl.style.fontSize = box.font + "px";
+        for (let s = 0; s < sentences.length; s++) {
+          bannerEl.textContent = sentences[s];
+          if (bannerEl.scrollWidth > bannerEl.clientWidth + 1 || bannerEl.scrollHeight > bannerEl.clientHeight + 1) {
+            fail("banner-room", label + " clipped the sentence.");
+          }
+        }
+        state();
+      }
+      checkBanner(1280, 800, "1280");
+      checkBanner(390, 844, "390");
+      checkBanner(2000, 1090, "2000");
+      zoom("box-0");
+      if (state().view !== "flat") fail("shop-symbols", "the board left the single screen.");
+      let shopHole = -1;
+      for (let i = 0; i < state().puzzle.length; i++) {
+        if (state().puzzle[i] === 0) { shopHole = i; break; }
+      }
+      if (shopHole < 0) fail("shop-symbols", "the board had no empty square.");
+      else {
+        latch("cell-" + shopHole);
+        if (state().view !== "flat" || state().latched !== shopHole) {
+          fail("shop-symbols", "latch left the board.");
+        }
+        const together = targetsAt(2000, 1090);
+        const stillCell = together.targets.some(function (item) { return item.id === "cell-" + shopHole; });
+        const stillDigit = together.targets.some(function (item) { return item.id.indexOf("symbol-") === 0; });
+        if (!stillCell || !stillDigit) fail("shop-symbols", "the square and the digits were not on one screen.");
+        const shopTray = state().tray;
+        if (shopTray.length !== 6) fail("shop-symbols", "the tray did not show every digit.");
+        for (let i = 0; i < shopTray.length; i++) {
+          if (!shopTray[i].live) fail("shop-symbols", "a digit was marked as the answer.");
+        }
+        if (document.querySelector(".dim") || document.querySelector(".pulse")) {
+          fail("shop-symbols", "a digit was marked as the answer.");
         }
       }
 

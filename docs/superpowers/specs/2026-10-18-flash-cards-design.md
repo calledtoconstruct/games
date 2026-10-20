@@ -370,6 +370,8 @@ Advance when `step`'s now is at least show-start plus 800. If the next index is 
 
 Banner: `That was a good sitting.` The card sentence is `We can play again.` An Another button calls `start` for the same band, which lands on subject and deals nothing until a subject is picked. Back returns to the menu and keeps the band highlight. No grade, no miss count, no time, no rank, and none of the words wrong, fail, or no.
 
+**Finished card revised 2026-10-20.** The last trial stays on the page. The prompt and the choices are not targets. The banner still says "That was a good sitting." and the line "We can play again." stays under the banner. Another sits under the cards. Stopping from the subject list, before a trial, still uses the centered rest card.
+
 ### Shared hook
 
 `render` runs before any of these return, including while the check flag is on and the frame loop is off.

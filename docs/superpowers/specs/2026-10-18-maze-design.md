@@ -24,6 +24,8 @@ Walking into a dead end is allowed. The maze does not reset. The stone behind th
 
 Dwelling the goal stone walks onto it and opens the rest card. The banner says "You made it." It does not say lose, fail, or wrong. It shows no time and no count. Another, while the sitting is under its ceiling, deals the next maze of the same band. After the ceiling, Another is gone. Back to Menu returns to the band picker and does not punish.
 
+**Finished maze revised 2026-10-20.** The maze stays up with the meeple on the goal. Stone dots are gone, and a look on the path does not walk. The banner still says "You made it." Another sits in the top row when it fits, and along the bottom when it does not. The rest card does not cover the maze.
+
 There is no round timer, no lives, no score, and no speech.
 
 ## Bands
@@ -101,7 +103,7 @@ Band button ids are `tiny`, `little`, `shop`, and `rush`. The visible name is Ti
 
 ### Rest
 
-`#screen-rest` holds one calm sentence, `You made it.`, and `#another` labeled `Another` while the sitting is under the ceiling. Another is a menu dwell. It does not carry `data-play`. It is not on the maze screen and it is not shown as a punishment. When two mazes of this sitting are already finished, the Another button is not in the tree. The rest card shows no grade, no miss count, no time, and no rank. Back is the same `#back`.
+`#screen-rest` holds one calm sentence, `You made it.`, and `#another` labeled `Another` while the sitting is under the ceiling. Another is a menu dwell. It does not carry `data-play`. It is not on the maze screen and it is not shown as a punishment. When two mazes of this sitting are already finished, the Another button is not in the tree. The rest card shows no grade, no miss count, no time, and no rank. Back is the same `#back`. The 2026-10-20 note above keeps the maze visible; this card does not cover it, and the banner is the sentence.
 
 ### Screen writer
 

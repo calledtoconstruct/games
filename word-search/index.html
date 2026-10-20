@@ -39,6 +39,7 @@
     min-width: 72px; min-height: 72px; padding: 8px 14px;
     border: 3px solid var(--ink); border-radius: 18px;
     background: var(--card); font-weight: 800; font-size: 18px;
+    display: grid; place-items: center; text-align: center; line-height: 1.05;
   }
   #eyes {
     position: fixed; z-index: 46; top: 18px; left: 170px;
@@ -52,7 +53,7 @@
     background: var(--paper); color: var(--ink);
     border: 3px solid var(--ink); border-radius: 999px;
     padding: 4px 14px; font-size: clamp(13px, 1.6vw, 20px); font-weight: 800;
-    text-align: center; overflow: hidden; line-height: 1.15;
+    text-align: center; overflow: hidden; line-height: 1.15; min-width: 0;
   }
   #gaze {
     --p: 0%;
@@ -88,13 +89,18 @@
   #go, #another, #backward { text-align: center; font-size: 26px; }
   #play { margin: 0 auto; width: max-content; max-width: 100%; }
   .chips, .bank { display: grid; }
-  .chips button, .bank button {
+  .chips button, .bank button, .bank .chip {
     min-width: 0; min-height: 0; border: 3px solid var(--ink); border-radius: 16px;
     background: var(--card); font-weight: 800; font-size: 20px;
     padding: 4px; overflow: hidden; line-height: 1.1;
   }
   .chips button { padding: 8px; }
-  .bank button.found { background: var(--found); }
+  .bank button.found, .bank .chip.found { background: var(--found); }
+  #another {
+    position: fixed; z-index: 50; margin: 0;
+    display: grid; place-items: center;
+    white-space: nowrap;
+  }
   .cell.preview { background: var(--preview); }
   .cell.anchor { box-shadow: inset 0 0 0 3px var(--ring); }
   .grid { display: grid; position: relative; }
@@ -106,6 +112,7 @@
     border: none; border-radius: 8px;
     background: transparent; font-weight: 800; padding: 0;
     position: relative; z-index: 1;
+    display: grid; place-items: center; text-align: center; line-height: 1;
   }
   #reveal { margin-top: 8px; pointer-events: none; display: flex; justify-content: center; }
   canvas { pointer-events: none; display: block; }
@@ -565,6 +572,7 @@
 
   var screen = "menu";
   var builtKey = "";
+  var boardBox = null;
   var level = "tiny";
   var muted = false;
   var harder = false;
@@ -794,6 +802,118 @@
     }
     return { chrome: box.side, backW: box.backW, top: box.top, cardW: cardW, x0: x0, btnH: btnH, another: another, fit: !another || another.y + another.h <= h };
   }
+  function labelWidth(text, font, padX, padY, maxH) {
+    var key = text + "|" + font + "|" + padX + "|" + padY + "|" + (maxH || 0);
+    if (labelWidth.cache[key]) return labelWidth.cache[key];
+    var el = labelWidth.el;
+    if (!el) {
+      el = document.createElement("div");
+      el.setAttribute("aria-hidden", "true");
+      el.style.position = "fixed";
+      el.style.left = "0";
+      el.style.top = "0";
+      el.style.visibility = "hidden";
+      el.style.pointerEvents = "none";
+      el.style.boxSizing = "border-box";
+      el.style.fontWeight = "800";
+      el.style.fontFamily = "inherit";
+      el.style.border = "3px solid transparent";
+      el.style.display = "flex";
+      el.style.alignItems = "center";
+      el.style.justifyContent = "center";
+      el.style.textAlign = "center";
+      el.style.minWidth = "0";
+      el.style.overflow = "hidden";
+      document.body.appendChild(el);
+      labelWidth.el = el;
+    }
+    el.style.fontSize = font + "px";
+    el.style.padding = padY + "px " + padX + "px";
+    el.style.lineHeight = "1.15";
+    el.textContent = text;
+    el.style.whiteSpace = "nowrap";
+    el.style.width = "max-content";
+    el.style.height = "auto";
+    var one = Math.ceil(el.getBoundingClientRect().width);
+    var best = one;
+    if (maxH) {
+      var lo = 32;
+      var hi = one;
+      while (lo <= hi) {
+        var mid = Math.floor((lo + hi) / 2);
+        el.style.whiteSpace = "normal";
+        el.style.width = mid + "px";
+        el.style.height = maxH + "px";
+        if (el.scrollWidth <= el.clientWidth + 1 && el.scrollHeight <= el.clientHeight + 1) {
+          best = mid;
+          hi = mid - 1;
+        } else lo = mid + 1;
+      }
+    }
+    labelWidth.cache[key] = best;
+    return best;
+  }
+  labelWidth.cache = {};
+  function anotherPlacement(w, h) {
+    if (screen !== "rest" || puzzlesDone !== 1) return null;
+    var base = chromeBox(w, h);
+    var margin = 8;
+    var gap = 8;
+    var side = base.side;
+    var bannerFont = Math.max(13, Math.min(20, Math.round(w * 0.016)));
+    var preferFont = Math.max(13, Math.min(22, Math.floor(side * 0.34)));
+    var bannerLeft = margin + side + gap + side + gap;
+    function propose(aw, backW, font, pad) {
+      aw = Math.ceil(aw);
+      backW = Math.ceil(backW);
+      var x = w - margin - backW - gap - aw;
+      return {
+        id: "another", side: side, backW: backW, w: aw, x: x, y: margin, h: side,
+        font: font, floor: false, bannerW: x - gap - bannerLeft,
+        bannerFont: bannerFont, bannerPad: pad
+      };
+    }
+    function fits(plan) {
+      var awNeed = labelWidth("Another", plan.font, 10, 4, 0) + 2;
+      var backFont = plan.backW >= 150 ? 16 : 13;
+      var backOne = labelWidth("Back to Menu", backFont, 4, 4, 0) + 2;
+      var backNeed = plan.backW + 0.5 >= backOne ? backOne : labelWidth("Back to Menu", backFont, 4, 4, plan.side) + 2;
+      var bannerOne = labelWidth("All the words.", plan.bannerFont, plan.bannerPad, 4, 0) + 2;
+      var bannerTwo = labelWidth("All the words.", plan.bannerFont, plan.bannerPad, 4, plan.side) + 2;
+      var bannerNeed = plan.bannerW + 0.5 >= bannerOne ? bannerOne : bannerTwo;
+      return plan.x >= margin && plan.w + 0.5 >= awNeed && plan.backW + 0.5 >= backNeed && plan.bannerW + 0.5 >= bannerNeed;
+    }
+    var comfortW = Math.max(140, labelWidth("Another", preferFont, 10, 4, 0) + 2);
+    var comfort = propose(comfortW, base.backW, preferFont, 14);
+    if (fits(comfort)) return comfort;
+    var pads = [14, 8];
+    var backLine = labelWidth("Back to Menu", 13, 4, 4, 0) + 2;
+    var backWrap = labelWidth("Back to Menu", 13, 4, 4, side) + 2;
+    for (var pi = 0; pi < pads.length; pi++) {
+      for (var font = preferFont; font >= 13; font--) {
+        var minAw = labelWidth("Another", font, 10, 4, 0) + 2;
+        var aws = [Math.max(140, minAw), Math.max(72, minAw), minAw];
+        var backs = [base.backW, backLine, Math.max(72, backWrap), backWrap];
+        for (var ai = 0; ai < aws.length; ai++) {
+          for (var bi = 0; bi < backs.length; bi++) {
+            var plan = propose(aws[ai], backs[bi], font, pads[pi]);
+            if (fits(plan)) return plan;
+          }
+        }
+      }
+    }
+    var slim = labelWidth("Another", 13, 10, 4, 0) + 2;
+    var parked = propose(slim, backWrap, 13, 8);
+    if (parked.x >= margin) return parked;
+    var aw = Math.min(220, Math.max(slim, Math.min(140, w - 16)));
+    return {
+      id: "another", side: side, backW: base.backW, w: aw,
+      x: Math.max(margin, Math.floor((w - aw) / 2)),
+      y: Math.max(base.top, h - margin - Math.min(72, side)),
+      h: Math.min(72, side), font: 16, floor: true, bannerW: 0,
+      bannerFont: bannerFont, bannerPad: 14
+    };
+  }
   function bannerText() {
     if (screen === "menu") return "Look at the first letter and the last letter.";
     if (screen === "group") return "Pick a group.";
@@ -837,7 +957,25 @@
     pulsed = false;
     fallbackUsed = false;
     col0 = 0;
+    boardBox = null;
     dropDwell();
+  }
+  function layoutForBoard(w, h, rows, cols, young) {
+    var revealSpace = screen === "puzzle" && !!(picture && revealed);
+    if (screen === "rest" && boardBox && boardBox.w === w && boardBox.h === h &&
+        boardBox.rows === rows && boardBox.cols === cols && boardBox.n === words.length) {
+      return boardBox;
+    }
+    var m = puzzleLayout(w, h, rows, cols, words.length, young, revealSpace);
+    if (!m) return null;
+    if (w !== layoutWidth() || h !== layoutHeight()) return m;
+    boardBox = {
+      w: w, h: h, rows: rows, cols: cols, n: words.length,
+      top: m.top, side: m.side, gap: m.gap, pad: m.pad,
+      gridW: m.gridW, gridH: m.gridH, contentW: m.contentW, contentH: m.contentH,
+      originX: m.originX, bank: m.bank, fit: m.fit
+    };
+    return boardBox;
   }
   function placementCells(p) {
     var dir = DIR_BY[p.dir], cells = [];
@@ -949,7 +1087,7 @@
     go("puzzle");
   }
   function anchor(cellId) {
-    if (!cellInGrid(cellId)) return;
+    if (screen !== "puzzle" || !cellInGrid(cellId)) return;
     revealed = null;
     picture = false;
     if (anchorId === cellId) anchorId = null;
@@ -957,7 +1095,7 @@
     render();
   }
   function commit(cellId) {
-    if (!cellInGrid(cellId) || !anchorId) return;
+    if (screen !== "puzzle" || !cellInGrid(cellId) || !anchorId) return;
     revealed = null;
     picture = false;
     if (cellId === anchorId) { anchorId = null; render(); return; }
@@ -977,6 +1115,10 @@
       playTone();
       if (found.length === words.length) {
         puzzlesDone = Math.min(2, puzzlesDone + 1);
+        anchorId = null;
+        revealed = null;
+        picture = false;
+        pulse = null;
         go("rest");
         return;
       }
@@ -992,7 +1134,7 @@
     else commit(cellId);
   }
   function reveal(wordId) {
-    if (words.indexOf(wordId) === -1) return;
+    if (screen !== "puzzle" || words.indexOf(wordId) === -1) return;
     revealed = wordId;
     picture = level === "tiny" || level === "little";
     said = wordId;
@@ -1099,19 +1241,22 @@
       var g = groupLayout(w, h, n);
       return "group|" + level + "|" + (g ? g.cols + "x" + g.side + "g" + g.gap : "0") + "|" + (harder ? 1 : 0);
     }
-    if (screen === "puzzle" && grid.length) {
+    if ((screen === "puzzle" || screen === "rest") && grid.length) {
       var young = level === "tiny" || level === "little";
-      var m = puzzleLayout(w, h, grid.length, grid[0].length, words.length, young, !!(picture && revealed));
+      var showPic = screen === "puzzle" && picture && revealed;
+      var m = layoutForBoard(w, h, grid.length, grid[0].length, young);
       var letters = "";
       for (var r = 0; r < grid.length; r++) letters += grid[r] + "/";
       var mark = m ? m.side + "g" + m.gap + "b" + m.bank.chipW + "x" + m.bank.chipH + "r" + m.bank.reveal : "0";
-      return "puzzle|" + level + "|" + grid.length + "x" + grid[0].length + "|" + mark + "|" + words.join(",") + "|" + letters + "|" + (picture && revealed ? revealed : "");
+      var again = screen === "rest" ? anotherPlacement(w, h) : null;
+      var againMark = again ? again.x + "," + again.y + "x" + again.w + (again.floor ? "f" : "") : "0";
+      return screen + "|" + level + "|" + grid.length + "x" + grid[0].length + "|" + mark + "|" + words.join(",") + "|" + letters + "|" + (showPic ? revealed : "") + "|" + puzzlesDone + "|" + againMark;
     }
     if (screen === "rest") return "rest|" + puzzlesDone + "|" + w + "x" + h;
     return "menu";
   }
   function refreshMarks(preview) {
-    if (screen !== "puzzle") return;
+    if (screen !== "puzzle" && screen !== "rest") return;
     var cells = playEl.querySelectorAll(".cell");
     for (var i = 0; i < cells.length; i++) {
       var id = cells[i].id.slice(5);
@@ -1121,17 +1266,43 @@
       cells[i].classList.toggle("anchor", anchorId === id);
       cells[i].classList.toggle("pulse", pulse === id);
     }
-    var bank = playEl.querySelectorAll(".bank button");
+    var bank = playEl.querySelectorAll(".bank button, .bank .chip");
     for (var b = 0; b < bank.length; b++) {
       bank[b].classList.toggle("found", found.indexOf(bank[b].id.slice(5)) !== -1);
     }
     drawBands();
   }
+  function bandPoint(m, row, col) {
+    return {
+      x: m.pad + col * (m.side + m.gap) + m.side / 2,
+      y: m.pad + row * (m.side + m.gap) + m.side / 2
+    };
+  }
+  function addBand(svg, x1, y1, x2, y2, thick) {
+    var rim = Math.max(2, Math.round(thick * 0.08));
+    var edge = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    var nodes = [edge, line];
+    for (var i = 0; i < nodes.length; i++) {
+      nodes[i].setAttribute("x1", String(x1));
+      nodes[i].setAttribute("y1", String(y1));
+      nodes[i].setAttribute("x2", String(x2));
+      nodes[i].setAttribute("y2", String(y2));
+      nodes[i].setAttribute("stroke-linecap", "round");
+    }
+    edge.setAttribute("stroke", "#6b4e16");
+    edge.setAttribute("stroke-width", String(thick + rim * 2));
+    line.setAttribute("stroke", "#e2a62e");
+    line.setAttribute("stroke-opacity", "0.78");
+    line.setAttribute("stroke-width", String(thick));
+    svg.appendChild(edge);
+    svg.appendChild(line);
+  }
   function drawBands() {
     var svg = playEl.querySelector(".bands");
-    if (!svg || screen !== "puzzle" || !grid.length) return;
+    if (!svg || (screen !== "puzzle" && screen !== "rest") || !grid.length) return;
     var young = level === "tiny" || level === "little";
-    var m = puzzleLayout(layoutWidth(), layoutHeight(), grid.length, grid[0].length, words.length, young, !!(picture && revealed));
+    var m = layoutForBoard(layoutWidth(), layoutHeight(), grid.length, grid[0].length, young);
     if (!m) return;
     svg.setAttribute("width", String(m.gridW));
     svg.setAttribute("height", String(m.gridH));
@@ -1144,20 +1315,64 @@
       if (!cells.length) continue;
       var a = cells[0].split("-");
       var b = cells[cells.length - 1].split("-");
-      var line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      line.setAttribute("x1", String(m.pad + Number(a[1]) * (m.side + m.gap) + m.side / 2));
-      line.setAttribute("y1", String(m.pad + Number(a[0]) * (m.side + m.gap) + m.side / 2));
-      line.setAttribute("x2", String(m.pad + Number(b[1]) * (m.side + m.gap) + m.side / 2));
-      line.setAttribute("y2", String(m.pad + Number(b[0]) * (m.side + m.gap) + m.side / 2));
-      line.setAttribute("stroke", "#e2a62e");
-      line.setAttribute("stroke-opacity", "0.78");
-      line.setAttribute("stroke-width", String(thick));
-      line.setAttribute("stroke-linecap", "round");
-      svg.appendChild(line);
+      var p1 = bandPoint(m, Number(a[0]), Number(a[1]));
+      var p2 = bandPoint(m, Number(b[0]), Number(b[1]));
+      addBand(svg, p1.x, p1.y, p2.x, p2.y, thick);
     }
   }
-  function applyChrome(box) {
-    var side = box.side;
+  function letterDrift() {
+    var cells = playEl.querySelectorAll(".cell");
+    var worst = 0;
+    for (var i = 0; i < cells.length; i++) {
+      var cell = cells[i];
+      if (!cell.textContent) continue;
+      var range = document.createRange();
+      range.selectNodeContents(cell);
+      var ink = range.getBoundingClientRect();
+      var box = cell.getBoundingClientRect();
+      if (ink.width < 1 || ink.height < 1) continue;
+      var dx = (ink.left + ink.width / 2) - (box.left + box.width / 2);
+      var dy = (ink.top + ink.height / 2) - (box.top + box.height / 2);
+      var d = Math.sqrt(dx * dx + dy * dy);
+      if (d > worst) worst = d;
+    }
+    return worst;
+  }
+  function bandDrift() {
+    var svg = playEl.querySelector(".bands");
+    if (!svg) return 0;
+    var lines = svg.querySelectorAll("line");
+    var cells = playEl.querySelectorAll(".cell");
+    function nearest(x, y) {
+      var best = 1e9;
+      for (var i = 0; i < cells.length; i++) {
+        var r = cells[i].getBoundingClientRect();
+        var dx = r.left + r.width / 2 - x;
+        var dy = r.top + r.height / 2 - y;
+        var d = Math.sqrt(dx * dx + dy * dy);
+        if (d < best) best = d;
+      }
+      return best;
+    }
+    var worst = 0;
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i];
+      if (ln.getAttribute("stroke") !== "#e2a62e") continue;
+      var p = svg.createSVGPoint();
+      p.x = +ln.getAttribute("x1");
+      p.y = +ln.getAttribute("y1");
+      var a = p.matrixTransform(svg.getScreenCTM());
+      var q = svg.createSVGPoint();
+      q.x = +ln.getAttribute("x2");
+      q.y = +ln.getAttribute("y2");
+      var b = q.matrixTransform(svg.getScreenCTM());
+      worst = Math.max(worst, nearest(a.x, a.y), nearest(b.x, b.y));
+    }
+    return worst;
+  }
+  function applyChrome(box, extra) {
+    var side = extra ? extra.side : box.side;
+    var backW = extra ? extra.backW : box.backW;
     muteEl.style.width = side + "px";
     muteEl.style.height = side + "px";
     fullEl.style.width = side + "px";
@@ -1170,20 +1385,30 @@
       marks[i].style.width = svg + "px";
       marks[i].style.height = svg + "px";
     }
-    backEl.style.width = box.backW + "px";
+    backEl.style.width = backW + "px";
     backEl.style.height = side + "px";
     backEl.style.minWidth = "0px";
     backEl.style.minHeight = "0px";
-    backEl.style.fontSize = box.backW >= 150 ? "16px" : "13px";
+    backEl.style.fontSize = backW >= 150 ? "16px" : "13px";
     backEl.style.padding = "4px";
     backEl.style.overflow = "hidden";
+    backEl.style.whiteSpace = "normal";
     bannerEl.style.top = "8px";
     bannerEl.style.height = side + "px";
     bannerEl.style.left = (16 + side * 2 + 8) + "px";
-    bannerEl.style.right = (screen === "menu" ? 16 : box.backW + 16) + "px";
+    if (extra && extra.bannerFont) {
+      bannerEl.style.fontSize = extra.bannerFont + "px";
+      bannerEl.style.padding = "4px " + extra.bannerPad + "px";
+    } else {
+      bannerEl.style.fontSize = "";
+      bannerEl.style.padding = "";
+    }
+    var rightInset = screen === "menu" ? 16 : backW + 16;
+    if (extra && !extra.floor) rightInset = (layoutWidth() - extra.x) + 8;
+    bannerEl.style.right = rightInset + "px";
     eyesEl.style.top = "8px";
     eyesEl.style.left = "auto";
-    eyesEl.style.right = (box.backW + 24) + "px";
+    eyesEl.style.right = (extra && !extra.floor ? (layoutWidth() - extra.x + 12) : (box.backW + 24)) + "px";
   }
   function applyMenu(m) {
     menuEl.style.marginTop = m.top + "px";
@@ -1233,19 +1458,21 @@
       b.classList.toggle("on", on);
       b.setAttribute("aria-pressed", on ? "true" : "false");
     }
+    var w = layoutWidth();
+    var h = layoutHeight();
+    var showBoard = (screen === "puzzle" || screen === "rest") && grid.length;
     menuEl.hidden = screen !== "menu";
-    playEl.hidden = !(screen === "group" || screen === "puzzle");
-    restEl.hidden = screen !== "rest";
+    playEl.hidden = !(screen === "group" || showBoard);
+    restEl.hidden = !(screen === "rest" && !showBoard);
     backEl.hidden = screen === "menu";
     bannerEl.textContent = bannerText();
     muteEl.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
     muteEl.setAttribute("aria-pressed", muted ? "true" : "false");
     soundOn.hidden = muted;
     soundOff.hidden = !muted;
-    var w = layoutWidth();
-    var h = layoutHeight();
     var box = chromeBox(w, h);
-    applyChrome(box);
+    var extra = anotherPlacement(w, h);
+    applyChrome(box, extra);
     applyMenu(menuLayout(w, h));
     var key = playKey();
     if (key !== builtKey) {
@@ -1293,10 +1520,11 @@
       }
       playEl.appendChild(wrap);
     }
-    if (screen === "puzzle" && grid.length) {
+    if ((screen === "puzzle" || screen === "rest") && grid.length) {
+      var readOnly = screen === "rest";
       var cols = grid[0].length;
       var young = level === "tiny" || level === "little";
-      var m = puzzleLayout(w, h, grid.length, cols, words.length, young, !!(picture && revealed));
+      var m = layoutForBoard(w, h, grid.length, cols, young);
       if (!m) m = { top: box.top, side: 16, gap: 2, pad: 2, gridW: cols * 18, contentW: cols * 18, bank: { per: 1, chipW: 24, chipH: 24, gap: 4, reveal: 0, usedW: 24 } };
       playEl.style.marginTop = m.top + "px";
       playEl.style.width = m.contentW + "px";
@@ -1314,11 +1542,13 @@
       for (var r = 0; r < grid.length; r++) {
         for (var c = 0; c < cols; c++) {
           var id = r + "-" + c;
-          var cell = document.createElement("button");
+          var cell = document.createElement(readOnly ? "div" : "button");
           cell.id = "cell-" + id;
-          cell.type = "button";
           cell.className = "cell";
-          cell.setAttribute("data-play", "true");
+          if (!readOnly) {
+            cell.type = "button";
+            cell.setAttribute("data-play", "true");
+          }
           cell.style.width = m.side + "px";
           cell.style.height = m.side + "px";
           cell.style.minWidth = "0px";
@@ -1329,7 +1559,7 @@
           else if (preview[id]) cell.classList.add("preview");
           if (anchorId === id) cell.classList.add("anchor");
           if (pulse === id) cell.classList.add("pulse");
-          wire(cell);
+          if (!readOnly) wire(cell);
           gridEl.appendChild(cell);
         }
       }
@@ -1343,9 +1573,10 @@
       bank.style.marginLeft = Math.floor((m.contentW - m.bank.usedW) / 2) + "px";
       var pic = Math.max(12, Math.min(m.bank.chipW, m.bank.chipH) - 10);
       for (var wi = 0; wi < words.length; wi++) {
-        var chipBtn = document.createElement("button");
+        var chipBtn = document.createElement(readOnly ? "div" : "button");
         chipBtn.id = "bank-" + words[wi];
-        chipBtn.type = "button";
+        chipBtn.className = "chip";
+        if (!readOnly) chipBtn.type = "button";
         chipBtn.style.width = m.bank.chipW + "px";
         chipBtn.style.height = m.bank.chipH + "px";
         chipBtn.style.minHeight = "0px";
@@ -1360,41 +1591,31 @@
         } else {
           chipBtn.textContent = words[wi];
         }
-        wire(chipBtn);
+        if (!readOnly) wire(chipBtn);
         bank.appendChild(chipBtn);
       }
       playEl.appendChild(bank);
-      if (picture && revealed && young) {
+      if (!readOnly && picture && revealed && young) {
         var panel = document.createElement("div");
         panel.id = "reveal";
         var revealSize = m.bank.reveal > 8 ? m.bank.reveal : pic;
         panel.appendChild(paintCanvas(revealed, revealSize));
         playEl.appendChild(panel);
       }
-    }
-    if (screen === "rest") {
-      var rest = restLayout(w, h, puzzlesDone === 1);
-      restEl.style.marginTop = rest.top + "px";
-      restEl.style.width = rest.cardW + "px";
-      restEl.style.padding = "12px";
-      var line = document.createElement("p");
-      line.className = "line";
-      line.textContent = "All the words.";
-      line.style.height = "32px";
-      line.style.lineHeight = "32px";
-      line.style.margin = "0";
-      restEl.appendChild(line);
-      if (rest.another) {
+      if (readOnly && extra) {
         var again = document.createElement("button");
         again.id = "another";
         again.type = "button";
         again.textContent = "Another";
-        again.style.height = rest.another.h + "px";
+        again.style.left = extra.x + "px";
+        again.style.top = extra.y + "px";
+        again.style.width = extra.w + "px";
+        again.style.height = extra.h + "px";
         again.style.minHeight = "0px";
-        again.style.margin = "12px 0 0";
-        again.style.fontSize = Math.max(14, Math.min(26, Math.floor(rest.another.h * 0.4))) + "px";
+        again.style.fontSize = extra.font + "px";
+        again.style.whiteSpace = "nowrap";
         wire(again);
-        restEl.appendChild(again);
+        playEl.appendChild(again);
       }
     }
     builtKey = key;
@@ -1437,7 +1658,7 @@
     } else if (screen === "puzzle" && grid.length) {
       var cols = grid[0].length;
       var young = level === "tiny" || level === "little";
-      var m = puzzleLayout(w, h, grid.length, cols, words.length, young, !!(picture && revealed));
+      var m = layoutForBoard(w, h, grid.length, cols, young);
       sceneFit = !!(m && m.fit);
       if (m) {
         var gridOffset = Math.floor((m.contentW - m.gridW) / 2);
@@ -1453,9 +1674,9 @@
         }
       }
     } else if (screen === "rest") {
-      var rest = restLayout(w, h, puzzlesDone === 1);
-      sceneFit = rest.fit;
-      if (rest.another) add(rest.another.id, rest.another.x, rest.another.y, rest.another.w, rest.another.h);
+      var againBox = anotherPlacement(w, h);
+      sceneFit = true;
+      if (againBox) add(againBox.id, againBox.x, againBox.y, againBox.w, againBox.h);
     }
     var fit = sceneFit;
     for (var t = 0; t < targets.length; t++) if (!contained(targets[t])) fit = false;
@@ -2182,8 +2403,10 @@
       tapId("cell-0-0"); tapId("cell-0-2");
       if (state().found.join(",") !== "EAR") fail("commit-either-order did not lock EAR from the first cell.");
       var bandSvg = playEl.querySelector(".bands");
-      var bandLine = bandSvg && bandSvg.querySelector("line");
-      if (!bandSvg || !bandLine || bandSvg.querySelectorAll("line").length !== 1) fail("commit-either-order did not draw one band.");
+      var bandLine = bandSvg && bandSvg.querySelector("line[stroke='#e2a62e']");
+      var rimLine = bandSvg && bandSvg.querySelector("line[stroke='#6b4e16']");
+      if (!bandSvg || !bandLine || !rimLine || bandSvg.querySelectorAll("line[stroke='#e2a62e']").length !== 1) fail("commit-either-order did not draw one band.");
+      if (+rimLine.getAttribute("stroke-width") <= +bandLine.getAttribute("stroke-width")) fail("commit-either-order drew the band edge inside the gold.");
       if (window.getComputedStyle(bandSvg).pointerEvents !== "none") fail("commit-either-order let the band take a click.");
       var midCell = document.getElementById("cell-0-1");
       var midRect = midCell.getBoundingClientRect();
@@ -2472,9 +2695,53 @@
       placeBand("tiny", "body");
       tapId("cell-0-0"); tapId("cell-0-2");
       tapId("cell-0-1"); tapId("cell-0-3");
+      var heldCell = document.getElementById("cell-0-0").getBoundingClientRect();
       tapId("cell-2-0"); tapId("cell-2-2");
       var st = state();
+      var restedCell = document.getElementById("cell-0-0").getBoundingClientRect();
+      if (Math.abs(restedCell.width - heldCell.width) > 0.5 || Math.abs(restedCell.left - heldCell.left) > 0.5 || Math.abs(restedCell.top - heldCell.top) > 0.5) {
+        fail("cap-rest moved the board when Another appeared.");
+      }
+      if (bandDrift() > 1.5) fail("cap-rest offset a highlight from its letters.");
+      var inkOff = letterDrift();
+      if (inkOff > 3) fail("cap-rest left a finished letter off the middle of its square (" + inkOff.toFixed(1) + ").");
+      var goldLines = playEl.querySelectorAll(".bands line[stroke='#e2a62e']");
+      var rimLines = playEl.querySelectorAll(".bands line[stroke='#6b4e16']");
+      if (!goldLines.length || rimLines.length !== goldLines.length) fail("cap-rest did not edge the highlights.");
+      for (var bi = 0; bi < goldLines.length; bi++) {
+        if (+rimLines[bi].getAttribute("stroke-width") <= +goldLines[bi].getAttribute("stroke-width")) {
+          fail("cap-rest drew a highlight edge thinner than the band.");
+        }
+      }
       if (st.screen !== "rest" || st.puzzlesDone !== 1 || st.banner !== "All the words.") fail("cap-rest did not rest after the first puzzle.");
+      if (playEl.hidden || restEl.hidden !== true) fail("cap-rest hid the grid or covered it.");
+      var letters = playEl.querySelectorAll(".grid .cell");
+      if (letters.length !== 15 || !playEl.querySelector(".bands line")) fail("cap-rest did not keep the finished letters.");
+      if (playEl.querySelector(".grid button, .bank button")) fail("cap-rest left a writer on the finished grid.");
+      var againEl = document.getElementById("another");
+      if (!againEl || againEl.scrollWidth > againEl.clientWidth + 1) fail("cap-rest clipped Another.");
+      function sentenceFits(plan, width) {
+        if (!plan || plan.floor || plan.x < 0 || plan.x + plan.w > width + 0.5) return false;
+        var awNeed = labelWidth("Another", plan.font, 10, 4, 0);
+        var one = labelWidth("All the words.", plan.bannerFont, plan.bannerPad, 4, 0);
+        var two = labelWidth("All the words.", plan.bannerFont, plan.bannerPad, 4, plan.side);
+        var bannerNeed = plan.bannerW + 0.5 >= one ? one : two;
+        var backFont = plan.backW >= 150 ? 16 : 13;
+        var backOne = labelWidth("Back to Menu", backFont, 4, 4, 0);
+        var backNeed = plan.backW + 0.5 >= backOne ? backOne : labelWidth("Back to Menu", backFont, 4, 4, plan.side);
+        return plan.w + 0.5 >= awNeed && plan.bannerW + 0.5 >= bannerNeed && plan.backW + 0.5 >= backNeed;
+      }
+      var widePlan = anotherPlacement(1280, 800);
+      if (!widePlan || widePlan.floor || widePlan.w < 124 || !sentenceFits(widePlan, 1280)) fail("cap-rest squeezed Another on a wide screen.");
+      var narrowPlan = anotherPlacement(390, 844);
+      if (!narrowPlan || !sentenceFits(narrowPlan, 390) || narrowPlan.y + narrowPlan.h > 844.5) fail("cap-rest put Another on the finished board.");
+      var phonePlan = anotherPlacement(500, 713);
+      if (!phonePlan || !sentenceFits(phonePlan, 500)) fail("cap-rest covered the picture chips.");
+      var beforeFound = st.found.join(",");
+      tapId("cell-0-0");
+      if (state().screen !== "rest" || state().anchor !== null || state().found.join(",") !== beforeFound) fail("cap-rest still wrote on the board.");
+      sceneFits(targetsAt(390, 844), 390, 844, "cap-rest narrow");
+      sceneFits(targetsAt(2000, 1090), 2000, 1090, "cap-rest wide");
       var ids = centers().map(function (c) { return c.id; });
       if (ids.indexOf("another") === -1) fail("cap-rest hid Another.");
       if ((restEl.innerText || "").toLowerCase().indexOf("grade") !== -1) fail("cap-rest showed a grade.");
