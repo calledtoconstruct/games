@@ -103,4 +103,4 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 
 ## Add a game
 
-Make a new folder, put an `index.html` in it, and push.
+Make a new folder, put an `index.html` in it, and push. The home page lists every game folder on its own. To give it a nicer name and a one-line description, add it to `_data/games.yml`.
