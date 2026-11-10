@@ -1,0 +1,2286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Echo Garden</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 1; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 4px 8px;
+    font-weight: 800; font-size: 16px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #banner {
+    position: fixed; z-index: 4; pointer-events: none; margin: 0;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 2px 10px; font-size: 16px; font-weight: 800;
+    text-align: center; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #menu-card, #rest-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-rest, #play, #menu-copy, #rest-line, h1, p, b, small {
+    pointer-events: none;
+  }
+  #menu-copy, #rest-line {
+    position: fixed; z-index: 4; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line { font-size: 28px; font-weight: 800; }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush, #another,
+  #start-over, #done, #play button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back, #start-over, #done {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 14px; line-height: 1.05;
+    padding: 4px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; text-align: center;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #done {
+    background: var(--sun);
+    box-shadow: 0 4px 0 var(--sun-d);
+  }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #another {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 26px;
+  }
+  #play button.bloom, #play button.song, #play button.sprout {
+    border: 3px solid var(--ink); border-radius: 22px;
+    background: #fffdf6; padding: 2px; overflow: hidden;
+    display: block;
+  }
+  #play button svg { width: 100%; height: 100%; display: block; pointer-events: none; }
+  #play button.glow { box-shadow: 0 0 0 5px #fff6df, 0 0 0 9px #e2a62e; }
+  #play button.sway { animation: sway 0.6s ease; transform-origin: 50% 80%; }
+  .slot {
+    position: fixed; z-index: 3; pointer-events: none;
+    border-radius: 18px; background: #efe2b8; border: 3px solid #e2d0b4;
+  }
+  #tune {
+    position: fixed; z-index: 4; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  #tune span {
+    border-radius: 50%; border: 3px solid var(--ink); background: transparent;
+    display: grid; place-items: center; overflow: hidden;
+  }
+  #tune span svg { width: 70%; height: 70%; display: block; }
+  @keyframes sway {
+    0% { transform: rotate(0deg); }
+    30% { transform: rotate(-7deg); }
+    60% { transform: rotate(6deg); }
+    100% { transform: rotate(0deg); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #play button.sway { animation: none; }
+  }
+</style>
+</head>
+<body>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick who is playing.</p>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Echo Garden</h1>
+    <p>Look at the flowers. A tune grows a new flower.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Hum</b><small>Ages 2 to 3. Three flowers, two-note songs.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Sing</b><small>Ages 4 to 5. Five flowers.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Chorus</b><small>Ages 6 to 8. Five flowers, longer songs.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Choir</b><small>Ages 9 and up. Eight flowers.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <button id="start-over" type="button">Start over</button>
+  <button id="done" type="button">Done</button>
+  <button id="sprout" type="button" class="sprout" data-play="true" hidden aria-label="New flower"></button>
+  <div id="tune"></div>
+</div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">Your garden is singing.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const WAIT_MS = 600;
+  const NOTE_MS = 400;
+  const GROW_MS = 800;
+  const STORE = "echo-garden-v1";
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const NOTES = [
+    { id: "c", freq: 262, color: "#E69F00", symbol: "circle" },
+    { id: "d", freq: 294, color: "#F0E442", symbol: "square" },
+    { id: "e", freq: 330, color: "#009E73", symbol: "triangle" },
+    { id: "g", freq: 392, color: "#56B4E9", symbol: "diamond" },
+    { id: "a", freq: 440, color: "#0072B2", symbol: "star" },
+    { id: "c2", freq: 523, color: "#CC79A7", symbol: "heart" },
+    { id: "d2", freq: 587, color: "#D55E00", symbol: "moon" },
+    { id: "e2", freq: 659, color: "#8C5A2B", symbol: "cross" }
+  ];
+  const BANDS = {
+    tiny: { flowers: ["c", "e", "g"], tune: 2 },
+    little: { flowers: ["c", "d", "e", "g", "a"], tune: 3 },
+    shop: { flowers: ["c", "d", "e", "g", "a"], tune: 4 },
+    rush: { flowers: ["c", "d", "e", "g", "a", "c2", "d2", "e2"], tune: 4 }
+  };
+  const SYMBOL_LABEL = {
+    circle: "Circle", square: "Square", triangle: "Triangle", diamond: "Diamond",
+    star: "Star", heart: "Heart", moon: "Moon", cross: "Cross"
+  };
+
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const playEl = document.getElementById("play");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const anotherBtn = document.getElementById("another");
+  const startOverBtn = document.getElementById("start-over");
+  const doneBtn = document.getElementById("done");
+  const sproutBtn = document.getElementById("sprout");
+  const tuneEl = document.getElementById("tune");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+
+  let level = "tiny";
+  let screen = "menu";
+  let muted = false;
+  let songs = [];
+  let tune = [];
+  let phase = "idle";
+  let pendingSong = null;
+  let echoNotes = [];
+  let echoAt = 0;
+  let echoPlayed = 0;
+  let glowNote = null;
+  let swayNote = null;
+  let swayAt = 0;
+  let bannerMode = "sing";
+  let lastSung = null;
+  let bedKey = "";
+  let sproutKey = "";
+  let pin = null;
+  let checking = false;
+  let suppressReconnect = false;
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let trailOn = false;
+
+  function noteById(id) {
+    for (let i = 0; i < NOTES.length; i++) if (NOTES[i].id === id) return NOTES[i];
+    return null;
+  }
+  function noteIndex(id) {
+    for (let i = 0; i < NOTES.length; i++) if (NOTES[i].id === id) return i;
+    return -1;
+  }
+  function knownBand(band) { return BAND_IDS.indexOf(band) >= 0; }
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function petalShape(notes) {
+    const a = noteIndex(notes[0]);
+    const b = noteIndex(notes[notes.length - 1]);
+    if (b > a) return "pointed";
+    if (b < a) return "round";
+    return "heart";
+  }
+  function stemRatio(notes) {
+    let sum = 0;
+    for (let i = 0; i < notes.length; i++) sum += noteIndex(notes[i]);
+    return 0.45 + 0.4 * ((sum / notes.length) / 7);
+  }
+  function bannerText() {
+    if (screen === "menu") return "Pick who is playing.";
+    if (screen === "rest") return "Your garden is singing.";
+    if (bannerMode === "fresh") return "A new flower!";
+    return "Look at the flowers to sing.";
+  }
+
+  function loadGarden() {
+    songs = [];
+    let raw = null;
+    try { raw = localStorage.getItem(STORE); }
+    catch (err) { return; }
+    if (raw === null || raw === undefined || raw === "") return;
+    let data = null;
+    try { data = JSON.parse(raw); }
+    catch (err) { return; }
+    if (!data || typeof data !== "object" || data.version !== 1 || !Array.isArray(data.songs)) return;
+    const next = [];
+    for (let i = 0; i < data.songs.length; i++) {
+      const song = data.songs[i];
+      if (!song || typeof song !== "object" || !Array.isArray(song.notes) || song.notes.length < 1) {
+        songs = [];
+        return;
+      }
+      const notes = [];
+      for (let n = 0; n < song.notes.length; n++) {
+        if (!noteById(song.notes[n])) {
+          songs = [];
+          return;
+        }
+        notes.push(song.notes[n]);
+      }
+      next.push({ notes: notes });
+    }
+    songs = next.slice(-24);
+  }
+  function saveGarden() {
+    if (songs.length > 24) songs = songs.slice(songs.length - 24);
+    const payload = {
+      version: 1,
+      songs: songs.map(function (song) { return { notes: song.notes.slice() }; })
+    };
+    try { localStorage.setItem(STORE, JSON.stringify(payload)); }
+    catch (err) {}
+  }
+
+  function ensureAudio() {
+    if (checking || ac) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(ac.destination);
+      if (ac.resume) ac.resume();
+    } catch (err) {
+      ac = null;
+      master = null;
+    }
+  }
+  function playTone(note) {
+    lastSung = note.id;
+    if (checking || !ac || !master || !note) return;
+    try {
+      const t0 = ac.currentTime;
+      const sine = ac.createOscillator();
+      const tri = ac.createOscillator();
+      const g1 = ac.createGain();
+      const g2 = ac.createGain();
+      sine.type = "sine";
+      tri.type = "triangle";
+      sine.frequency.value = note.freq;
+      tri.frequency.value = note.freq * 2;
+      sine.connect(g1);
+      tri.connect(g2);
+      g1.connect(master);
+      g2.connect(master);
+      g1.gain.setValueAtTime(0.0001, t0);
+      g1.gain.linearRampToValueAtTime(0.22, t0 + 0.01);
+      g1.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.71);
+      g2.gain.setValueAtTime(0.0001, t0);
+      g2.gain.linearRampToValueAtTime(0.06, t0 + 0.01);
+      g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.71);
+      sine.start(t0);
+      tri.start(t0);
+      sine.stop(t0 + 0.72);
+      tri.stop(t0 + 0.72);
+    } catch (err) {}
+  }
+  function playBloom() {
+    if (checking || !ac || !master) return;
+    try {
+      const t0 = ac.currentTime;
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(400, t0);
+      osc.frequency.linearRampToValueAtTime(800, t0 + 0.3);
+      osc.connect(g);
+      g.connect(master);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(0.16, t0 + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.3);
+      osc.start(t0);
+      osc.stop(t0 + 0.31);
+    } catch (err) {}
+  }
+  function toggleMute() {
+    muted = !muted;
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+
+  function svgEl(name, attrs) {
+    const node = document.createElementNS(SVG_NS, name);
+    if (attrs) {
+      for (const key in attrs) node.setAttribute(key, attrs[key]);
+    }
+    return node;
+  }
+  function starPoints() {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const rad = i % 2 === 0 ? 40 : 16;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      pts.push((50 + Math.cos(a) * rad).toFixed(1) + "," + (50 + Math.sin(a) * rad).toFixed(1));
+    }
+    return pts.join(" ");
+  }
+  function symbolNode(kind) {
+    const ink = "#2c2416";
+    if (kind === "circle") return svgEl("circle", { cx: "50", cy: "50", r: "28", fill: ink });
+    if (kind === "square") return svgEl("rect", { x: "22", y: "22", width: "56", height: "56", rx: "8", fill: ink });
+    if (kind === "triangle") return svgEl("polygon", { points: "50,14 88,82 12,82", fill: ink });
+    if (kind === "diamond") return svgEl("polygon", { points: "50,10 90,50 50,90 10,50", fill: ink });
+    if (kind === "star") return svgEl("polygon", { points: starPoints(), fill: ink });
+    if (kind === "heart") {
+      return svgEl("path", { d: "M50 84 C22 62 14 44 28 30 C38 22 48 26 50 36 C52 26 62 22 72 30 C86 44 78 62 50 84 Z", fill: ink });
+    }
+    if (kind === "moon") {
+      return svgEl("path", { d: "M64 16 A34 34 0 1 0 64 84 A24 24 0 1 1 64 16 Z", fill: ink });
+    }
+    return svgEl("path", { d: "M38 12 H62 V38 H88 V62 H62 V88 H38 V62 H12 V38 H38 Z", fill: ink });
+  }
+  function singingSvg(note) {
+    const svg = svgEl("svg", { viewBox: "0 0 100 100", "aria-hidden": "true" });
+    for (let i = 0; i < 5; i++) {
+      svg.appendChild(svgEl("ellipse", {
+        cx: "50", cy: "16", rx: "14", ry: "20", fill: note.color, class: "petal",
+        transform: "rotate(" + (-90 + i * 72) + " 50 50)"
+      }));
+    }
+    svg.appendChild(svgEl("circle", { cx: "50", cy: "50", r: "18", fill: "#fffdf6" }));
+    const g = svgEl("g", { transform: "translate(50 50) scale(0.34) translate(-50 -50)" });
+    g.appendChild(symbolNode(note.symbol));
+    svg.appendChild(g);
+    return svg;
+  }
+  function addLeaf(svg, x, y, dir, color) {
+    const cx = x + dir * 18;
+    svg.appendChild(svgEl("ellipse", {
+      class: "leaf", cx: String(cx), cy: String(y), rx: "14", ry: "7", fill: color,
+      transform: "rotate(" + (dir * -32) + " " + cx + " " + y + ")"
+    }));
+  }
+  function addSongPetal(svg, shape, i, count, cx, cy, color) {
+    const ang = -90 + (i * 360) / count;
+    const spin = "translate(" + cx + " " + cy + ") rotate(" + ang + ")";
+    if (shape === "pointed") {
+      svg.appendChild(svgEl("polygon", {
+        class: "petal", points: "0,-34 -13,10 13,10", fill: color, transform: spin
+      }));
+    } else if (shape === "round") {
+      svg.appendChild(svgEl("ellipse", {
+        class: "petal", cx: "0", cy: "-20", rx: "13", ry: "18", fill: color, transform: spin
+      }));
+    } else {
+      svg.appendChild(svgEl("path", {
+        class: "petal", fill: color,
+        d: "M0 6 C-8 -2 -16 -4 -14 -14 C-12 -22 -4 -20 0 -12 C4 -20 12 -22 14 -14 C16 -4 8 -2 0 6 Z",
+        transform: spin + " translate(0 -18)"
+      }));
+    }
+  }
+  function songSvg(notes) {
+    const shape = petalShape(notes);
+    const count = notes.length * 2;
+    const ratio = stemRatio(notes);
+    const svg = svgEl("svg", { viewBox: "0 0 100 160", "aria-hidden": "true" });
+    const base = 152;
+    const head = base - ratio * 136;
+    svg.appendChild(svgEl("line", {
+      class: "stem", x1: "50", y1: String(base), x2: "50", y2: String(head + 6),
+      stroke: "#3d7a4a", "stroke-width": "6", "stroke-linecap": "round"
+    }));
+    const mid = Math.floor(notes.length / 2);
+    const leafY = head + (base - head) * 0.42;
+    addLeaf(svg, 50, leafY, -1, noteById(notes[0]).color);
+    addLeaf(svg, 50, leafY + 12, 1, noteById(notes[mid]).color);
+    for (let i = 0; i < count; i++) {
+      addSongPetal(svg, shape, i, count, 50, head, noteById(notes[i % notes.length]).color);
+    }
+    svg.appendChild(svgEl("circle", {
+      class: "face", cx: "50", cy: String(head), r: "16", fill: "#ffc857", stroke: "#e2a62e", "stroke-width": "2"
+    }));
+    const g = svgEl("g", { transform: "translate(50 " + head + ") scale(0.28) translate(-50 -50)" });
+    g.appendChild(symbolNode(noteById(notes[0]).symbol));
+    svg.appendChild(g);
+    return svg;
+  }
+
+  function intersects(a, b) {
+    if (!a || !b) return false;
+    return a.x < b.x + b.w - 0.5 && b.x < a.x + a.w - 0.5 && a.y < b.y + b.h - 0.5 && b.y < a.y + a.h - 0.5;
+  }
+  function inside(box, w, h) {
+    return box.x >= -0.5 && box.y >= -0.5 && box.x + box.w <= w + 0.5 && box.y + box.h <= h + 0.5;
+  }
+  function eyesBox(w) {
+    return { id: "eyes", x: w - 8 - 78, y: 84, w: 78, h: 34 };
+  }
+  function bannerBox(w) {
+    const eye = eyesBox(w);
+    return { x: 8, y: eye.y, w: Math.max(72, eye.x - 16), h: eye.h };
+  }
+  function chromeBoxes(w) {
+    const y = 8;
+    const bh = 72;
+    const edge = 8;
+    const narrow = w < 760;
+    const gapMF = narrow ? 4 : 8;
+    const full = { id: "full", x: w - edge - 72, y: y, w: 72, h: bh };
+    const mute = { id: "mute", x: full.x - gapMF - 72, y: y, w: 72, h: bh };
+    const right = mute.x - (narrow ? 4 : 8);
+    const left = edge;
+    if (screen !== "play") {
+      const backW = Math.max(72, Math.min(200, right - left));
+      return {
+        mute: mute, full: full,
+        back: { id: "back", x: left, y: y, w: backW, h: bh },
+        startOver: null, done: null
+      };
+    }
+    const gap = narrow ? 2 : 8;
+    const room = right - left;
+    const bw = Math.floor((room - gap * 2) / 3);
+    const back = { id: "back", x: left, y: y, w: bw, h: bh };
+    const startOver = { id: "start-over", x: left + bw + gap, y: y, w: bw, h: bh };
+    const doneW = room - gap * 2 - bw - bw;
+    const done = { id: "done", x: startOver.x + bw + gap, y: y, w: doneW, h: bh };
+    return { mute: mute, full: full, back: back, startOver: startOver, done: done };
+  }
+  function menuLayout(w, h) {
+    const btnH = 72;
+    const top0 = 128;
+    const cardW = w < 520 ? w - 16 : Math.min(480, w - 24);
+    const cardX = Math.round((w - cardW) / 2);
+    const titleH = 64;
+    const gap = 8;
+    const column = titleH + gap + 5 * btnH + 4 * gap;
+    if (top0 + column <= h - 8 && cardW >= 72) {
+      const buttons = [];
+      let y = top0 + titleH + gap;
+      const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+      for (let i = 0; i < ids.length; i++) {
+        buttons.push({ id: ids[i], x: cardX, y: y, w: cardW, h: btnH });
+        y += btnH + gap;
+      }
+      return {
+        title: { x: cardX, y: top0, w: cardW, h: titleH },
+        card: { x: cardX, y: top0, w: cardW, h: y - gap - top0 },
+        buttons: buttons
+      };
+    }
+    const titleH2 = 48;
+    const colW = Math.floor((cardW - gap) / 2);
+    if (colW < 72) return null;
+    const buttons = [];
+    for (let i = 0; i < 4; i++) {
+      buttons.push({
+        id: BAND_IDS[i],
+        x: cardX + (i % 2) * (colW + gap),
+        y: top0 + titleH2 + gap + Math.floor(i / 2) * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    const letsY = top0 + titleH2 + gap + 2 * (btnH + gap);
+    if (letsY + btnH > h - 8) return null;
+    buttons.push({ id: "lets-go", x: cardX, y: letsY, w: cardW, h: btnH });
+    return {
+      title: { x: cardX, y: top0, w: cardW, h: titleH2 },
+      card: { x: cardX, y: top0, w: cardW, h: letsY + btnH - top0 },
+      buttons: buttons
+    };
+  }
+  function restLayout(w, h) {
+    const cardW = w < 520 ? w - 16 : Math.min(460, w - 24);
+    const cardX = Math.round((w - cardW) / 2);
+    const cardH = 112;
+    let y = 140;
+    const aw = Math.min(280, Math.max(160, Math.min(cardW, w - 32)));
+    const ax = Math.round((w - aw) / 2);
+    let ay = y + cardH + 16;
+    if (ay + 72 > h - 16) {
+      ay = h - 16 - 72;
+      y = ay - 16 - cardH;
+      if (y < 128) y = 128;
+    }
+    return {
+      card: { x: cardX, y: y, w: cardW, h: cardH },
+      line: { x: cardX + 12, y: y + 24, w: cardW - 24, h: 64 },
+      another: { id: "another", x: ax, y: ay, w: aw, h: 72 }
+    };
+  }
+  function flowerPref(count) {
+    if (count <= 3) return { fw: 114, fh: 140, gap: 8, rowCounts: [count] };
+    if (count <= 5) return { fw: 114, fh: 110, gap: 8, rowCounts: [3, count - 3] };
+    return { fw: 83, fh: 100, gap: 8, rowCounts: [4, count - 4] };
+  }
+  function placeFlowerRows(pref, ids, w, top) {
+    const boxes = [];
+    let idx = 0;
+    for (let r = 0; r < pref.rowCounts.length; r++) {
+      const n = pref.rowCounts[r];
+      const rowW = n * pref.fw + (n - 1) * pref.gap;
+      const x0 = Math.round((w - rowW) / 2);
+      for (let c = 0; c < n; c++) {
+        boxes.push({
+          id: "flower-" + ids[idx],
+          note: ids[idx],
+          x: x0 + c * (pref.fw + pref.gap),
+          y: top + r * (pref.fh + pref.gap),
+          w: pref.fw,
+          h: pref.fh
+        });
+        idx += 1;
+      }
+    }
+    return boxes;
+  }
+  function phonePack(w, h, ids) {
+    const gardenTop = 122;
+    const bottom = h - 16;
+    const count = ids.length;
+    let slotW = 83;
+    let slotH = 90;
+    let bedGap = 0;
+    let bedW = 4 * slotW;
+    let x0 = Math.round((w - bedW) / 2);
+    if (x0 < 16) {
+      bedGap = 4;
+      slotW = Math.floor((w - 32 - bedGap * 3) / 4);
+      bedW = 4 * slotW + bedGap * 3;
+      x0 = Math.round((w - bedW) / 2);
+    }
+    const flower = flowerPref(count);
+    let tuneH = 40;
+    const vgap = 6;
+    let guard = 0;
+    function block() {
+      return flower.rowCounts.length * flower.fh + (flower.rowCounts.length - 1) * flower.gap;
+    }
+    function used() {
+      return gardenTop + 3 * slotH + 2 * bedGap + vgap + tuneH + vgap + block();
+    }
+    while (used() > bottom && guard < 120) {
+      guard += 1;
+      if (flower.fh > 72) flower.fh -= 1;
+      else if (slotH > 72) slotH -= 1;
+      else if (tuneH > 28) tuneH -= 1;
+      else return { ok: false, reason: "phone height" };
+    }
+    let maxCols = 1;
+    for (let i = 0; i < flower.rowCounts.length; i++) if (flower.rowCounts[i] > maxCols) maxCols = flower.rowCounts[i];
+    if (maxCols * flower.fw + (maxCols - 1) * flower.gap > w - 32) {
+      flower.gap = 4;
+      flower.fw = Math.floor((w - 32 - (maxCols - 1) * flower.gap) / maxCols);
+    }
+    if (slotW < 72 || slotH < 72 || flower.fw < 72 || flower.fh < 72 || x0 < 16) {
+      return { ok: false, reason: "phone size" };
+    }
+    const slots = [];
+    for (let i = 0; i < 12; i++) {
+      const c = i % 4;
+      const r = Math.floor(i / 4);
+      slots.push({
+        id: "slot-" + i,
+        x: x0 + c * (slotW + bedGap),
+        y: gardenTop + r * (slotH + bedGap),
+        w: slotW,
+        h: slotH
+      });
+    }
+    const bedBottom = gardenTop + 3 * slotH + 2 * bedGap;
+    const tune = { x: 16, y: bedBottom + vgap, w: w - 32, h: tuneH };
+    const flowers = placeFlowerRows(flower, ids, w, tune.y + tuneH + vgap);
+    return { ok: true, slots: slots, tune: tune, flowers: flowers, slotW: slotW, slotH: slotH };
+  }
+  function widePack(w, h, ids) {
+    const gardenTop = 122;
+    const bottom = h - 16;
+    const count = ids.length;
+    let bedGap = 12;
+    let slotW = 140;
+    let slotH = 150;
+    let tuneH = 40;
+    let fh = 110;
+    const maxSlotW = Math.floor((w - 32 - bedGap * 5) / 6);
+    if (slotW > maxSlotW) slotW = maxSlotW;
+    function used() {
+      return gardenTop + 2 * slotH + bedGap + 8 + tuneH + 8 + fh;
+    }
+    let guard = 0;
+    while (used() > bottom && guard < 240) {
+      guard += 1;
+      if (fh > 72) fh -= 1;
+      else if (slotH > 72) slotH -= 1;
+      else if (tuneH > 28) tuneH -= 1;
+      else if (bedGap > 4) bedGap -= 1;
+      else return { ok: false, reason: "wide height" };
+    }
+    let fgap = 8;
+    let fw = Math.min(140, Math.floor((w - 32 - fgap * (count - 1)) / count));
+    if (fw < 72) {
+      fgap = 4;
+      fw = Math.floor((w - 32 - fgap * (count - 1)) / count);
+    }
+    if (slotW < 72 || slotH < 72 || fw < 72 || fh < 72) return { ok: false, reason: "wide size" };
+    const bedW = 6 * slotW + 5 * bedGap;
+    const x0 = Math.round((w - bedW) / 2);
+    if (x0 < 16) return { ok: false, reason: "wide inset" };
+    const slots = [];
+    for (let i = 0; i < 12; i++) {
+      const c = i % 6;
+      const r = Math.floor(i / 6);
+      slots.push({
+        id: "slot-" + i,
+        x: x0 + c * (slotW + bedGap),
+        y: gardenTop + r * (slotH + bedGap),
+        w: slotW,
+        h: slotH
+      });
+    }
+    const bedBottom = gardenTop + 2 * slotH + bedGap;
+    const tune = { x: 16, y: bedBottom + 8, w: w - 32, h: tuneH };
+    const rowW = count * fw + (count - 1) * fgap;
+    const fx = Math.round((w - rowW) / 2);
+    const flowerTop = tune.y + tuneH + 8;
+    const flowers = [];
+    for (let i = 0; i < count; i++) {
+      flowers.push({
+        id: "flower-" + ids[i],
+        note: ids[i],
+        x: fx + i * (fw + fgap),
+        y: flowerTop,
+        w: fw,
+        h: fh
+      });
+    }
+    if (flowerTop + fh > bottom + 0.5) return { ok: false, reason: "flowers low" };
+    return { ok: true, slots: slots, tune: tune, flowers: flowers, slotW: slotW, slotH: slotH };
+  }
+  function bedItems() {
+    const growing = phase === "grow" && pendingSong;
+    const total = songs.length + (growing ? 1 : 0);
+    const start = Math.max(0, total - 12);
+    const items = [];
+    for (let i = start; i < songs.length; i++) items.push({ kind: "song", index: i, notes: songs[i].notes });
+    if (growing) items.push({ kind: "sprout", index: songs.length, notes: pendingSong });
+    return items;
+  }
+  function computeLayout(w, h) {
+    if (!(w >= 320) || !(h >= 480)) return { ok: false, reason: "small", targets: [], slots: [] };
+    const spec = BANDS[level] || BANDS.tiny;
+    const pack = w >= 760 ? widePack(w, h, spec.flowers) : phonePack(w, h, spec.flowers);
+    if (!pack || !pack.ok) return { ok: false, reason: pack && pack.reason ? pack.reason : "pack", targets: [], slots: [] };
+    const eyes = eyesBox(w);
+    const banner = bannerBox(w);
+    const chrome = chromeBoxes(w);
+    const menu = menuLayout(w, h);
+    const rest = restLayout(w, h);
+    if (!menu || !rest) return { ok: false, reason: "chrome cards", targets: [], slots: pack.slots };
+    if (intersects(banner, eyes)) return { ok: false, reason: "banner eyes", targets: [], slots: pack.slots };
+    const targets = [chrome.mute, chrome.full];
+    if (screen !== "menu") targets.push(chrome.back);
+    if (screen === "menu") {
+      for (let i = 0; i < menu.buttons.length; i++) targets.push(menu.buttons[i]);
+    }
+    const bedBoxes = [];
+    if (screen === "play") {
+      if (!chrome.startOver || !chrome.done) return { ok: false, reason: "play chrome", targets: [], slots: pack.slots };
+      targets.push(chrome.startOver, chrome.done);
+      for (let i = 0; i < pack.flowers.length; i++) targets.push(pack.flowers[i]);
+      const items = bedItems();
+      for (let i = 0; i < items.length; i++) {
+        const slot = pack.slots[i];
+        if (!slot) return { ok: false, reason: "slot", targets: [], slots: pack.slots };
+        if (items[i].kind === "sprout") {
+          bedBoxes.push({ id: "sprout", x: slot.x, y: slot.y, w: slot.w, h: slot.h, kind: "sprout", notes: items[i].notes });
+        } else {
+          bedBoxes.push({
+            id: "bed-" + items[i].index, x: slot.x, y: slot.y, w: slot.w, h: slot.h,
+            kind: "song", index: items[i].index, notes: items[i].notes
+          });
+        }
+        targets.push(bedBoxes[bedBoxes.length - 1]);
+      }
+    }
+    if (screen === "rest") targets.push(rest.another);
+    for (let i = 0; i < targets.length; i++) {
+      const box = targets[i];
+      if (!box || Math.min(box.w, box.h) < 72) return { ok: false, reason: "short " + (box && box.id), targets: [], slots: pack.slots };
+      if (!inside(box, w, h)) return { ok: false, reason: "off " + box.id, targets: [], slots: pack.slots };
+      if (intersects(box, eyes)) return { ok: false, reason: "eyes " + box.id, targets: [], slots: pack.slots };
+      const playEdge = box.id.indexOf("flower-") === 0 || box.id.indexOf("bed-") === 0 || box.id === "sprout";
+      const edge = playEdge ? 16 : 8;
+      if (box.x < edge - 0.5 || box.y < edge - 0.5) return { ok: false, reason: "edge " + box.id, targets: [], slots: pack.slots };
+      if (playEdge && box.x + box.w > w - 16 + 0.5) return { ok: false, reason: "right " + box.id, targets: [], slots: pack.slots };
+      for (let j = i + 1; j < targets.length; j++) {
+        if (intersects(box, targets[j])) return { ok: false, reason: "overlap " + box.id + " " + targets[j].id, targets: [], slots: pack.slots };
+      }
+    }
+    if (screen === "menu" && intersects(menu.card, eyes)) return { ok: false, reason: "menu eyes", targets: [], slots: pack.slots };
+    if (screen === "rest" && (intersects(rest.card, eyes) || intersects(rest.another, eyes))) {
+      return { ok: false, reason: "rest eyes", targets: [], slots: pack.slots };
+    }
+    for (let i = 0; i < pack.slots.length; i++) {
+      if (pack.slots[i].x < 16 - 0.5 || Math.min(pack.slots[i].w, pack.slots[i].h) < 72) {
+        return { ok: false, reason: "slot edge", targets: [], slots: pack.slots };
+      }
+    }
+    for (let i = 0; i < pack.flowers.length; i++) {
+      if (pack.flowers[i].x < 15.5 || pack.flowers[i].y + pack.flowers[i].h > h - 16 + 0.5) {
+        return { ok: false, reason: "flower edge", targets: [], slots: pack.slots };
+      }
+    }
+    return {
+      ok: true,
+      reason: "",
+      eyes: eyes,
+      banner: banner,
+      chrome: chrome,
+      menu: menu,
+      rest: rest,
+      tune: pack.tune,
+      flowers: pack.flowers,
+      slots: pack.slots,
+      bedBoxes: bedBoxes,
+      targets: targets,
+      slotW: pack.slotW,
+      slotH: pack.slotH
+    };
+  }
+
+  function place(el, box) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+  function setClass(el, name) {
+    if (el && el.className !== name) el.className = name;
+  }
+  function ensureFlowers() {
+    for (let i = 0; i < NOTES.length; i++) {
+      const note = NOTES[i];
+      let btn = document.getElementById("flower-" + note.id);
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.type = "button";
+        btn.id = "flower-" + note.id;
+        btn.className = "bloom";
+        btn.setAttribute("data-play", "true");
+        btn.setAttribute("data-note", note.id);
+        btn.setAttribute("aria-label", SYMBOL_LABEL[note.symbol]);
+        btn.appendChild(singingSvg(note));
+        playEl.appendChild(btn);
+      }
+    }
+    for (let i = 0; i < 12; i++) {
+      if (!document.getElementById("slot-" + i)) {
+        const slot = document.createElement("div");
+        slot.className = "slot";
+        slot.id = "slot-" + i;
+        slot.setAttribute("aria-hidden", "true");
+        playEl.appendChild(slot);
+      }
+    }
+    while (tuneEl.children.length < 4) {
+      const dot = document.createElement("span");
+      dot.appendChild(svgEl("svg", { viewBox: "0 0 100 100", "aria-hidden": "true" }));
+      tuneEl.appendChild(dot);
+    }
+  }
+  function flowerClass(id) {
+    if (glowNote === id) return "bloom glow";
+    if (swayNote === id && clock - swayAt < 700 && clock >= swayAt) {
+      return reducedMotion() ? "bloom glow" : "bloom sway";
+    }
+    return "bloom";
+  }
+  function syncBeds(boxes) {
+    const songsOnly = [];
+    for (let i = 0; i < boxes.length; i++) if (boxes[i].kind === "song") songsOnly.push(boxes[i]);
+    const key = songsOnly.map(function (box) { return box.id + "=" + box.notes.join("."); }).join("|");
+    if (key !== bedKey) {
+      const old = playEl.querySelectorAll("button.song");
+      for (let i = old.length - 1; i >= 0; i--) old[i].parentNode.removeChild(old[i]);
+      for (let i = 0; i < songsOnly.length; i++) {
+        const box = songsOnly[i];
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.id = box.id;
+        btn.className = "song";
+        btn.setAttribute("data-play", "true");
+        btn.setAttribute("data-shape", petalShape(box.notes));
+        btn.setAttribute("data-petals", String(box.notes.length * 2));
+        btn.setAttribute("data-stem", stemRatio(box.notes).toFixed(4));
+        btn.setAttribute("aria-label", "Song flower");
+        btn.appendChild(songSvg(box.notes));
+        playEl.appendChild(btn);
+      }
+      bedKey = key;
+    }
+    for (let i = 0; i < songsOnly.length; i++) place(document.getElementById(songsOnly[i].id), songsOnly[i]);
+  }
+  function syncSprout(boxes) {
+    let sprout = null;
+    for (let i = 0; i < boxes.length; i++) if (boxes[i].kind === "sprout") sprout = boxes[i];
+    if (!sprout || phase !== "grow") {
+      sproutBtn.hidden = true;
+      return;
+    }
+    const key = sprout.notes.join(".");
+    if (key !== sproutKey) {
+      while (sproutBtn.firstChild) sproutBtn.removeChild(sproutBtn.firstChild);
+      sproutBtn.appendChild(songSvg(sprout.notes));
+      sproutBtn.setAttribute("data-shape", petalShape(sprout.notes));
+      sproutBtn.setAttribute("data-petals", String(sprout.notes.length * 2));
+      sproutKey = key;
+    }
+    sproutBtn.hidden = false;
+    place(sproutBtn, sprout);
+    if (reducedMotion()) sproutBtn.style.transform = "none";
+    else {
+      const p = GROW_MS > 0 ? Math.max(0, Math.min(1, (clock - (echoAt + WAIT_MS + echoNotes.length * NOTE_MS)) / GROW_MS)) : 1;
+      sproutBtn.style.transform = "scale(" + (0.15 + 0.85 * p) + ")";
+      sproutBtn.style.transformOrigin = "50% 100%";
+    }
+  }
+  function syncTune(box) {
+    const spec = BANDS[level];
+    const n = screen === "play" && spec ? spec.tune : 0;
+    place(tuneEl, box);
+    tuneEl.hidden = screen !== "play";
+    const dot = Math.max(18, Math.min(32, box.h - 6));
+    for (let i = 0; i < tuneEl.children.length; i++) {
+      const child = tuneEl.children[i];
+      const show = i < n;
+      child.hidden = !show;
+      if (!show) continue;
+      child.style.width = dot + "px";
+      child.style.height = dot + "px";
+      const id = tune[i];
+      const svg = child.firstChild;
+      const note = id ? noteById(id) : null;
+      child.style.background = note ? note.color : "transparent";
+      const want = note ? note.symbol : "";
+      if (child.getAttribute("data-symbol") !== want) {
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        if (note) {
+          const g = svgEl("g", { transform: "translate(50 50) scale(0.7) translate(-50 -50)" });
+          g.appendChild(symbolNode(note.symbol));
+          svg.appendChild(g);
+        }
+        child.setAttribute("data-symbol", want);
+      }
+    }
+  }
+  function render() {
+    ensureFlowers();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const lay = computeLayout(w, h);
+    const chrome = lay.chrome || chromeBoxes(w);
+    place(muteBtn, chrome.mute);
+    place(fullBtn, chrome.full);
+    if (chrome.back) place(backBtn, chrome.back);
+    backBtn.hidden = screen === "menu";
+    if (chrome.startOver) place(startOverBtn, chrome.startOver);
+    if (chrome.done) place(doneBtn, chrome.done);
+    menuEl.hidden = screen !== "menu";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "play";
+    bannerEl.textContent = bannerText();
+    if (lay.banner) place(bannerEl, lay.banner);
+    if (lay.eyes) place(eyesEl, lay.eyes);
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    if (lay.menu) {
+      place(menuCard, lay.menu.card);
+      place(menuCopy, lay.menu.title);
+      for (let i = 0; i < lay.menu.buttons.length; i++) {
+        place(document.getElementById(lay.menu.buttons[i].id), lay.menu.buttons[i]);
+      }
+    }
+    const spec = BANDS[level];
+    for (let i = 0; i < NOTES.length; i++) {
+      const btn = document.getElementById("flower-" + NOTES[i].id);
+      if (!btn) continue;
+      const show = screen === "play" && spec && spec.flowers.indexOf(NOTES[i].id) >= 0;
+      btn.hidden = !show;
+      setClass(btn, flowerClass(NOTES[i].id));
+    }
+    if (lay.ok && lay.flowers) {
+      for (let i = 0; i < lay.flowers.length; i++) {
+        place(document.getElementById(lay.flowers[i].id), lay.flowers[i]);
+      }
+    }
+    if (lay.slots) {
+      for (let i = 0; i < lay.slots.length; i++) place(document.getElementById(lay.slots[i].id), lay.slots[i]);
+    }
+    syncBeds(lay.bedBoxes || []);
+    syncSprout(lay.bedBoxes || []);
+    if (lay.tune) syncTune(lay.tune);
+    if (lay.rest) {
+      place(restCard, lay.rest.card);
+      place(restLine, lay.rest.line);
+      place(anotherBtn, lay.rest.another);
+    }
+  }
+
+  function resetSitting() {
+    tune = [];
+    phase = "idle";
+    pendingSong = null;
+    echoNotes = [];
+    echoPlayed = 0;
+    glowNote = null;
+    swayNote = null;
+    swayAt = 0;
+    bannerMode = "sing";
+    sproutKey = "";
+  }
+  function go(id) {
+    if (id !== "menu" && id !== "play" && id !== "rest") {
+      render();
+      return;
+    }
+    if (id !== "play") {
+      pendingSong = null;
+      echoNotes = [];
+      echoPlayed = 0;
+      glowNote = null;
+      phase = "idle";
+      tune = [];
+      sproutKey = "";
+    }
+    screen = id;
+    render();
+  }
+  function highlight(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    render();
+  }
+  function start(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    resetSitting();
+    go("play");
+  }
+  function beginSequence(notes, asNew) {
+    phase = "wait";
+    echoNotes = notes.slice();
+    echoAt = clock;
+    echoPlayed = 0;
+    glowNote = null;
+    pendingSong = asNew ? notes.slice() : null;
+  }
+  function finishGrow() {
+    const notes = pendingSong ? pendingSong.slice() : null;
+    pendingSong = null;
+    phase = "idle";
+    echoNotes = [];
+    echoPlayed = 0;
+    glowNote = null;
+    tune = [];
+    bannerMode = "fresh";
+    sproutKey = "";
+    if (!notes) return;
+    songs.push({ notes: notes });
+    if (songs.length > 24) songs = songs.slice(songs.length - 24);
+    saveGarden();
+    playBloom();
+  }
+  function advanceEcho() {
+    if (phase === "idle" || !echoNotes.length) return;
+    const t = clock - echoAt;
+    if (t < WAIT_MS) {
+      phase = "wait";
+      glowNote = null;
+      return;
+    }
+    const playback = t - WAIT_MS;
+    const count = echoNotes.length;
+    const playEnd = count * NOTE_MS;
+    const started = playback >= playEnd ? count : Math.min(count, Math.floor(playback / NOTE_MS) + 1);
+    while (echoPlayed < started) {
+      glowNote = echoNotes[echoPlayed];
+      const note = noteById(echoNotes[echoPlayed]);
+      echoPlayed += 1;
+      if (note) playTone(note);
+    }
+    if (playback < playEnd) {
+      phase = pendingSong ? "echo" : "replay";
+      return;
+    }
+    glowNote = null;
+    if (!pendingSong) {
+      phase = "idle";
+      echoNotes = [];
+      echoPlayed = 0;
+      return;
+    }
+    const growElapsed = playback - playEnd;
+    if (reducedMotion() || growElapsed >= GROW_MS) finishGrow();
+    else phase = "grow";
+  }
+  function sing(id) {
+    if (screen !== "play" || phase !== "idle") {
+      render();
+      return;
+    }
+    const spec = BANDS[level];
+    if (!spec || spec.flowers.indexOf(id) < 0) {
+      render();
+      return;
+    }
+    if (tune.length >= spec.tune) {
+      render();
+      return;
+    }
+    tune.push(id);
+    swayNote = id;
+    swayAt = clock;
+    bannerMode = "sing";
+    const note = noteById(id);
+    if (note) playTone(note);
+    if (tune.length >= spec.tune) beginSequence(tune, true);
+    render();
+  }
+  function replay(index) {
+    if (screen !== "play" || phase !== "idle") {
+      render();
+      return;
+    }
+    if (index < 0 || index >= songs.length || !songs[index]) {
+      render();
+      return;
+    }
+    beginSequence(songs[index].notes, false);
+    render();
+  }
+  function startOver() {
+    if (screen !== "play" || phase !== "idle") {
+      render();
+      return;
+    }
+    tune = [];
+    bannerMode = "sing";
+    swayNote = null;
+    render();
+  }
+  function donePlay() {
+    if (screen !== "play" || phase !== "idle") {
+      render();
+      return;
+    }
+    go("rest");
+  }
+  function state() {
+    const snap = {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      tune: tune.slice(),
+      songs: songs.map(function (song) { return { notes: song.notes.slice() }; }),
+      phase: phase,
+      sung: lastSung,
+      echoed: echoPlayed
+    };
+    render();
+    return snap;
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function targetsAt(w, h) {
+    render();
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const lay = computeLayout(w, h);
+    if (!lay || !lay.ok) return { ok: false, targets: [] };
+    return {
+      ok: true,
+      targets: lay.targets.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+  function activate(btn) {
+    if (!btn || !buttonVisible(btn)) {
+      render();
+      return;
+    }
+    if (!checking) ensureAudio();
+    const id = btn.id;
+    if (phase !== "idle" && id !== "mute" && id !== "full") {
+      render();
+      return;
+    }
+    const note = btn.getAttribute("data-note");
+    if (note && id.indexOf("flower-") === 0) {
+      sing(note);
+      return;
+    }
+    if (id.indexOf("bed-") === 0) {
+      replay(+id.slice(4));
+      return;
+    }
+    if (id === "lets-go") start(level);
+    else if (id === "back") go("menu");
+    else if (id === "another") start(level);
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (id === "start-over") startOver();
+    else if (id === "done") donePlay();
+    else if (knownBand(id)) highlight(id);
+    else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+      trailOn = false;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+      trailOn = false;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        trailOn = false;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn)) activate(btn);
+      } else {
+        const p = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+        dwellProgress = p;
+        const btn = document.getElementById(dwellKey);
+        trailOn = p > 0 && !!(btn && btn.getAttribute("data-play") === "true") && !reducedMotion();
+      }
+    } else {
+      dwellProgress = 0;
+      trailOn = false;
+    }
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    advanceEcho();
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn);
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || btn.id !== armedId) return;
+    armedId = null;
+    activate(btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn); e.preventDefault(); }
+      return;
+    }
+    const dir = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -1, ArrowDown: 1 }[e.key];
+    if (!dir) return;
+    const live = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) if (buttonVisible(buttons[i])) live.push(buttons[i]);
+    if (!live.length) return;
+    let idx = 0;
+    for (let i = 0; i < live.length; i++) if (live[i] === document.activeElement) idx = i;
+    const next = live[(idx + (dir > 0 ? 1 : live.length - 1)) % live.length];
+    if (next && next.focus) next.focus();
+    e.preventDefault();
+  });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+  function shapeName(notes) {
+    const ids = ["c", "d", "e", "g", "a", "c2", "d2", "e2"];
+    const a = ids.indexOf(notes[0]);
+    const b = ids.indexOf(notes[notes.length - 1]);
+    if (b > a) return "pointed";
+    if (b < a) return "round";
+    return "heart";
+  }
+  function stemExpect(notes) {
+    const ids = ["c", "d", "e", "g", "a", "c2", "d2", "e2"];
+    let sum = 0;
+    for (let i = 0; i < notes.length; i++) sum += ids.indexOf(notes[i]);
+    return 0.45 + 0.4 * ((sum / notes.length) / 7);
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    songs = [];
+    resetSitting();
+    screen = "menu";
+    level = "tiny";
+    muted = false;
+    lastSung = null;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    const snap = [];
+    let writes = [];
+    let origSet = null;
+    let origRem = null;
+    let origSpeak = null;
+    let speakCalls = 0;
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        snap.push([key, localStorage.getItem(key)]);
+      }
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function (key) {
+        writes.push(String(key));
+        return origSet.apply(localStorage, arguments);
+      };
+      localStorage.removeItem = function (key) {
+        writes.push(String(key));
+        return origRem.apply(localStorage, arguments);
+      };
+    } catch (err) {}
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.speak) {
+        origSpeak = window.speechSynthesis.speak;
+        window.speechSynthesis.speak = function () {
+          speakCalls += 1;
+          return origSpeak.apply(window.speechSynthesis, arguments);
+        };
+      }
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    function press(id) {
+      const box = targetById(centers().targets, id);
+      if (!box) throw new Error(id + " was missing");
+      const hit = buttonAt(box.nx * window.innerWidth, box.ny * window.innerHeight);
+      if (!hit || hit.id !== id) throw new Error(id + " was not the control under the look");
+      tap(box.nx, box.ny);
+      return box;
+    }
+    function finishTune(n) {
+      const t0 = clock;
+      step(t0 + WAIT_MS);
+      for (let i = 0; i < n; i++) step(t0 + WAIT_MS + i * NOTE_MS + Math.floor(NOTE_MS / 2));
+      step(t0 + WAIT_MS + n * NOTE_MS);
+      step(t0 + WAIT_MS + n * NOTE_MS + GROW_MS);
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+    });
+    run("family-plain-state", function () {
+      const snapState = state();
+      let json = "";
+      try { json = JSON.stringify(snapState); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snapState.level !== "tiny" || snapState.screen !== "menu" || snapState.banner !== "Pick who is playing." || snapState.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on Hum.");
+      }
+      const ban = ["score", "lives", "rank", "wrongs", "msLeft"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snapState, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      step(10000);
+      const box = targetById(centers().targets, "flower-c");
+      if (!box || !box.play) fail("family-play-dwell", "The singing flower was not a play target.");
+      else {
+        enterLook(box, 10000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(10200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(10640);
+        if (state().tune.length !== 0 || state().sung === "c") fail("family-play-dwell", "640 ms played the flower.");
+        step(10660);
+        if (state().tune.join(",") !== "c" || state().sung !== "c") fail("family-play-dwell", "660 ms did not play the flower.");
+      }
+      resetInput();
+      start("tiny");
+      step(11000);
+      const tapBox = targetById(centers().targets, "flower-c");
+      tap(tapBox.nx, tapBox.ny);
+      if (state().tune.join(",") !== "c" || state().sung !== "c") fail("family-play-dwell", "A tap did not play the same flower.");
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "play") fail("family-menu-dwell", "1300 ms on Let's go did not open the garden.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "play") fail("family-menu-dwell", "600 ms on Back left the garden.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      resetInput();
+      start("tiny");
+      step(30000);
+      const box = targetById(centers().targets, "flower-e");
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(30000);
+      step(30660);
+      if (state().tune.length !== 0 || dwell() !== 0) fail("family-pointer-blocks", "A look during hold played or filled the ring.");
+      release();
+      releaseLook();
+      enterLook(box, 32000);
+      step(32660);
+      if (state().tune.join(",") !== "e") fail("family-pointer-blocks", "A fresh look after release did not play.");
+    });
+    run("family-stale", function () {
+      resetInput();
+      start("tiny");
+      step(36000);
+      const box = targetById(centers().targets, "flower-g");
+      try {
+        enterLook(box, 36000);
+        step(36200);
+        if (!(dwell() > 0) || state().tune.length !== 0) fail("family-stale", "The ring did not fill before the sample went stale.");
+        refreshHold = false;
+        step(36700);
+        if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+        if (state().tune.length !== 0) fail("family-stale", "A stale sample played a flower.");
+      } finally {
+        refreshHold = true;
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      start("tiny");
+      const liveBefore = targetById(centers().targets, "mute");
+      checkView("play");
+      const liveAfter = targetById(centers().targets, "mute");
+      if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+        fail("family-target-size", "targetsAt shrank a live play button.");
+      }
+    });
+    run("family-eyes", function () {
+      resetInput();
+      step(40000);
+      look(0.5, 0.12);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      const ez = parseInt(window.getComputedStyle(eyesEl).zIndex, 10) || 0;
+      const cz = parseInt(window.getComputedStyle(menuCard).zIndex, 10) || 0;
+      const bz = parseInt(window.getComputedStyle(document.getElementById("lets-go")).zIndex, 10) || 0;
+      if (ez >= cz || ez >= bz) fail("family-eyes", "The Eyes chip sat above a card or a button.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("family-mute", function () {
+      resetInput();
+      go("menu");
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    run("sing", function () {
+      resetInput();
+      start("tiny");
+      step(80000);
+      const box = targetById(centers().targets, "flower-c");
+      enterLook(box, 80000);
+      step(80640);
+      if (state().tune.length !== 0 || state().sung === "c") fail("sing", "640 ms played a note.");
+      releaseLook();
+      enterLook(box, 81000);
+      step(81660);
+      if (state().sung !== "c" || state().tune.join(",") !== "c") fail("sing", "660 ms did not play the note or fill a seed.");
+      const dot = tuneEl.children[0];
+      if (!dot || dot.hidden || dot.getAttribute("data-symbol") !== "circle") fail("sing", "The seed did not take the note symbol.");
+    });
+    run("tune-grows-flower", function () {
+      resetInput();
+      songs = [];
+      bedKey = "";
+      start("little");
+      step(90000);
+      const before = state().songs.length;
+      press("flower-c");
+      press("flower-d");
+      press("flower-e");
+      if (state().tune.join(",") !== "c,d,e" || state().phase !== "wait") fail("tune-grows-flower", "Three notes did not fill the tune.");
+      const t0 = clock;
+      step(t0 + 100);
+      if (state().phase !== "wait" || state().songs.length !== before) fail("tune-grows-flower", "The garden answered before 600 ms.");
+      step(t0 + WAIT_MS + 50);
+      if (state().phase !== "echo" || state().echoed < 1 || state().sung !== "c") fail("tune-grows-flower", "Playback did not start with the first note.");
+      step(t0 + WAIT_MS + NOTE_MS + 50);
+      if (state().echoed < 2 || state().sung !== "d") fail("tune-grows-flower", "The second note did not play back.");
+      step(t0 + WAIT_MS + NOTE_MS * 2 + 50);
+      if (state().echoed < 3 || state().sung !== "e" || state().songs.length !== before) fail("tune-grows-flower", "The third note did not play back.");
+      step(t0 + WAIT_MS + NOTE_MS * 3 + GROW_MS);
+      const after = state();
+      if (after.songs.length !== before + 1) fail("tune-grows-flower", "The garden did not grow one song flower.");
+      if (after.tune.length !== 0) fail("tune-grows-flower", "The tune row did not clear.");
+      if (after.songs[after.songs.length - 1].notes.join(",") !== "c,d,e") fail("tune-grows-flower", "The new flower was not that tune.");
+      if (after.banner !== "A new flower!") fail("tune-grows-flower", "The banner did not welcome the flower.");
+    });
+    run("no-input-during-playback", function () {
+      resetInput();
+      songs = [];
+      bedKey = "";
+      start("little");
+      step(120000);
+      press("flower-c");
+      press("flower-g");
+      press("flower-a");
+      const t0 = clock;
+      step(t0 + WAIT_MS + 100);
+      if (state().phase !== "echo") fail("no-input-during-playback", "The tune was not playing back.");
+      const songsBefore = state().songs.length;
+      press("flower-d");
+      press("start-over");
+      press("done");
+      const flower = targetById(centers().targets, "flower-e");
+      enterLook(flower, clock);
+      step(clock + 660);
+      const mid = state();
+      if (mid.screen !== "play" || mid.tune.join(",") !== "c,g,a" || mid.songs.length !== songsBefore) {
+        fail("no-input-during-playback", "A look or a tap changed the garden during playback.");
+      }
+      releaseLook();
+      step(t0 + WAIT_MS + 3 * NOTE_MS + GROW_MS);
+      if (state().songs.length !== songsBefore + 1) fail("no-input-during-playback", "The tune did not finish into one flower.");
+    });
+    run("shape-rules", function () {
+      resetInput();
+      songs = [];
+      bedKey = "";
+      function grow(band, notes) {
+        start(band);
+        step(clock + 50);
+        for (let i = 0; i < notes.length; i++) press("flower-" + notes[i]);
+        finishTune(notes.length);
+      }
+      grow("little", ["c", "d", "e"]);
+      grow("little", ["e", "d", "c"]);
+      grow("little", ["d", "d", "d"]);
+      grow("tiny", ["c", "e"]);
+      grow("shop", ["c", "d", "e", "g"]);
+      const made = [
+        ["c", "d", "e"],
+        ["e", "d", "c"],
+        ["d", "d", "d"],
+        ["c", "e"],
+        ["c", "d", "e", "g"]
+      ];
+      start("rush");
+      if (state().songs.length !== made.length) fail("shape-rules", "The garden did not keep each tune.");
+      for (let i = 0; i < made.length; i++) {
+        const btn = document.getElementById("bed-" + i);
+        const expect = shapeName(made[i]);
+        const petals = made[i].length * 2;
+        if (!btn) { fail("shape-rules", "A song flower was missing."); continue; }
+        if (btn.getAttribute("data-shape") !== expect) fail("shape-rules", "Tune " + i + " was not " + expect + ".");
+        if (btn.getAttribute("data-petals") !== String(petals)) fail("shape-rules", "Tune " + i + " petal count was off.");
+        if (btn.querySelectorAll(".petal").length !== petals) fail("shape-rules", "Tune " + i + " did not draw that many petals.");
+        const stem = parseFloat(btn.getAttribute("data-stem"));
+        if (Math.abs(stem - stemExpect(made[i])) > 0.0001) fail("shape-rules", "Tune " + i + " stem height was off.");
+        if (btn.querySelectorAll(".leaf").length !== 2) fail("shape-rules", "Tune " + i + " did not draw two leaves.");
+      }
+      if (shapeName(["c", "d", "e"]) !== "pointed" || shapeName(["e", "d", "c"]) !== "round" || shapeName(["d", "d", "d"]) !== "heart") {
+        fail("shape-rules", "Rising, falling, and level tunes did not pick pointed, round, and heart.");
+      }
+    });
+    run("song-replay", function () {
+      resetInput();
+      songs = [];
+      bedKey = "";
+      start("little");
+      step(160000);
+      press("flower-c");
+      press("flower-e");
+      press("flower-g");
+      finishTune(3);
+      if (state().songs.length !== 1 || state().tune.length !== 0) fail("song-replay", "The song flower was not ready.");
+      const bed = targetById(centers().targets, "bed-0");
+      if (!bed || !bed.play) fail("song-replay", "The song flower was not a play target.");
+      else {
+        enterLook(bed, clock + 20);
+        step(clock + 640);
+        if (state().phase !== "idle" || state().songs.length !== 1 || state().tune.length !== 0) {
+          fail("song-replay", "640 ms started a replay.");
+        }
+        releaseLook();
+        const again = targetById(centers().targets, "bed-0");
+        enterLook(again, clock + 20);
+        step(clock + 660);
+        if (state().phase !== "wait" || state().songs.length !== 1) fail("song-replay", "660 ms did not replay the song.");
+        const t0 = clock;
+        step(t0 + WAIT_MS + 50);
+        if (state().phase !== "replay" || state().sung !== "c" || state().songs.length !== 1) fail("song-replay", "The replay did not sing the first note.");
+        step(t0 + WAIT_MS + 3 * NOTE_MS + 20);
+        const end = state();
+        if (end.songs.length !== 1 || end.tune.length !== 0 || end.phase !== "idle") fail("song-replay", "The replay added a flower or left the tune row filled.");
+      }
+    });
+    run("storage-roundtrip", function () {
+      resetInput();
+      songs = [];
+      bedKey = "";
+      saveGarden();
+      start("little");
+      step(180000);
+      press("flower-c");
+      press("flower-d");
+      press("flower-e");
+      finishTune(3);
+      start("tiny");
+      step(clock + 30);
+      press("flower-g");
+      press("flower-c");
+      finishTune(2);
+      let data = null;
+      try { data = JSON.parse(localStorage.getItem(STORE)); }
+      catch (err) { data = null; }
+      if (!data || data.version !== 1 || !data.songs || data.songs.length !== 2) fail("storage-roundtrip", "Storage did not hold two songs.");
+      else if (data.songs[0].notes.join(",") !== "c,d,e" || data.songs[1].notes.join(",") !== "g,c") {
+        fail("storage-roundtrip", "The stored songs were not the tunes just grown.");
+      }
+      songs = [];
+      loadGarden();
+      if (songs.length !== 2 || songs[0].notes.join(",") !== "c,d,e" || songs[1].notes.join(",") !== "g,c") {
+        fail("storage-roundtrip", "A fresh read did not bring the garden back.");
+      }
+      try { localStorage.setItem(STORE, "{"); }
+      catch (err) { fail("storage-roundtrip", "Storage could not take a broken value."); }
+      loadGarden();
+      if (songs.length !== 0) fail("storage-roundtrip", "A broken value did not start an empty garden.");
+      try { localStorage.setItem(STORE, JSON.stringify({ version: 2, songs: [{ notes: ["c"] }] })); }
+      catch (err) {}
+      loadGarden();
+      if (songs.length !== 0) fail("storage-roundtrip", "A different version did not start an empty garden.");
+      try { localStorage.setItem(STORE, JSON.stringify({ version: 1, songs: [{ notes: ["zz"] }] })); }
+      catch (err) {}
+      loadGarden();
+      if (songs.length !== 0) fail("storage-roundtrip", "A song outside the scale did not start an empty garden.");
+    });
+    run("storage-cap", function () {
+      resetInput();
+      songs = [];
+      bedKey = "";
+      saveGarden();
+      const ids = BANDS.little.flowers;
+      function tuneAt(i) {
+        return [ids[i % 5], ids[Math.floor(i / 5) % 5], ids[Math.floor(i / 25) % 5]];
+      }
+      start("little");
+      step(200000);
+      for (let i = 0; i < 25; i++) {
+        const notes = tuneAt(i);
+        if (state().screen !== "play" || state().phase !== "idle") start("little");
+        for (let n = 0; n < notes.length; n++) press("flower-" + notes[n]);
+        finishTune(notes.length);
+      }
+      if (songs.length !== 24) fail("storage-cap", "The garden did not keep 24 songs.");
+      if (songs[0].notes.join(",") !== tuneAt(1).join(",")) fail("storage-cap", "The oldest song was still kept.");
+      if (songs[23].notes.join(",") !== tuneAt(24).join(",")) fail("storage-cap", "The newest song was dropped.");
+      let data = null;
+      try { data = JSON.parse(localStorage.getItem(STORE)); }
+      catch (err) { data = null; }
+      if (!data || data.songs.length !== 24) fail("storage-cap", "Storage did not keep 24 songs.");
+    });
+    run("sizes", function () {
+      resetInput();
+      const views = [[390, 700], [1024, 768]];
+      const bands = ["tiny", "little", "shop", "rush"];
+      for (let b = 0; b < bands.length; b++) {
+        start(bands[b]);
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const lay = computeLayout(w, h);
+          if (!lay.ok) fail("sizes", bands[b] + " at " + w + " by " + h + " " + (lay.reason || "was not ok") + ".");
+          else {
+            const list = lay.targets;
+            for (let i = 0; i < list.length; i++) {
+              if (Math.min(list[i].w, list[i].h) < 72) fail("sizes", list[i].id + " was under 72.");
+            }
+            for (let i = 0; i < lay.slots.length; i++) {
+              if (Math.min(lay.slots[i].w, lay.slots[i].h) < 72) fail("sizes", "A bed slot was under 72.");
+              if (lay.slots[i].x < 16 || lay.slots[i].y + lay.slots[i].h > h) fail("sizes", "A bed slot was off the glass.");
+            }
+            for (let i = 0; i < lay.flowers.length; i++) {
+              if (Math.min(lay.flowers[i].w, lay.flowers[i].h) < 72) fail("sizes", "A singing flower was under 72.");
+              if (lay.flowers[i].x < 16) fail("sizes", "A singing flower sat inside the edge.");
+            }
+            if (w === 390) {
+              if (lay.slotW !== 83 || lay.slotH !== 90) fail("sizes", "The phone bed was not 83 by 90.");
+              const count = BANDS[bands[b]].flowers.length;
+              const fw = count <= 5 ? 114 : 83;
+              const fh = count <= 3 ? 140 : (count <= 5 ? 110 : 100);
+              for (let i = 0; i < lay.flowers.length; i++) {
+                if (lay.flowers[i].w !== fw || lay.flowers[i].h !== fh) fail("sizes", "A phone flower was not the named size.");
+              }
+            }
+            if (w === 1024) {
+              if (lay.slotW !== 140 || lay.slotH !== 150) fail("sizes", "The wide bed was not about 140 by 150.");
+              for (let i = 0; i < lay.flowers.length; i++) {
+                if (lay.flowers[i].h !== 110 || lay.flowers[i].w < 72) fail("sizes", "A wide flower was not about 110 px.");
+              }
+            }
+            const eye = lay.eyes;
+            const ez = parseInt(window.getComputedStyle(eyesEl).zIndex, 10) || 0;
+            if (ez >= 2) fail("sizes", "Eyes painted over a card.");
+            for (let i = 0; i < list.length; i++) if (intersects(list[i], eye)) fail("sizes", "Eyes sat on " + list[i].id + ".");
+          }
+        }
+      }
+      const before = muteBtn.getBoundingClientRect();
+      targetsAt(390, 700);
+      targetsAt(1024, 768);
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.abs(before.width - after.width) > 1 || Math.abs(before.height - after.height) > 1) {
+        fail("sizes", "The size check moved a live button.");
+      }
+    });
+    run("done-rest", function () {
+      resetInput();
+      start("tiny");
+      step(clock + 40);
+      press("done");
+      const snapDone = state();
+      if (snapDone.screen !== "rest" || snapDone.banner !== "Your garden is singing.") fail("done-rest", "Done did not rest the garden.");
+      if ((restLine.textContent || "").indexOf("Your garden is singing.") < 0) fail("done-rest", "The rest line changed.");
+      press("another");
+      if (state().screen !== "play" || state().level !== "tiny") fail("done-rest", "Another did not start Hum again.");
+    });
+    try { assertJunk("at the end"); }
+    catch (err) { fail("family-query-inert", err && err.message ? err.message : "The junk check threw."); }
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+    });
+    if (speakCalls !== 0) fail("no-speech", "speechSynthesis.speak was called.");
+    run("storage-only-own-key", function () {
+      for (let i = 0; i < writes.length; i++) {
+        if (writes[i] !== STORE) fail("storage-only-own-key", "Another key was written.");
+      }
+    });
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+      if (origSpeak && window.speechSynthesis) window.speechSynthesis.speak = origSpeak;
+    } catch (err) {}
+    try {
+      const seen = {};
+      for (let i = 0; i < snap.length; i++) seen[snap[i][0]] = true;
+      const nowKeys = [];
+      for (let i = 0; i < localStorage.length; i++) nowKeys.push(localStorage.key(i));
+      for (let i = 0; i < nowKeys.length; i++) {
+        if (!seen[nowKeys[i]]) localStorage.removeItem(nowKeys[i]);
+      }
+      for (let i = 0; i < snap.length; i++) {
+        if (snap[i][1] === null) localStorage.removeItem(snap[i][0]);
+        else localStorage.setItem(snap[i][0], snap[i][1]);
+      }
+      for (let i = 0; i < snap.length; i++) {
+        if (localStorage.getItem(snap[i][0]) !== snap[i][1]) fail("storage-only-own-key", "The previous value was not restored.");
+      }
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (!seen[key]) fail("storage-only-own-key", "An extra key remained.");
+      }
+    } catch (err) {
+      fail("storage-only-own-key", "Storage could not be restored.");
+    }
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  ensureFlowers();
+  loadGarden();
+  window.echoGarden = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) {
+      result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
