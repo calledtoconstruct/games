@@ -16,6 +16,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Flash Cards](https://calledtoconstruct.github.io/games/flash-cards/)
 - [Maze](https://calledtoconstruct.github.io/games/maze/)
 - [Coloring Book](https://calledtoconstruct.github.io/games/coloring-book/)
+- [Four in a Row](https://calledtoconstruct.github.io/games/four-in-a-row/)
 
 ## Pop Pals
 
@@ -100,6 +101,14 @@ A coloring book for ages 2 and up. Big Dots has four large colors and a simple p
 Open `coloring-book/index.html` in a browser, or play [Coloring Book](https://calledtoconstruct.github.io/games/coloring-book/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a color until the ring fills, then look at the page and the color follows. Looking away lifts the brush. Menu buttons take twice as long. Mouse and touch draw the same stroke. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Four in a Row
+
+A drop-the-disc game for ages 2 and up. Play a friend at the same screen, or play the computer. Three Up is a small board and three in a row. Four Fun and Classic are four in a row. Clever has a stronger computer. Star discs and ring discs show who is who.
+
+Open `four-in-a-row/index.html` in a browser, or play [Four in a Row](https://calledtoconstruct.github.io/games/four-in-a-row/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
 ## Add a game
 
