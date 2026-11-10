@@ -1,0 +1,2286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Story Paths</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; color: var(--ink); }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 28; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 8px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 25; pointer-events: none;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 6px 14px; font-size: 18px; font-weight: 800;
+    text-align: center; overflow: hidden;
+  }
+  #menu-card, #rest-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-rest, #play, #menu-copy, #rest-line, #scene, #sentence, h1, p, b, small {
+    pointer-events: none;
+  }
+  #menu-copy, #rest-line {
+    position: fixed; z-index: 24; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line { font-size: 28px; font-weight: 800; }
+  #mute, #full, #back, #back-page, #lets-go, #tiny, #little, #shop, #rush, #another, #play button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back, #back-page {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 15px; line-height: 1.1;
+    padding: 4px;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #full { font-size: 14px; line-height: 16px; }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #another {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 26px;
+  }
+  #scene {
+    position: fixed; z-index: 2; overflow: hidden;
+    background: var(--card); border-radius: 24px;
+    box-shadow: 0 8px 24px rgba(50, 30, 10, 0.08);
+  }
+  #scene .fig { position: absolute; }
+  #scene .fig svg { width: 100%; height: 100%; display: block; }
+  #sentence {
+    position: fixed; z-index: 3; margin: 0; overflow: hidden;
+    font-weight: 800; text-align: center;
+  }
+  #play button {
+    border: 3px solid var(--ink); border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #e2d0b4; padding: 8px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  #play button .art { display: block; }
+  #play button .art svg { width: 100%; height: 100%; display: block; }
+  #play button .label { display: block; text-align: center; }
+  #play button.story { flex-direction: column; }
+  #play button.story .art { width: 54%; height: 62%; }
+  #play button.story .label { font-size: 28px; line-height: 32px; }
+  #play button.choice .label { font-size: 22px; line-height: 26px; }
+  #play.layout-pair button.choice { flex-direction: column; }
+  #play.layout-pair button.choice .art { width: 62%; height: 58%; }
+  #play.layout-stack button.choice { flex-direction: row; justify-content: flex-start; padding-left: 12px; }
+  #play.layout-stack button.choice .art { width: 88px; height: 88px; flex: 0 0 88px; }
+  #play.layout-stack button.choice .label { font-size: 24px; text-align: left; }
+  #play.layout-wide button.choice { flex-direction: row; justify-content: flex-start; padding-left: 16px; }
+  #play.layout-wide button.choice .art { width: 120px; height: 120px; flex: 0 0 120px; }
+  #play.layout-wide button.choice .label { font-size: 26px; text-align: left; }
+  #play.band-rush button.choice { flex-direction: row; justify-content: flex-start; }
+  #play.band-rush button.choice .art { width: 72px; height: 72px; flex: 0 0 72px; }
+  #play.band-rush button.choice .label { font-size: 28px; line-height: 32px; text-align: left; }
+  #play button.end-btn { justify-content: center; }
+  #play button.end-btn .label { font-size: 24px; line-height: 28px; }
+  @media (prefers-reduced-motion: reduce) {
+    #scene, #sentence, #play button { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<button id="back-page" type="button" hidden>Back a page</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick who is playing.</p>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Story Paths</h1>
+    <p>Look at a choice to turn the page.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Picture Book</b><small>Ages 2 to 3. Pictures only.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Story Time</b><small>Ages 4 to 5. Short sentences.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Choose a Path</b><small>Ages 6 to 8. Three choices sometimes.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Story Explorer</b><small>Ages 9 and up. Read and choose.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <div id="scene" hidden></div>
+  <p id="sentence" hidden></p>
+</div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">Thanks for reading.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  /* Leave cancels at once. The name stays so this client matches the other games. */
+  const LEAVE_MS = 280;
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const INK = "#2c2416";
+  const SVGNS = "http://www.w3.org/2000/svg";
+
+  const STORIES = [
+    { id: "ball", title: "The Lost Ball", cover: "ball", bands: ["tiny","little","shop","rush"], start: "p1", pages: {
+      p1: { scene: ["pip","room"], text: "Pip lost the red ball. Where should Pip look?",
+            choices: [ { label: "Bed", picture: "bed", to: "p2" }, { label: "Garden", picture: "garden", to: "p3" } ] },
+      p2: { scene: ["bed","sock","cat"], text: "Under the bed is a sock and a sleepy cat.",
+            choices: [ { label: "Cat", picture: "cat", to: "e1" }, { label: "Toy box", picture: "box", to: "e2" } ] },
+      p3: { scene: ["garden","puddle","dog"], text: "The garden has a big puddle and a happy dog.",
+            choices: [ { label: "Puddle", picture: "puddle", to: "e3" }, { label: "Dog", picture: "dog", to: "e4" } ] },
+      e1: { end: true, scene: ["cat","ball"], text: "The cat was sleeping on the ball! Pip and the cat play catch." },
+      e2: { end: true, scene: ["box","ball"], text: "The ball was in the toy box. Pip bounces it high." },
+      e3: { end: true, scene: ["puddle","ball"], text: "Splash! The ball was floating in the puddle." },
+      e4: { end: true, scene: ["dog","ball"], text: "The dog runs and brings the ball back. Good dog!" }
+    } },
+    { id: "picnic", title: "Picnic Day", cover: "basket", bands: ["little","shop","rush"], start: "p1", pages: {
+      p1:  { scene: ["pip","basket","sun"], text: "It is a sunny day. What should Pip pack for the picnic?",
+             choices: [ { label: "Sandwiches", picture: "sandwich", to: "p2a" }, { label: "Apples", picture: "apple", to: "p2b" } ] },
+      p2a: { scene: ["park","sandwich","ant"], text: "Pip sets out the sandwiches. An ant comes to visit!",
+             choices: [ { label: "Share a crumb", picture: "ant", to: "e1" }, { label: "Move the blanket", picture: "blanket", to: "p3" } ] },
+      p2b: { scene: ["park","apple","tree"], text: "Pip finds a shady tree to eat the apples under.",
+             choices: [ { label: "Climb the tree", picture: "tree", to: "e2" }, { label: "Rest in the shade", picture: "blanket", to: "p3" } ] },
+      p3:  { scene: ["park","cloud"], text: "A gray cloud floats over. Drip, drop!",
+             choices: [ { label: "Umbrella", picture: "umbrella", to: "e3" }, { label: "Run home", picture: "house", to: "e4" }, { label: "Dance in the rain", picture: "rain", to: "e5", older: true } ] },
+      e1:  { end: true, scene: ["ant","sandwich"], text: "The ant carries the crumb home. Pip waves goodbye." },
+      e2:  { end: true, scene: ["tree","pip"], text: "From the tree, Pip can see the whole park!" },
+      e3:  { end: true, scene: ["umbrella","pip"], text: "Pip eats under the umbrella and listens to the rain." },
+      e4:  { end: true, scene: ["house","blanket"], text: "Pip has the picnic on the kitchen floor. Still fun!" },
+      e5:  { end: true, scene: ["rain","pip"], text: "Pip dances until the sun comes back. A rainbow!" }
+    } },
+    { id: "boat", title: "The Little Boat", cover: "boat", bands: ["shop","rush"], start: "p1", pages: {
+      p1:  { scene: ["sea","boat","pip"], text: "Pip sails a little boat. Which way should Pip go?",
+             choices: [ { label: "The island", picture: "island", to: "p2a" }, { label: "The lighthouse", picture: "lighthouse", to: "p2b" }, { label: "Follow the fish", picture: "fish", to: "p2c", older: true } ] },
+      p2a: { scene: ["island","shell","map"], text: "On the island, Pip finds a map inside a shell.",
+             choices: [ { label: "Follow the map", picture: "map", to: "p3" }, { label: "Build a sand castle", picture: "castle", to: "e1" } ] },
+      p2b: { scene: ["lighthouse","bird"], text: "The lighthouse keeper is a friendly bird.",
+             choices: [ { label: "Climb to the top", picture: "star", to: "e2" }, { label: "Have some tea", picture: "cup", to: "e3" } ] },
+      p2c: { scene: ["sea","fish","whale"], text: "The fish lead Pip to a big, gentle whale.",
+             choices: [ { label: "Say hello", picture: "whale", to: "e4" }, { label: "Swim with the fish", picture: "fish", to: "p3" } ] },
+      p3:  { scene: ["island","chest"], text: "The trail ends at a small wooden chest.",
+             choices: [ { label: "Open it", picture: "chest", to: "e5" }, { label: "Leave it for someone else", picture: "heart", to: "e6" } ] },
+      e1:  { end: true, scene: ["castle","pip"], text: "Pip builds the tallest sand castle ever." },
+      e2:  { end: true, scene: ["lighthouse","star"], text: "From the top, Pip watches the stars come out." },
+      e3:  { end: true, scene: ["cup","bird"], text: "Tea with the bird, then Pip sails home at sunset." },
+      e4:  { end: true, scene: ["whale","pip"], text: "The whale sings a deep, happy song." },
+      e5:  { end: true, scene: ["chest","shell"], text: "Inside are seashells for everyone back home." },
+      e6:  { end: true, scene: ["heart","boat"], text: "Pip leaves a note that says Have a nice day, and sails home smiling." }
+    } }
+  ];
+
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const backPageBtn = document.getElementById("back-page");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const playEl = document.getElementById("play");
+  const sceneEl = document.getElementById("scene");
+  const sentenceEl = document.getElementById("sentence");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+  const anotherBtn = document.getElementById("another");
+
+  let screen = "menu";
+  let level = "tiny";
+  let storyId = null;
+  let path = [];
+  let muted = false;
+  let pin = null;
+  let checking = false;
+  let suppressReconnect = false;
+  let turn = null;
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let sceneKey = "";
+
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function knownBand(band) { return BAND_IDS.indexOf(band) >= 0; }
+  function svgEl(name, attrs) {
+    const el = document.createElementNS(SVGNS, name);
+    if (attrs) {
+      for (const k in attrs) {
+        if (Object.prototype.hasOwnProperty.call(attrs, k)) el.setAttribute(k, attrs[k]);
+      }
+    }
+    return el;
+  }
+  function shape(parent, tag, attrs) {
+    const el = svgEl(tag, attrs);
+    if (!el.hasAttribute("fill")) el.setAttribute("fill", "none");
+    if (!el.hasAttribute("stroke")) el.setAttribute("stroke", INK);
+    if (!el.hasAttribute("stroke-width")) el.setAttribute("stroke-width", "3");
+    el.setAttribute("stroke-linejoin", "round");
+    el.setAttribute("stroke-linecap", "round");
+    parent.appendChild(el);
+    return el;
+  }
+  function picture(name) {
+    const svg = svgEl("svg", { viewBox: "0 0 100 100", "aria-hidden": "true" });
+    const draw = KIT[name];
+    if (draw) draw(svg);
+    return svg;
+  }
+
+  const KIT = {
+    pip: function (s) {
+      shape(s, "ellipse", { cx: "50", cy: "26", rx: "16", ry: "12", fill: "#e69f00" });
+      shape(s, "rect", { x: "30", y: "62", width: "40", height: "30", rx: "12", fill: "#0072b2" });
+      shape(s, "circle", { cx: "50", cy: "44", r: "22", fill: "#fff4d2" });
+      shape(s, "circle", { cx: "42", cy: "42", r: "3", fill: INK });
+      shape(s, "circle", { cx: "58", cy: "42", r: "3", fill: INK });
+      shape(s, "path", { d: "M40 52 Q50 60 60 52", fill: "none" });
+    },
+    ball: function (s) {
+      shape(s, "circle", { cx: "50", cy: "52", r: "30", fill: "#d55e00" });
+      shape(s, "path", { d: "M28 42 Q50 62 72 42", fill: "none", stroke: "#fffcf6" });
+    },
+    room: function (s) {
+      shape(s, "rect", { x: "10", y: "10", width: "80", height: "80", rx: "6", fill: "#fff4d2" });
+      shape(s, "rect", { x: "10", y: "62", width: "80", height: "28", fill: "#8c5a2b" });
+      shape(s, "rect", { x: "58", y: "20", width: "22", height: "22", fill: "#56b4e9" });
+      shape(s, "path", { d: "M69 20 V42 M58 31 H80", fill: "none" });
+    },
+    bed: function (s) {
+      shape(s, "rect", { x: "12", y: "46", width: "76", height: "34", rx: "6", fill: "#8c5a2b" });
+      shape(s, "rect", { x: "18", y: "40", width: "64", height: "28", rx: "6", fill: "#cc79a7" });
+      shape(s, "rect", { x: "20", y: "28", width: "28", height: "20", rx: "6", fill: "#fffcf6" });
+    },
+    sock: function (s) {
+      shape(s, "path", { d: "M36 14 h20 v36 l22 14 c2 14 -14 22 -28 16 l-22 -14 c-6 -4 -8 -14 -2 -20 z", fill: "#009e73" });
+    },
+    cat: function (s) {
+      shape(s, "path", { d: "M22 40 L30 22 L40 40 Z", fill: "#e69f00" });
+      shape(s, "path", { d: "M60 40 L70 22 L78 40 Z", fill: "#e69f00" });
+      shape(s, "ellipse", { cx: "50", cy: "58", rx: "30", ry: "24", fill: "#e69f00" });
+      shape(s, "path", { d: "M78 58 Q96 48 84 74", fill: "none" });
+      shape(s, "path", { d: "M38 54 Q42 58 46 54 M54 54 Q58 58 62 54", fill: "none" });
+    },
+    box: function (s) {
+      shape(s, "path", { d: "M16 42 L50 28 L84 42 L84 78 L50 90 L16 78 Z", fill: "#8c5a2b" });
+      shape(s, "path", { d: "M16 42 L50 56 L84 42 M50 56 V90", fill: "none" });
+      shape(s, "circle", { cx: "40", cy: "36", r: "8", fill: "#d55e00" });
+      shape(s, "circle", { cx: "58", cy: "32", r: "7", fill: "#0072b2" });
+      shape(s, "rect", { x: "48", y: "20", width: "10", height: "12", fill: "#009e73" });
+    },
+    garden: function (s) {
+      shape(s, "ellipse", { cx: "50", cy: "72", rx: "40", ry: "16", fill: "#009e73" });
+      shape(s, "path", { d: "M28 70 V48 M50 68 V40 M72 70 V50", fill: "none", stroke: "#009e73" });
+      shape(s, "circle", { cx: "28", cy: "42", r: "8", fill: "#d55e00" });
+      shape(s, "circle", { cx: "50", cy: "34", r: "9", fill: "#f0e442" });
+      shape(s, "circle", { cx: "72", cy: "44", r: "8", fill: "#cc79a7" });
+    },
+    puddle: function (s) {
+      shape(s, "ellipse", { cx: "50", cy: "58", rx: "34", ry: "16", fill: "#56b4e9" });
+      shape(s, "ellipse", { cx: "50", cy: "58", rx: "22", ry: "9", fill: "none" });
+      shape(s, "ellipse", { cx: "50", cy: "58", rx: "12", ry: "4", fill: "none" });
+    },
+    dog: function (s) {
+      shape(s, "ellipse", { cx: "48", cy: "62", rx: "28", ry: "18", fill: "#8c5a2b" });
+      shape(s, "circle", { cx: "72", cy: "46", r: "16", fill: "#8c5a2b" });
+      shape(s, "ellipse", { cx: "64", cy: "36", rx: "8", ry: "12", fill: "#6b4423" });
+      shape(s, "ellipse", { cx: "82", cy: "38", rx: "7", ry: "11", fill: "#6b4423" });
+      shape(s, "path", { d: "M22 58 Q8 48 16 70", fill: "none" });
+      shape(s, "circle", { cx: "78", cy: "44", r: "2.5", fill: INK });
+      shape(s, "ellipse", { cx: "84", cy: "50", rx: "5", ry: "3", fill: INK });
+    },
+    basket: function (s) {
+      shape(s, "path", { d: "M22 46 h56 l-6 34 h-44 z", fill: "#c4843a" });
+      shape(s, "path", { d: "M30 46 V62 M42 46 V66 M54 46 V66 M66 46 V62 M24 58 H74 M26 70 H72", fill: "none" });
+      shape(s, "path", { d: "M30 46 Q50 16 70 46", fill: "none" });
+    },
+    sun: function (s) {
+      shape(s, "circle", { cx: "50", cy: "50", r: "20", fill: "#f0e442" });
+      shape(s, "path", { d: "M50 14 V24 M50 76 V86 M14 50 H24 M76 50 H86 M24 24 L31 31 M69 69 L76 76 M76 24 L69 31 M24 76 L31 69", fill: "none" });
+    },
+    sandwich: function (s) {
+      shape(s, "polygon", { points: "18,68 50,22 82,68", fill: "#e6c48a" });
+      shape(s, "polygon", { points: "28,60 50,34 72,60", fill: "#009e73" });
+      shape(s, "polygon", { points: "32,64 50,42 68,64", fill: "#d55e00" });
+    },
+    apple: function (s) {
+      shape(s, "circle", { cx: "50", cy: "58", r: "26", fill: "#d55e00" });
+      shape(s, "path", { d: "M50 34 V22", fill: "none", stroke: "#8c5a2b" });
+      shape(s, "ellipse", { cx: "64", cy: "28", rx: "12", ry: "7", fill: "#009e73" });
+    },
+    park: function (s) {
+      shape(s, "rect", { x: "8", y: "48", width: "84", height: "40", rx: "8", fill: "#009e73" });
+      shape(s, "path", { d: "M8 70 Q30 60 50 72 T92 66 V88 H8 Z", fill: "#e6c48a" });
+      shape(s, "rect", { x: "18", y: "40", width: "28", height: "8", rx: "2", fill: "#8c5a2b" });
+      shape(s, "rect", { x: "22", y: "48", width: "4", height: "14", fill: "#8c5a2b" });
+      shape(s, "rect", { x: "38", y: "48", width: "4", height: "14", fill: "#8c5a2b" });
+    },
+    ant: function (s) {
+      shape(s, "circle", { cx: "30", cy: "52", r: "10", fill: INK });
+      shape(s, "circle", { cx: "50", cy: "52", r: "12", fill: INK });
+      shape(s, "circle", { cx: "70", cy: "52", r: "11", fill: INK });
+      shape(s, "path", { d: "M30 42 L18 28 M30 62 L18 76 M50 40 L40 24 M50 64 L40 78 M70 42 L84 28 M70 62 L84 76", fill: "none" });
+    },
+    blanket: function (s) {
+      shape(s, "rect", { x: "16", y: "16", width: "68", height: "68", fill: "#fffcf6" });
+      shape(s, "rect", { x: "16", y: "16", width: "17", height: "17", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "50", y: "16", width: "17", height: "17", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "33", y: "33", width: "17", height: "17", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "67", y: "33", width: "17", height: "17", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "16", y: "50", width: "17", height: "17", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "50", y: "50", width: "17", height: "17", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "33", y: "67", width: "17", height: "17", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "67", y: "67", width: "17", height: "17", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "16", y: "16", width: "68", height: "68", fill: "none" });
+    },
+    tree: function (s) {
+      shape(s, "rect", { x: "42", y: "58", width: "16", height: "28", fill: "#8c5a2b" });
+      shape(s, "circle", { cx: "50", cy: "40", r: "26", fill: "#009e73" });
+    },
+    cloud: function (s) {
+      shape(s, "ellipse", { cx: "40", cy: "40", rx: "18", ry: "14", fill: "#bdbdbd" });
+      shape(s, "ellipse", { cx: "58", cy: "38", rx: "20", ry: "16", fill: "#bdbdbd" });
+      shape(s, "ellipse", { cx: "48", cy: "48", rx: "26", ry: "12", fill: "#d0d0d0" });
+      shape(s, "path", { d: "M32 70 l6 16 M50 72 l6 16 M68 70 l6 16", fill: "none", stroke: "#56b4e9" });
+    },
+    umbrella: function (s) {
+      shape(s, "path", { d: "M14 52 A36 36 0 0 1 86 52 Z", fill: "#cc79a7" });
+      shape(s, "path", { d: "M50 52 V80 Q50 92 36 88", fill: "none" });
+      shape(s, "path", { d: "M32 52 Q38 40 50 52 Q62 40 68 52", fill: "none" });
+    },
+    house: function (s) {
+      shape(s, "polygon", { points: "12,48 50,16 88,48", fill: "#d55e00" });
+      shape(s, "rect", { x: "22", y: "48", width: "56", height: "40", fill: "#e69f00" });
+      shape(s, "rect", { x: "42", y: "64", width: "16", height: "24", fill: "#8c5a2b" });
+    },
+    rain: function (s) {
+      shape(s, "path", { d: "M20 20 L32 48 M40 16 L52 50 M60 22 L70 46 M74 18 L84 42", fill: "none", stroke: "#56b4e9" });
+      shape(s, "path", { d: "M24 70 A26 26 0 0 1 76 70", fill: "none", stroke: "#d55e00" });
+      shape(s, "path", { d: "M32 70 A18 18 0 0 1 68 70", fill: "none", stroke: "#f0e442" });
+      shape(s, "path", { d: "M40 70 A10 10 0 0 1 60 70", fill: "none", stroke: "#009e73" });
+    },
+    boat: function (s) {
+      shape(s, "path", { d: "M16 62 L28 80 H76 L86 62 Z", fill: "#0072b2" });
+      shape(s, "polygon", { points: "50,18 50,62 74,62", fill: "#fffcf6" });
+      shape(s, "path", { d: "M50 18 V62", fill: "none" });
+    },
+    sea: function (s) {
+      shape(s, "path", { d: "M6 40 Q20 28 34 40 T62 40 T90 40 V90 H6 Z", fill: "#56b4e9" });
+      shape(s, "path", { d: "M6 58 Q22 46 38 58 T70 58 T98 58", fill: "none", stroke: "#0072b2" });
+      shape(s, "path", { d: "M6 74 Q24 62 42 74 T78 74", fill: "none", stroke: "#0072b2" });
+    },
+    island: function (s) {
+      shape(s, "ellipse", { cx: "50", cy: "70", rx: "36", ry: "16", fill: "#e6c48a" });
+      shape(s, "path", { d: "M48 68 C48 40 46 36 40 22", fill: "none", stroke: "#8c5a2b" });
+      shape(s, "ellipse", { cx: "34", cy: "26", rx: "14", ry: "6", fill: "#009e73" });
+      shape(s, "ellipse", { cx: "48", cy: "20", rx: "12", ry: "5", fill: "#009e73" });
+      shape(s, "ellipse", { cx: "28", cy: "32", rx: "10", ry: "4", fill: "#009e73" });
+    },
+    lighthouse: function (s) {
+      shape(s, "polygon", { points: "36,84 42,28 58,28 64,84", fill: "#fffcf6" });
+      shape(s, "rect", { x: "40", y: "40", width: "20", height: "8", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "38", y: "56", width: "24", height: "8", fill: "#d55e00", stroke: "none" });
+      shape(s, "rect", { x: "38", y: "22", width: "24", height: "12", fill: "#f0e442" });
+      shape(s, "polygon", { points: "34,22 50,10 66,22", fill: "#d55e00" });
+      shape(s, "rect", { x: "28", y: "80", width: "44", height: "10", fill: "#8c5a2b" });
+    },
+    fish: function (s) {
+      shape(s, "ellipse", { cx: "46", cy: "52", rx: "26", ry: "16", fill: "#56b4e9" });
+      shape(s, "polygon", { points: "70,52 92,34 92,70", fill: "#0072b2" });
+      shape(s, "circle", { cx: "32", cy: "48", r: "3", fill: INK });
+    },
+    shell: function (s) {
+      shape(s, "path", { d: "M50 82 L18 40 Q50 8 82 40 Z", fill: "#f4a6c8" });
+      shape(s, "path", { d: "M50 82 L34 36 M50 82 L50 24 M50 82 L66 36", fill: "none" });
+    },
+    map: function (s) {
+      shape(s, "rect", { x: "16", y: "14", width: "68", height: "72", rx: "4", fill: "#fff4d2" });
+      shape(s, "path", { d: "M30 68 L40 50 L58 56 L70 30", fill: "none", "stroke-dasharray": "4 3" });
+      shape(s, "path", { d: "M64 24 L76 36 M76 24 L64 36", fill: "none", stroke: "#d55e00" });
+    },
+    castle: function (s) {
+      shape(s, "rect", { x: "16", y: "40", width: "18", height: "44", fill: "#e6c48a" });
+      shape(s, "rect", { x: "66", y: "40", width: "18", height: "44", fill: "#e6c48a" });
+      shape(s, "rect", { x: "30", y: "50", width: "40", height: "34", fill: "#e6c48a" });
+      shape(s, "rect", { x: "40", y: "28", width: "20", height: "28", fill: "#e6c48a" });
+      shape(s, "path", { d: "M16 40 V30 H22 V40 M28 40 V30 H34 V40 M66 40 V30 H72 V40 M78 40 V30 H84 V40 M40 28 V20 H46 V28 M54 28 V20 H60 V28", fill: "none" });
+      shape(s, "rect", { x: "44", y: "64", width: "12", height: "20", fill: "#8c5a2b" });
+    },
+    bird: function (s) {
+      shape(s, "circle", { cx: "46", cy: "52", r: "22", fill: "#0072b2" });
+      shape(s, "polygon", { points: "64,48 84,56 64,62", fill: "#e69f00" });
+      shape(s, "circle", { cx: "40", cy: "46", r: "3", fill: INK });
+      shape(s, "path", { d: "M34 30 h16 l-4 10 h-12 z", fill: "#d55e00" });
+      shape(s, "ellipse", { cx: "30", cy: "62", rx: "12", ry: "8", fill: "#56b4e9" });
+    },
+    star: function (s) {
+      shape(s, "circle", { cx: "50", cy: "50", r: "40", fill: "#332288" });
+      shape(s, "polygon", { points: "50,16 58,40 84,40 63,54 71,78 50,64 29,78 37,54 16,40 42,40", fill: "#f0e442" });
+    },
+    cup: function (s) {
+      shape(s, "path", { d: "M24 36 H68 V62 Q68 82 46 82 Q24 82 24 62 Z", fill: "#56b4e9" });
+      shape(s, "path", { d: "M68 44 H78 Q88 44 88 56 Q88 68 78 68 H68", fill: "none" });
+      shape(s, "path", { d: "M36 28 Q40 16 44 28 M50 26 Q54 12 58 26", fill: "none" });
+    },
+    whale: function (s) {
+      shape(s, "ellipse", { cx: "48", cy: "58", rx: "34", ry: "20", fill: "#0072b2" });
+      shape(s, "polygon", { points: "78,58 96,42 96,74", fill: "#0072b2" });
+      shape(s, "circle", { cx: "30", cy: "52", r: "3", fill: INK });
+      shape(s, "path", { d: "M40 38 Q44 18 52 36", fill: "none", stroke: "#56b4e9" });
+      shape(s, "path", { d: "M22 70 Q32 84 44 72", fill: "#56b4e9" });
+    },
+    chest: function (s) {
+      shape(s, "rect", { x: "16", y: "40", width: "68", height: "40", rx: "4", fill: "#8c5a2b" });
+      shape(s, "path", { d: "M16 48 H84", fill: "none" });
+      shape(s, "rect", { x: "16", y: "28", width: "68", height: "20", rx: "8", fill: "#a56b32" });
+      shape(s, "circle", { cx: "50", cy: "60", r: "7", fill: "#e6c48a" });
+      shape(s, "rect", { x: "47", y: "60", width: "6", height: "8", fill: "#e6c48a", stroke: "none" });
+    },
+    heart: function (s) {
+      shape(s, "path", { d: "M50 80 C20 58 16 36 30 28 C40 22 48 30 50 36 C52 30 60 22 70 28 C84 36 80 58 50 80 Z", fill: "#d55e00" });
+    }
+  };
+
+  function storiesFor(band) {
+    const out = [];
+    for (let i = 0; i < STORIES.length; i++) {
+      if (STORIES[i].bands.indexOf(band) >= 0) out.push(STORIES[i]);
+    }
+    return out;
+  }
+  function storyObj() {
+    for (let i = 0; i < STORIES.length; i++) if (STORIES[i].id === storyId) return STORIES[i];
+    return null;
+  }
+  function pageName() { return path.length ? path[path.length - 1] : null; }
+  function pageObj() {
+    const story = storyObj();
+    const name = pageName();
+    if (!story || !name) return null;
+    return story.pages[name] || null;
+  }
+  function shownChoices(page, band) {
+    if (!page || page.end || !page.choices) return [];
+    const out = [];
+    for (let i = 0; i < page.choices.length; i++) {
+      const choice = page.choices[i];
+      if (choice.older && (band === "tiny" || band === "little")) continue;
+      out.push(choice);
+    }
+    return out;
+  }
+  function sentenceFor(page, band) {
+    if (!page) return "";
+    if (band === "tiny") return page.end ? "The end" : "";
+    return page.text || "";
+  }
+  function bannerText() {
+    if (screen === "play") {
+      const story = storyObj();
+      return story ? story.title : "Pick a story.";
+    }
+    if (screen === "stories") return "Pick a story.";
+    if (screen === "rest") return "Thanks for reading.";
+    return "Pick who is playing.";
+  }
+
+  function place(el, box, dx) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+    el.style.transform = dx ? "translateX(" + dx + "px)" : "";
+  }
+  function slideDx() {
+    if (!turn || reducedMotion()) return 0;
+    const t = turn.ms > 0 ? (clock - turn.t0) / turn.ms : 1;
+    const p = t < 0 ? 0 : t > 1 ? 1 : t;
+    return Math.round((1 - p) * 40);
+  }
+  function shortOf(box) { return Math.min(box.w, box.h); }
+  function inside(box, w, h) {
+    return box.w >= 72 && box.h >= 72 && box.x >= -0.5 && box.y >= -0.5 && box.x + box.w <= w + 0.5 && box.y + box.h <= h + 0.5;
+  }
+
+  function chromePlan(w, wantBack, wantPage) {
+    const gap = 8;
+    const bh = 72;
+    const y = 8;
+    const full = { id: "full", x: w - 8 - 72, y: y, w: 72, h: bh };
+    const mute = { id: "mute", x: full.x - gap - 72, y: y, w: 72, h: bh };
+    if (mute.x < 8) return null;
+    const targets = [mute, full];
+    let bottom = y + bh;
+    let leftEnd = 8;
+    if (wantBack) {
+      const room = mute.x - gap - 8;
+      if (wantPage) {
+        let backW = 160;
+        let pageW = 140;
+        if (room >= backW + gap + pageW) {
+          targets.push({ id: "back", x: 8, y: y, w: backW, h: bh });
+          targets.push({ id: "back-page", x: 8 + backW + gap, y: y, w: pageW, h: bh });
+          leftEnd = 8 + backW + gap + pageW;
+        } else if (room >= 72 + gap + 72) {
+          const usable = room - gap;
+          backW = Math.max(72, Math.floor(usable * 0.55));
+          pageW = usable - backW;
+          if (pageW < 72) { pageW = 72; backW = usable - 72; }
+          if (backW < 72) return null;
+          targets.push({ id: "back", x: 8, y: y, w: backW, h: bh });
+          targets.push({ id: "back-page", x: 8 + backW + gap, y: y, w: pageW, h: bh });
+          leftEnd = 8 + backW + gap + pageW;
+        } else if (room >= 72) {
+          backW = Math.min(176, room);
+          targets.push({ id: "back", x: 8, y: y, w: backW, h: bh });
+          leftEnd = 8 + backW;
+          pageW = Math.min(200, w - 16);
+          const pageY = y + bh + gap;
+          targets.push({ id: "back-page", x: 8, y: pageY, w: Math.max(72, pageW), h: bh });
+          bottom = pageY + bh;
+        } else return null;
+      } else {
+        if (room < 72) return null;
+        const backW = Math.min(176, room);
+        targets.push({ id: "back", x: 8, y: y, w: backW, h: bh });
+        leftEnd = 8 + backW;
+      }
+    }
+    return { targets: targets, bottom: bottom, leftEnd: leftEnd, muteX: mute.x };
+  }
+  function bannerPlan(w, chrome) {
+    const x = chrome.leftEnd + 8;
+    const bw = chrome.muteX - 8 - x;
+    if (chrome.bottom <= 80 && bw >= 140) {
+      return { x: x, y: 16, w: bw, h: 52, inline: true };
+    }
+    return { x: 16, y: chrome.bottom + 8, w: Math.max(72, w - 32), h: 40, inline: false };
+  }
+  function contentTop(chrome, banner) {
+    if (banner.inline) return chrome.bottom + 8;
+    return banner.y + banner.h + 8;
+  }
+
+  function menuLayout(w, h) {
+    const btnH = 72;
+    const gap = 8;
+    const titleH = 64;
+    const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+    const columnH = titleH + gap + ids.length * btnH + (ids.length - 1) * gap;
+    const belowTop = 92;
+    let cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+    let cardX = Math.max(8, Math.floor((w - cardW) / 2));
+    const buttons = [];
+    if (belowTop + columnH <= h - 8) {
+      const title = { x: cardX, y: belowTop, w: cardW, h: titleH };
+      let y = belowTop + titleH + gap;
+      for (let i = 0; i < ids.length; i++) {
+        buttons.push({ id: ids[i], x: cardX, y: y, w: cardW, h: btnH });
+        y += btnH + gap;
+      }
+      return { title: title, buttons: buttons, card: { x: cardX, y: belowTop, w: cardW, h: y - gap - belowTop } };
+    }
+    const gridTitle = 48;
+    const gridH = gridTitle + gap + btnH + gap + btnH + gap + btnH;
+    let top = belowTop;
+    if (top + gridH > h - 8) top = 8;
+    if (top + gridH > h - 8) return null;
+    if (top < 80) {
+      const muteX = w - 8 - 72 - 8 - 72;
+      if (cardX + cardW > muteX - 8) {
+        cardW = muteX - 8 - 8;
+        cardX = 8;
+        if (cardW < 160) return null;
+      }
+    }
+    const title = { x: cardX, y: top, w: cardW, h: gridTitle };
+    const colW = Math.max(72, Math.floor((cardW - gap) / 2));
+    const gridW = colW * 2 + gap;
+    const gridX = cardX + Math.max(0, Math.floor((cardW - gridW) / 2));
+    const bandIds = ["tiny", "little", "shop", "rush"];
+    for (let i = 0; i < bandIds.length; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      buttons.push({
+        id: bandIds[i],
+        x: gridX + col * (colW + gap),
+        y: top + gridTitle + gap + row * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    const letsY = top + gridTitle + gap + 2 * (btnH + gap);
+    buttons.push({ id: "lets-go", x: cardX, y: letsY, w: cardW, h: btnH });
+    return { title: title, buttons: buttons, card: { x: cardX, y: top, w: cardW, h: letsY + btnH - top } };
+  }
+
+  function layout(w, h) {
+    if (!(w >= 320) || !(h >= 240)) return null;
+    if (screen === "menu") {
+      const chrome = chromePlan(w, false, false);
+      const menu = menuLayout(w, h);
+      if (!chrome || !menu) return null;
+      const targets = chrome.targets.concat(menu.buttons);
+      for (let i = 0; i < targets.length; i++) if (!inside(targets[i], w, h)) return null;
+      const banner = { x: 16, y: 16, w: Math.max(72, chrome.muteX - 8 - 16), h: 52, inline: true };
+      return { targets: targets, banner: banner, scene: null, sentence: null, pictures: [], mode: "menu", menu: menu, rest: null };
+    }
+    const onPlay = screen === "play";
+    const page = onPlay ? pageObj() : null;
+    const wantPage = onPlay && path.length > 1;
+    const chrome = chromePlan(w, true, wantPage);
+    if (!chrome) return null;
+    const banner = bannerPlan(w, chrome);
+    const top = contentTop(chrome, banner);
+    const bottom = h - 8;
+    const avail = bottom - top;
+    if (avail < 72) return null;
+    const targets = chrome.targets.slice();
+    if (screen === "rest") {
+      const anotherH = avail >= 200 ? 112 : 72;
+      const anotherW = Math.min(360, Math.max(72, w - 32));
+      const another = {
+        id: "another",
+        x: Math.floor((w - anotherW) / 2),
+        y: Math.min(top + 150, bottom - anotherH),
+        w: anotherW,
+        h: anotherH
+      };
+      if (another.y < top) another.y = top;
+      targets.push(another);
+      for (let i = 0; i < targets.length; i++) if (!inside(targets[i], w, h)) return null;
+      const cardW = Math.min(460, w - 32);
+      const cardX = Math.floor((w - cardW) / 2);
+      return {
+        targets: targets,
+        banner: banner,
+        scene: null,
+        sentence: null,
+        pictures: [],
+        mode: "rest",
+        menu: null,
+        rest: {
+          card: { x: cardX, y: top, w: cardW, h: Math.max(120, another.y + another.h - top) },
+          line: { x: cardX, y: top + 16, w: cardW, h: 72 }
+        }
+      };
+    }
+    if (screen === "stories") {
+      const list = storiesFor(level);
+      const n = list.length || 1;
+      const gap = 16;
+      const inset = 16;
+      const wide = w >= 900 && h >= 640 && n > 1;
+      const specs = [];
+      if (wide) {
+        const cardW = Math.floor((w - inset * 2 - gap * (n - 1)) / n);
+        let cardH = Math.min(420, avail);
+        if (cardW < 112 || cardH < 112) return null;
+        const y = top + Math.floor((avail - cardH) / 2);
+        for (let i = 0; i < list.length; i++) {
+          specs.push({
+            id: "story-" + list[i].id,
+            x: inset + i * (cardW + gap),
+            y: y,
+            w: cardW,
+            h: cardH,
+            className: "story",
+            label: list[i].title,
+            picture: list[i].cover
+          });
+        }
+      } else {
+        let cardH = Math.floor((avail - gap * (n - 1)) / n);
+        if (cardH > 320) cardH = 320;
+        if (cardH < 72) return null;
+        const block = cardH * n + gap * (n - 1);
+        let y = top + Math.max(0, Math.floor((avail - block) / 2));
+        const cardW = w - inset * 2;
+        for (let i = 0; i < list.length; i++) {
+          specs.push({
+            id: "story-" + list[i].id,
+            x: inset,
+            y: y,
+            w: cardW,
+            h: cardH,
+            className: "story",
+            label: list[i].title,
+            picture: list[i].cover
+          });
+          y += cardH + gap;
+        }
+      }
+      for (let i = 0; i < specs.length; i++) {
+        if (!inside(specs[i], w, h)) return null;
+        targets.push(specs[i]);
+      }
+      for (let i = 0; i < targets.length; i++) if (!inside(targets[i], w, h)) return null;
+      return { targets: targets, banner: banner, scene: null, sentence: null, pictures: [], mode: "stories", menu: null, rest: null, specs: specs };
+    }
+    if (!onPlay || !page) {
+      for (let i = 0; i < targets.length; i++) if (!inside(targets[i], w, h)) return null;
+      return { targets: targets, banner: banner, scene: null, sentence: null, pictures: [], mode: "play", menu: null, rest: null, specs: [] };
+    }
+    const ending = !!page.end;
+    const choices = shownChoices(page, level);
+    const n = ending ? 3 : choices.length;
+    const sentText = sentenceFor(page, level);
+    const wide = w >= 900 && h >= 640;
+    let sentWant = 0;
+    if (sentText) sentWant = wide ? 84 : (level === "tiny" ? 40 : 72);
+    const pictures = page.scene ? page.scene.slice() : [];
+    let scene = null;
+    let sentence = null;
+    const specs = [];
+    if (wide) {
+      const sceneW = Math.min(560, Math.floor(w * 0.52));
+      const cardsX = 16 + sceneW + 24;
+      const cardsW = w - 16 - cardsX;
+      const colH = bottom - top;
+      if (cardsW < 160 || colH < 200) return null;
+      const sentH = sentWant;
+      let sceneH = Math.min(560, colH - (sentH ? sentH + 8 : 0));
+      if (sceneH < 120) return null;
+      scene = { x: 16, y: top, w: sceneW, h: sceneH };
+      if (sentH) sentence = { x: 16, y: top + sceneH + 8, w: sceneW, h: sentH };
+      let cardGap = 16;
+      let cardH = Math.floor((colH - cardGap * (n - 1)) / n);
+      if (cardH > 180) cardH = 180;
+      if (cardH < 112) {
+        cardGap = 8;
+        cardH = Math.floor((colH - cardGap * (n - 1)) / n);
+      }
+      if (cardH < 112 || cardsW < 112) return null;
+      for (let i = 0; i < n; i++) {
+        const box = { x: cardsX, y: top + i * (cardH + cardGap), w: cardsW, h: cardH };
+        specs.push(ending ? endSpec(i, box) : choiceSpec(i, choices[i], box));
+      }
+    } else {
+      const inset = 16;
+      const innerW = w - inset * 2;
+      const pair = !ending && n === 2;
+      let cardGap = 16;
+      let cardH = pair ? 180 : 112;
+      let sentH = sentWant;
+      function cardsBlock(ch, cg) {
+        if (pair) return ch;
+        return n * ch + Math.max(0, n - 1) * cg;
+      }
+      function sceneFor(ch, cg, sh) {
+        let used = cardsBlock(ch, cg);
+        if (sh) used += 8 + sh;
+        if (n) used += 8;
+        return avail - used;
+      }
+      let sceneH = sceneFor(cardH, cardGap, sentH);
+      if (sceneH < 48 && sentH > 36) {
+        sentH = 36;
+        sceneH = sceneFor(cardH, cardGap, sentH);
+      }
+      if (sceneH < 36) {
+        cardH = 72;
+        cardGap = 8;
+        sceneH = sceneFor(cardH, cardGap, sentH);
+      }
+      if (sceneH < 16 && sentH > 0) {
+        sentH = 0;
+        sceneH = sceneFor(cardH, cardGap, sentH);
+      }
+      if (sceneH < 0 || cardH < 72) return null;
+      if (!pair && cardH > 112 && sceneH > 80) {
+        /* keep the comfort height when the scene still has room */
+      }
+      if (sceneH > 260) sceneH = 260;
+      let y = top;
+      if (sceneH >= 8) {
+        scene = { x: inset, y: y, w: innerW, h: sceneH };
+        y += sceneH;
+      }
+      if (sentH && sentText) {
+        y += 8;
+        sentence = { x: inset, y: y, w: innerW, h: sentH };
+        y += sentH;
+      }
+      y += 8;
+      if (pair) {
+        const cardW = Math.floor((innerW - 16) / 2);
+        if (cardW < 72) return null;
+        specs.push(choiceSpec(0, choices[0], { x: inset, y: y, w: cardW, h: cardH }));
+        specs.push(choiceSpec(1, choices[1], { x: inset + cardW + 16, y: y, w: cardW, h: cardH }));
+      } else {
+        for (let i = 0; i < n; i++) {
+          const box = { x: inset, y: y + i * (cardH + cardGap), w: innerW, h: cardH };
+          specs.push(ending ? endSpec(i, box) : choiceSpec(i, choices[i], box));
+        }
+      }
+    }
+    const mode = wide ? "wide" : (!ending && n === 2 ? "pair" : "stack");
+    for (let i = 0; i < specs.length; i++) {
+      if (!inside(specs[i], w, h)) return null;
+      if (!ending && shortOf(specs[i]) < 72) return null;
+      targets.push(specs[i]);
+    }
+    for (let i = 0; i < targets.length; i++) if (!inside(targets[i], w, h)) return null;
+    if (!wide && !ending && n > 0) {
+      /* choice comfort is checked by the sizes case at the named viewports */
+    }
+    return {
+      targets: targets,
+      banner: banner,
+      scene: scene,
+      sentence: sentence,
+      pictures: pictures,
+      mode: mode,
+      menu: null,
+      rest: null,
+      specs: specs,
+      sentText: sentText
+    };
+  }
+  function choiceSpec(i, choice, box) {
+    return {
+      id: "choice-" + i,
+      x: box.x, y: box.y, w: box.w, h: box.h,
+      className: "choice",
+      play: true,
+      to: choice.to,
+      label: choice.label,
+      picture: choice.picture
+    };
+  }
+  function endSpec(i, box) {
+    const ends = [
+      { id: "read-again", label: "Read again" },
+      { id: "another-story", label: "Another story" },
+      { id: "all-done", label: "All done" }
+    ];
+    const item = ends[i];
+    return {
+      id: item.id,
+      x: box.x, y: box.y, w: box.w, h: box.h,
+      className: "end-btn",
+      label: item.label,
+      picture: ""
+    };
+  }
+
+  function targetsAt(w, h) {
+    render();
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const plan = layout(w, h);
+    if (!plan) return { ok: false, targets: [] };
+    return {
+      ok: true,
+      targets: plan.targets.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+
+  function syncScene(box, names) {
+    if (!box || !names || !names.length) {
+      sceneEl.hidden = true;
+      sceneKey = "";
+      return;
+    }
+    sceneEl.hidden = false;
+    const key = names.join("|");
+    if (key !== sceneKey) {
+      while (sceneEl.firstChild) sceneEl.removeChild(sceneEl.firstChild);
+      for (let i = 0; i < names.length; i++) {
+        const fig = document.createElement("div");
+        fig.className = "fig";
+        fig.appendChild(picture(names[i]));
+        sceneEl.appendChild(fig);
+      }
+      sceneKey = key;
+    }
+    const slots = sceneSlots(box, names.length);
+    const figs = sceneEl.children;
+    for (let i = 0; i < figs.length && i < slots.length; i++) {
+      figs[i].style.left = slots[i].x + "px";
+      figs[i].style.top = slots[i].y + "px";
+      figs[i].style.width = slots[i].s + "px";
+      figs[i].style.height = slots[i].s + "px";
+    }
+  }
+  function sceneSlots(box, n) {
+    if (n <= 1) {
+      const s = Math.floor(Math.min(box.w, box.h) * 0.82);
+      return [{ x: Math.floor((box.w - s) / 2), y: Math.floor((box.h - s) / 2), s: s }];
+    }
+    if (n === 2) {
+      const s1 = Math.floor(Math.min(box.w * 0.46, box.h * 0.82));
+      const s2 = Math.floor(s1 * 0.72);
+      const gap = Math.max(8, Math.floor((box.w - s1 - s2) / 3));
+      return [
+        { x: gap, y: Math.floor((box.h - s1) / 2), s: s1 },
+        { x: gap + s1 + gap, y: Math.floor((box.h - s2) / 2), s: s2 }
+      ];
+    }
+    const s1 = Math.floor(Math.min(box.w * 0.36, box.h * 0.8));
+    const s2 = Math.floor(s1 * 0.7);
+    const gap = Math.max(6, Math.floor((box.w - s1 - s2 - s2) / 4));
+    return [
+      { x: gap, y: Math.floor((box.h - s1) / 2), s: s1 },
+      { x: gap + s1 + gap, y: Math.floor((box.h - s2) / 2), s: s2 },
+      { x: gap + s1 + gap + s2 + gap, y: Math.floor((box.h - s2) / 2), s: s2 }
+    ];
+  }
+  function syncButtons(specs, dx) {
+    const keep = {};
+    for (let i = 0; i < specs.length; i++) keep[specs[i].id] = true;
+    const existing = playEl.querySelectorAll("button");
+    for (let i = existing.length - 1; i >= 0; i--) {
+      if (!keep[existing[i].id]) existing[i].remove();
+    }
+    for (let i = 0; i < specs.length; i++) {
+      const spec = specs[i];
+      let btn = document.getElementById(spec.id);
+      if (!btn || btn.parentElement !== playEl) {
+        btn = document.createElement("button");
+        btn.type = "button";
+        btn.id = spec.id;
+        const art = document.createElement("span");
+        art.className = "art";
+        const label = document.createElement("span");
+        label.className = "label";
+        btn.appendChild(art);
+        btn.appendChild(label);
+        playEl.appendChild(btn);
+      }
+      if (spec.play) {
+        btn.setAttribute("data-play", "true");
+        btn.setAttribute("data-to", spec.to || "");
+      } else {
+        btn.removeAttribute("data-play");
+        btn.removeAttribute("data-to");
+      }
+      btn.className = spec.className || "";
+      btn.hidden = false;
+      const label = btn.querySelector(".label");
+      if (label.textContent !== spec.label) label.textContent = spec.label;
+      const art = btn.querySelector(".art");
+      if (spec.picture) {
+        if (art.getAttribute("data-pic") !== spec.picture) {
+          while (art.firstChild) art.removeChild(art.firstChild);
+          art.appendChild(picture(spec.picture));
+          art.setAttribute("data-pic", spec.picture);
+        }
+        art.hidden = false;
+      } else {
+        while (art.firstChild) art.removeChild(art.firstChild);
+        art.removeAttribute("data-pic");
+        art.hidden = true;
+      }
+      place(btn, spec, dx);
+    }
+  }
+
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const plan = layout(w, h);
+    const dx = screen === "play" ? slideDx() : 0;
+    const chrome = plan ? null : chromePlan(w, screen !== "menu", false);
+    const targets = plan ? plan.targets : (chrome ? chrome.targets : []);
+    function boxOf(id) {
+      for (let i = 0; i < targets.length; i++) if (targets[i].id === id) return targets[i];
+      return null;
+    }
+    place(muteBtn, boxOf("mute") || { x: 8, y: 8, w: 72, h: 72 }, 0);
+    place(fullBtn, boxOf("full") || { x: 88, y: 8, w: 72, h: 72 }, 0);
+    const backBox = boxOf("back");
+    backBtn.hidden = !backBox;
+    if (backBox) place(backBtn, backBox, 0);
+    const pageBox = boxOf("back-page");
+    backPageBtn.hidden = !pageBox;
+    if (pageBox) place(backPageBtn, pageBox, 0);
+    menuEl.hidden = screen !== "menu";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "stories" && screen !== "play";
+    bannerEl.textContent = bannerText();
+    if (plan && plan.banner) place(bannerEl, plan.banner, 0);
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    if (plan && plan.menu) {
+      place(menuCard, plan.menu.card, 0);
+      place(menuCopy, plan.menu.title, 0);
+      for (let i = 0; i < plan.menu.buttons.length; i++) {
+        place(document.getElementById(plan.menu.buttons[i].id), plan.menu.buttons[i], 0);
+      }
+    }
+    if (screen === "rest" && plan && plan.rest) {
+      place(restCard, plan.rest.card, 0);
+      place(restLine, plan.rest.line, 0);
+      restLine.textContent = "Thanks for reading.";
+      const again = boxOf("another");
+      anotherBtn.hidden = !again;
+      if (again) place(anotherBtn, again, 0);
+    } else {
+      anotherBtn.hidden = true;
+    }
+    const bandClass = "band-" + level;
+    const modeClass = plan && plan.mode ? "layout-" + plan.mode : "";
+    playEl.className = (bandClass + " " + modeClass).trim();
+    if (plan && (screen === "stories" || screen === "play")) {
+      syncButtons(plan.specs || [], dx);
+      if (screen === "play" && plan.scene) {
+        place(sceneEl, plan.scene, dx);
+        syncScene(plan.scene, plan.pictures || []);
+      } else {
+        sceneEl.hidden = true;
+      }
+      if (screen === "play" && plan.sentence && plan.sentText) {
+        sentenceEl.hidden = false;
+        sentenceEl.textContent = plan.sentText;
+        sentenceEl.style.fontSize = plan.sentence.h >= 80 ? "28px" : "24px";
+        sentenceEl.style.lineHeight = plan.sentence.h >= 80 ? "28px" : "24px";
+        place(sentenceEl, plan.sentence, dx);
+      } else {
+        sentenceEl.hidden = true;
+        sentenceEl.textContent = "";
+      }
+    } else {
+      syncButtons([], 0);
+      sceneEl.hidden = true;
+      sentenceEl.hidden = true;
+    }
+    eyesEl.hidden = !eyesOn();
+    place(eyesEl, { x: Math.max(8, w - 84), y: Math.max(8, h - 48), w: 72, h: 36 }, 0);
+  }
+
+  function ensureAudio() {
+    if (checking || ac) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(ac.destination);
+    } catch (err) {
+      ac = null;
+      master = null;
+    }
+  }
+  function pageSound() {
+    if (checking || !ac || !master) return;
+    try {
+      const dur = 0.15;
+      const rate = ac.sampleRate || 44100;
+      const n = Math.max(1, Math.floor(rate * dur));
+      const buf = ac.createBuffer(1, n, rate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const bp = ac.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = 3000;
+      bp.Q.value = 0.8;
+      const g = ac.createGain();
+      src.connect(bp);
+      bp.connect(g);
+      g.connect(master);
+      const t0 = ac.currentTime;
+      g.gain.setValueAtTime(0.45, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+      src.start(t0);
+      src.stop(t0 + dur);
+    } catch (err) {}
+  }
+  function chime() {
+    if (checking || !ac || !master) return;
+    try {
+      const notes = [523, 659, 784];
+      for (let i = 0; i < notes.length; i++) {
+        const osc = ac.createOscillator();
+        const g = ac.createGain();
+        osc.type = "sine";
+        osc.frequency.value = notes[i];
+        osc.connect(g);
+        g.connect(master);
+        const t0 = ac.currentTime + i * 0.12;
+        g.gain.setValueAtTime(0.0001, t0);
+        g.gain.exponentialRampToValueAtTime(0.4, t0 + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.28);
+        osc.start(t0);
+        osc.stop(t0 + 0.3);
+      }
+    } catch (err) {}
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+  function markTurn() {
+    if (checking || reducedMotion()) { turn = null; return; }
+    turn = { t0: clock, ms: 300 };
+  }
+  function go(id) {
+    if (id !== "menu" && id !== "stories" && id !== "play" && id !== "rest") {
+      render();
+      return;
+    }
+    if (id === "menu" || id === "stories") {
+      storyId = null;
+      path = [];
+    }
+    screen = id;
+    turn = null;
+    render();
+  }
+  function highlight(band) {
+    if (!knownBand(band)) { render(); return; }
+    level = band;
+    render();
+  }
+  function start(band) {
+    if (!knownBand(band)) { render(); return; }
+    level = band;
+    storyId = null;
+    path = [];
+    go("stories");
+  }
+  function openStory(id) {
+    if (screen !== "stories") { render(); return; }
+    const list = storiesFor(level);
+    let story = null;
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) story = list[i];
+    if (!story) { render(); return; }
+    storyId = story.id;
+    path = [story.start];
+    go("play");
+  }
+  function choose(to) {
+    const story = storyObj();
+    const page = pageObj();
+    if (!story || !page || screen !== "play" || page.end) { render(); return; }
+    const vis = shownChoices(page, level);
+    let hit = null;
+    for (let i = 0; i < vis.length; i++) if (vis[i].to === to) hit = vis[i];
+    if (!hit || !story.pages[to]) { render(); return; }
+    path.push(to);
+    markTurn();
+    if (!checking) {
+      if (story.pages[to].end) chime();
+      else pageSound();
+    }
+    render();
+  }
+  function backPage() {
+    if (screen !== "play" || path.length < 2) { render(); return; }
+    path.pop();
+    markTurn();
+    if (!checking) pageSound();
+    render();
+  }
+  function readAgain() {
+    const story = storyObj();
+    const page = pageObj();
+    if (!story || screen !== "play" || !page || !page.end) { render(); return; }
+    path = [story.start];
+    markTurn();
+    if (!checking) pageSound();
+    render();
+  }
+  function anotherStory() {
+    const page = pageObj();
+    if (screen !== "play" || !page || !page.end) { render(); return; }
+    go("stories");
+  }
+  function allDone() {
+    const page = pageObj();
+    if (screen !== "play" || !page || !page.end) { render(); return; }
+    go("rest");
+  }
+  function another() {
+    if (screen !== "rest") { render(); return; }
+    start(level);
+  }
+  function state() {
+    const story = storyObj();
+    const page = pageObj();
+    const choices = shownChoices(page, level).map(function (c) { return c.label; });
+    const snap = {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      story: story ? story.id : null,
+      page: pageName(),
+      choices: choices,
+      end: !!(page && page.end)
+    };
+    render();
+    return snap;
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function activate(btn) {
+    if (!btn || !buttonVisible(btn)) { render(); return; }
+    if (!checking) ensureAudio();
+    if (btn.getAttribute("data-play") === "true") {
+      choose(btn.getAttribute("data-to"));
+      return;
+    }
+    const id = btn.id;
+    if (id === "lets-go") start(level);
+    else if (id === "back") go("menu");
+    else if (id === "another") another();
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (id === "back-page") backPage();
+    else if (id === "read-again") readAgain();
+    else if (id === "another-story") anotherStory();
+    else if (id === "all-done") allDone();
+    else if (id.indexOf("story-") === 0) openStory(id.slice(6));
+    else if (knownBand(id)) highlight(id);
+    else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn)) activate(btn);
+      } else {
+        dwellProgress = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+      }
+    } else {
+      dwellProgress = 0;
+    }
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    clock = now;
+    if (turn && now >= turn.t0 + turn.ms) turn = null;
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) { render(); return; }
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) { render(); return; }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn);
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || btn.id !== armedId) return;
+    armedId = null;
+    activate(btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn); e.preventDefault(); }
+    }
+  });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    let origSpeak = null;
+    let speakCalls = 0;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.speak) {
+        origSpeak = window.speechSynthesis.speak;
+        window.speechSynthesis.speak = function () {
+          speakCalls += 1;
+          return origSpeak.apply(window.speechSynthesis, arguments);
+        };
+      }
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    function tapId(id) {
+      const box = targetById(centers().targets, id);
+      if (!box) throw new Error(id + " was not a target.");
+      tap(box.nx, box.ny);
+      return box;
+    }
+    function openBall() {
+      const card = targetById(centers().targets, "story-ball");
+      if (!card) throw new Error("The Lost Ball was not a target.");
+      tap(card.nx, card.ny);
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+      if (state().story !== null || state().page !== null) fail("family-query-inert", "A junk flag opened a story.");
+    });
+    run("family-plain-state", function () {
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snap.level !== "tiny" || snap.screen !== "menu" || snap.banner !== "Pick who is playing." || snap.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on Picture Book.");
+      }
+      if (snap.story !== null || snap.page !== null || snap.end !== false || snap.choices.length !== 0) {
+        fail("family-plain-state", "The state before the first story was not empty.");
+      }
+      const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank", "speech"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      openBall();
+      const box = targetById(centers().targets, "choice-0");
+      const startPage = state().page;
+      if (!box || !box.play) fail("family-play-dwell", "The choice card was not a play target.");
+      else {
+        step(10000);
+        look(box.nx, box.ny);
+        step(10000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(10200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(10640);
+        if (state().page !== startPage) fail("family-play-dwell", "640 ms turned the page.");
+        step(10660);
+        if (state().page !== "p2") fail("family-play-dwell", "660 ms did not turn to the next page.");
+      }
+      resetInput();
+      seed(1);
+      start("tiny");
+      openBall();
+      const tapBox = targetById(centers().targets, "choice-0");
+      tap(tapBox.nx, tapBox.ny);
+      if (state().page !== "p2") fail("family-play-dwell", "A tap did not turn to the same page.");
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      if (state().screen !== "menu") go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "stories") fail("family-menu-dwell", "1300 ms on Let's go did not open the stories.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "stories") fail("family-menu-dwell", "600 ms on Back left the stories.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      openBall();
+      const box = targetById(centers().targets, "choice-0");
+      const startPage = state().page;
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(30000);
+      step(30660);
+      if (state().page !== startPage || dwell() !== 0) fail("family-pointer-blocks", "A look during hold turned the page or filled the ring.");
+      release();
+      releaseLook();
+      enterLook(box, 32000);
+      step(32660);
+      if (state().page !== "p2") fail("family-pointer-blocks", "A fresh look after release did not turn the page.");
+    });
+    run("family-stale", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      openBall();
+      const box = targetById(centers().targets, "choice-0");
+      const startPage = state().page;
+      try {
+        enterLook(box, 36000);
+        step(36200);
+        if (!(dwell() > 0) || state().page !== startPage) fail("family-stale", "The ring did not fill before the sample went stale.");
+        refreshHold = false;
+        step(36700);
+        if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+        if (state().page !== startPage) fail("family-stale", "A stale sample turned the page.");
+      } finally {
+        refreshHold = true;
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      seed(1);
+      start("tiny");
+      const liveBefore = targetById(centers().targets, "mute");
+      checkView("stories");
+      const liveAfter = targetById(centers().targets, "mute");
+      if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+        fail("family-target-size", "targetsAt shrank a live button.");
+      }
+      openBall();
+      checkView("play");
+    });
+    run("family-eyes", function () {
+      resetInput();
+      step(40000);
+      look(0.5, 0.5);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("family-mute", function () {
+      resetInput();
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    run("data-valid", function () {
+      const names = {};
+      for (const key in KIT) {
+        if (Object.prototype.hasOwnProperty.call(KIT, key)) names[key] = true;
+      }
+      function see(pic, where) {
+        if (!names[pic]) fail("data-valid", where + " uses a picture that is not in the kit.");
+        else {
+          const node = picture(pic);
+          if (!node || node.childNodes.length < 1) fail("data-valid", "Picture " + pic + " did not draw.");
+        }
+      }
+      for (let s = 0; s < STORIES.length; s++) {
+        const story = STORIES[s];
+        see(story.cover, story.title);
+        if (!story.pages[story.start]) fail("data-valid", story.title + " is missing its start page.");
+        const pages = story.pages;
+        const ids = Object.keys(pages);
+        for (let i = 0; i < ids.length; i++) {
+          const page = pages[ids[i]];
+          const scene = page.scene || [];
+          for (let p = 0; p < scene.length; p++) see(scene[p], story.title + " " + ids[i]);
+          if (page.end) {
+            if (page.choices && page.choices.length) fail("data-valid", story.title + " ending " + ids[i] + " still has choices.");
+          } else if (!page.choices || !page.choices.length) {
+            fail("data-valid", story.title + " page " + ids[i] + " has no choices.");
+          } else {
+            for (let c = 0; c < page.choices.length; c++) {
+              const choice = page.choices[c];
+              see(choice.picture, choice.label);
+              if (!pages[choice.to]) fail("data-valid", story.title + " choice " + choice.label + " leaves the story.");
+            }
+          }
+        }
+        const seen = {};
+        const stack = [story.start];
+        while (stack.length) {
+          const id = stack.pop();
+          if (seen[id]) continue;
+          seen[id] = true;
+          const page = pages[id];
+          if (page && !page.end && page.choices) {
+            for (let c = 0; c < page.choices.length; c++) stack.push(page.choices[c].to);
+          }
+        }
+        for (let i = 0; i < ids.length; i++) {
+          if (!seen[ids[i]]) fail("data-valid", story.title + " cannot reach " + ids[i] + ".");
+        }
+        function walk(id, trail) {
+          if (trail.indexOf(id) >= 0) { fail("data-valid", story.title + " loops before an ending."); return; }
+          const page = pages[id];
+          if (!page) { fail("data-valid", story.title + " is missing a page."); return; }
+          if (page.end) return;
+          const next = trail.concat([id]);
+          for (let c = 0; c < page.choices.length; c++) walk(page.choices[c].to, next);
+        }
+        walk(story.start, []);
+      }
+    });
+    run("choice-dwell", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      openBall();
+      const box = targetById(centers().targets, "choice-0");
+      if (!box || !box.play) fail("choice-dwell", "Bed was not a play target.");
+      else {
+        enterLook(box, 70000);
+        step(70640);
+        if (state().page !== "p1") fail("choice-dwell", "640 ms turned the page.");
+        step(70660);
+        if (state().page !== "p2") fail("choice-dwell", "660 ms did not open the bed page.");
+      }
+    });
+    run("older-hidden", function () {
+      resetInput();
+      start("little");
+      openStory("boat");
+      if (state().screen !== "stories" || state().story) fail("older-hidden", "Little opened the boat story.");
+      if ((document.body.innerText || "").indexOf("The Little Boat") >= 0) fail("older-hidden", "Little showed the boat title.");
+      tapId("story-picnic");
+      if (state().story !== "picnic" || state().page !== "p1") fail("older-hidden", "Picnic did not open.");
+      tapId("choice-0");
+      if (state().page !== "p2a") fail("older-hidden", "Sandwiches did not turn the page.");
+      tapId("choice-1");
+      if (state().page !== "p3") fail("older-hidden", "The blanket did not reach the cloud page.");
+      const littleChoices = state().choices.slice();
+      if (littleChoices.length !== 2) fail("older-hidden", "Little showed " + littleChoices.length + " choices on the cloud page.");
+      if (littleChoices.indexOf("Dance in the rain") >= 0) fail("older-hidden", "Little showed the older rain choice.");
+      if (littleChoices.indexOf("Umbrella") < 0 || littleChoices.indexOf("Run home") < 0) fail("older-hidden", "Little hid a choice that is for that band.");
+      if ((document.body.innerText || "").indexOf("Dance in the rain") >= 0) fail("older-hidden", "The older label was still on the page.");
+      resetInput();
+      start("shop");
+      tapId("story-picnic");
+      tapId("choice-0");
+      tapId("choice-1");
+      const shopChoices = state().choices.slice();
+      if (shopChoices.length !== 3 || shopChoices.indexOf("Dance in the rain") < 0) fail("older-hidden", "Shop hid the older rain choice.");
+      resetInput();
+      start("shop");
+      tapId("story-boat");
+      if (state().choices.length !== 3 || state().choices.indexOf("Follow the fish") < 0) fail("older-hidden", "Shop hid Follow the fish.");
+    });
+    run("band-stories", function () {
+      function titles() {
+        return centers().targets.filter(function (t) { return t.id.indexOf("story-") === 0; }).map(function (t) { return t.id; });
+      }
+      resetInput();
+      start("tiny");
+      const tiny = titles();
+      if (tiny.length !== 1 || tiny[0] !== "story-ball") fail("band-stories", "Picture Book did not offer only The Lost Ball.");
+      openBall();
+      if (sentenceEl.textContent !== "") fail("band-stories", "Picture Book showed a page sentence.");
+      if ((document.body.innerText || "").indexOf("Pip lost") >= 0) fail("band-stories", "Picture Book printed the page sentence.");
+      resetInput();
+      start("little");
+      const little = titles();
+      if (little.length !== 2 || little.indexOf("story-ball") < 0 || little.indexOf("story-picnic") < 0 || little.indexOf("story-boat") >= 0) {
+        fail("band-stories", "Story Time did not offer two stories.");
+      }
+      tapId("story-ball");
+      if (sentenceEl.textContent !== STORIES[0].pages.p1.text) fail("band-stories", "Story Time did not show the page sentence.");
+      resetInput();
+      start("shop");
+      const shop = titles();
+      if (shop.length !== 3) fail("band-stories", "Choose a Path did not offer three stories.");
+      resetInput();
+      start("rush");
+      const rush = titles();
+      if (rush.length !== 3 || rush.indexOf("story-boat") < 0) fail("band-stories", "Story Explorer did not offer three stories.");
+      tapId("story-ball");
+      const choice = document.getElementById("choice-0");
+      const art = choice && choice.querySelector(".art");
+      const label = choice && choice.querySelector(".label");
+      if (!choice || !art || !label) fail("band-stories", "Story Explorer did not show a choice card.");
+      else if (parseFloat(getComputedStyle(label).fontSize) < 28) fail("band-stories", "Story Explorer did not show the label large.");
+      else if (art.getBoundingClientRect().width > 80) fail("band-stories", "Story Explorer did not show the picture small.");
+    });
+    run("back-a-page", function () {
+      resetInput();
+      start("tiny");
+      openBall();
+      if (targetById(centers().targets, "back-page")) fail("back-a-page", "Back a page showed on the first page.");
+      tapId("choice-0");
+      if (state().page !== "p2") fail("back-a-page", "The bed choice did not turn the page.");
+      const back = targetById(centers().targets, "back-page");
+      if (!back || back.play) fail("back-a-page", "Back a page was missing or marked as play.");
+      else {
+        enterLook(back, 80000);
+        step(80600);
+        if (state().page !== "p2") fail("back-a-page", "600 ms on Back a page turned the page.");
+        step(81300);
+        if (state().page !== "p1") fail("back-a-page", "1300 ms on Back a page did not return.");
+      }
+      if (targetById(centers().targets, "back-page")) fail("back-a-page", "Back a page stayed on the first page.");
+      tapId("choice-1");
+      tapId("back-page");
+      if (state().page !== "p1") fail("back-a-page", "A tap on Back a page did not return.");
+    });
+    run("ending-buttons", function () {
+      function toEnd() {
+        resetInput();
+        start("tiny");
+        openBall();
+        tapId("choice-0");
+        tapId("choice-0");
+      }
+      toEnd();
+      if (!state().end || state().page !== "e1") fail("ending-buttons", "The cat path did not reach an ending.");
+      if (sentenceEl.textContent !== "The end") fail("ending-buttons", "Picture Book ending did not say The end.");
+      if ((sentenceEl.textContent || "").indexOf("sleeping") >= 0) fail("ending-buttons", "Picture Book ending showed the long sentence.");
+      const ids = ["read-again", "another-story", "all-done"];
+      for (let i = 0; i < ids.length; i++) {
+        const box = targetById(centers().targets, ids[i]);
+        if (!box || box.play) fail("ending-buttons", ids[i] + " was missing or marked as play.");
+      }
+      tapId("read-again");
+      if (state().screen !== "play" || state().story !== "ball" || state().page !== "p1" || state().end) {
+        fail("ending-buttons", "Read again did not start the same story.");
+      }
+      toEnd();
+      tapId("another-story");
+      if (state().screen !== "stories" || state().story !== null) fail("ending-buttons", "Another story did not return to the stories.");
+      const offered = centers().targets.filter(function (t) { return t.id.indexOf("story-") === 0; });
+      if (offered.length !== 1) fail("ending-buttons", "Another story left the band.");
+      toEnd();
+      tapId("all-done");
+      if (state().screen !== "rest") fail("ending-buttons", "All done did not open rest.");
+      if (restLine.textContent !== "Thanks for reading." || state().banner !== "Thanks for reading.") {
+        fail("ending-buttons", "Rest did not say thanks for reading.");
+      }
+      const restText = (restEl.innerText || "").toLowerCase();
+      if (/grade|miss|rank|score|time|wrong/.test(restText)) fail("ending-buttons", "Rest showed a grade.");
+      const again = targetById(centers().targets, "another");
+      if (!again || again.play) fail("ending-buttons", "Another was missing on rest.");
+      else tap(again.nx, again.ny);
+      if (state().screen !== "stories" || state().level !== "tiny") fail("ending-buttons", "Another did not start the same band.");
+    });
+    run("sizes", function () {
+      const views = [[390, 700], [1024, 768]];
+      function check(where, wantChoice) {
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const lay = targetsAt(w, h);
+          if (!lay.ok) fail("sizes", where + " at " + w + " by " + h + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            const t = list[i];
+            if (t.x < -0.5 || t.y < -0.5 || t.x + t.w > w + 0.5 || t.y + t.h > h + 0.5) {
+              fail("sizes", where + " target " + t.id + " was off the " + w + " by " + h + " page.");
+            }
+            if (Math.min(t.w, t.h) < 72) fail("sizes", where + " target " + t.id + " was under 72.");
+            if (wantChoice && t.id.indexOf("choice-") === 0 && Math.min(t.w, t.h) < 112) {
+              fail("sizes", where + " choice " + t.id + " was under 112 at " + w + " by " + h + ".");
+            }
+          }
+        }
+      }
+      resetInput();
+      go("menu");
+      check("menu", false);
+      start("tiny");
+      check("stories", false);
+      openBall();
+      check("two choices", true);
+      const two = targetsAt(390, 700).targets.filter(function (t) { return t.id.indexOf("choice-") === 0; });
+      if (two.length !== 2) fail("sizes", "Picture Book at 390 by 700 did not lay out two choices.");
+      else {
+        two.sort(function (a, b) { return a.x - b.x; });
+        if (Math.abs(two[0].w - 171) > 2 || Math.abs(two[0].h - 180) > 2) fail("sizes", "The 390 by 700 pair was not 171 by 180.");
+      }
+      tapId("choice-0");
+      tapId("choice-0");
+      check("ending", false);
+      resetInput();
+      start("shop");
+      tapId("story-boat");
+      check("three choices", true);
+      const three = targetsAt(390, 700).targets.filter(function (t) { return t.id.indexOf("choice-") === 0; });
+      if (three.length !== 3) fail("sizes", "The boat page at 390 by 700 did not lay out three choices.");
+      else if (Math.min(three[0].w, three[0].h) < 112) fail("sizes", "A stacked choice was under 112.");
+      const root = document.documentElement;
+      if (root.scrollWidth > root.clientWidth + 2 || root.scrollHeight > root.clientHeight + 2) {
+        fail("sizes", "The page needed scrolling.");
+      }
+    });
+    run("no-speech", function () {
+      if (speakCalls !== 0) fail("no-speech", "speechSynthesis.speak was called.");
+      if (Object.prototype.hasOwnProperty.call(state(), "speech")) fail("no-speech", "state kept a speech field.");
+    });
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+      const end = state();
+      if (!("level" in end) || !("screen" in end) || !("banner" in end) || !("muted" in end)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+    });
+    try { assertJunk("at the end"); }
+    catch (err) { fail("family-query-inert", err && err.message ? err.message : "The junk check threw."); }
+    try {
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+      if (origSpeak && window.speechSynthesis) window.speechSynthesis.speak = origSpeak;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.storyPaths = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    choose: choose,
+    openStory: openStory,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) {
+      result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
