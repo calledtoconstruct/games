@@ -32,3 +32,6 @@ coloring-book:
 four-in-a-row:
   name: "Four in a Row"
   line: "A drop-the-disc game for ages 2 and up."
+memory-match:
+  name: "Memory Match"
+  line: "A matching game for ages 2 and up."
