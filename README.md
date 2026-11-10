@@ -18,6 +18,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Coloring Book](https://calledtoconstruct.github.io/games/coloring-book/)
 - [Star Pictures](https://calledtoconstruct.github.io/games/star-pictures/)
 - [Four in a Row](https://calledtoconstruct.github.io/games/four-in-a-row/)
+- [Memory Match](https://calledtoconstruct.github.io/games/memory-match/)
 
 ## Pop Pals
 
@@ -116,6 +117,14 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 A drop-the-disc game for ages 2 and up. Play a friend at the same screen, or play the computer. Three Up is a small board and three in a row. Four Fun and Classic are four in a row. Clever has a stronger computer. Star discs and ring discs show who is who.
 
 Open `four-in-a-row/index.html` in a browser, or play [Four in a Row](https://calledtoconstruct.github.io/games/four-in-a-row/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Memory Match
+
+A matching game for ages 2 and up. Turn over two cards to find a pair of animals, foods, or shapes. Peek Pairs has two pairs. Pair Party has three. Card Table has six, and Big Deck has eight. Nothing is timed, and nothing counts turns.
+
+Open `memory-match/index.html` in a browser, or play [Memory Match](https://calledtoconstruct.github.io/games/memory-match/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
