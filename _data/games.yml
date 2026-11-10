@@ -65,3 +65,6 @@ painter-of-light:
 echo-garden:
   name: "Echo Garden"
   line: "A music garden for ages 2 and up."
+sky-keeper:
+  name: "Sky Keeper"
+  line: "A sky game for ages 2 and up."
