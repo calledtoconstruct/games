@@ -27,6 +27,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Gentle Mini Golf](https://calledtoconstruct.github.io/games/mini-golf/)
 - [Feelings and Choices](https://calledtoconstruct.github.io/games/feelings-and-choices/)
 - [Shy Creatures](https://calledtoconstruct.github.io/games/shy-creatures/)
+- [Painter of Light](https://calledtoconstruct.github.io/games/painter-of-light/)
 
 ## Pop Pals
 
@@ -197,6 +198,14 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 A patience game for ages 2 and up. Meadow animals hide in a burrow, a log, and a bush. They come out when you look somewhere else. Once one is all the way out, a gentle look lets it stay. Peekaboo has two friends. Quiet Meadow, Still Meadow, and Patient Meadow add more, and they duck back if you look too soon. Nothing is timed as a score, and nothing is saved.
 
 Open `shy-creatures/index.html` in a browser, or play [Shy Creatures](https://calledtoconstruct.github.io/games/shy-creatures/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Painter of Light
+
+A looking game for ages 2 and up. A dark room lights up where you look. The window brings dawn, the lamp glows, and the sleeping cat wakes and stretches. Little Light and Lamp Light wake a few things. Morning Light and Starlight wait until the thing they follow is awake. Nothing can go wrong, and nothing is saved.
+
+Open `painter-of-light/index.html` in a browser, or play [Painter of Light](https://calledtoconstruct.github.io/games/painter-of-light/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
