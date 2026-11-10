@@ -44,6 +44,9 @@ i-spy:
 music-maker:
   name: "Music Maker"
   line: "A music game for ages 2 and up."
+follow-the-lights:
+  name: "Follow the Lights"
+  line: "A memory game for ages 2 and up."
 fish-tank:
   name: "Fish Tank"
   line: "A caretaking game for ages 2 and up."
