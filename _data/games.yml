@@ -32,3 +32,6 @@ coloring-book:
 four-in-a-row:
   name: "Four in a Row"
   line: "A drop-the-disc game for ages 2 and up."
+story-paths:
+  name: "Story Paths"
+  line: "A picture book for ages 2 and up where you choose what happens next."

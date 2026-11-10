@@ -18,6 +18,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Coloring Book](https://calledtoconstruct.github.io/games/coloring-book/)
 - [Star Pictures](https://calledtoconstruct.github.io/games/star-pictures/)
 - [Four in a Row](https://calledtoconstruct.github.io/games/four-in-a-row/)
+- [Story Paths](https://calledtoconstruct.github.io/games/story-paths/)
 
 ## Pop Pals
 
@@ -116,6 +117,14 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 A drop-the-disc game for ages 2 and up. Play a friend at the same screen, or play the computer. Three Up is a small board and three in a row. Four Fun and Classic are four in a row. Clever has a stronger computer. Star discs and ring discs show who is who.
 
 Open `four-in-a-row/index.html` in a browser, or play [Four in a Row](https://calledtoconstruct.github.io/games/four-in-a-row/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Story Paths
+
+A picture book for ages 2 and up where you choose what happens next. Look at a choice card to turn the page. Every path has a happy ending. Picture Book has one story told in pictures. Story Time adds short sentences and a picnic story. Choose a Path and Story Explorer add a boat story and some three-way choices.
+
+Open `story-paths/index.html` in a browser, or play [Story Paths](https://calledtoconstruct.github.io/games/story-paths/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
