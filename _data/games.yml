@@ -38,3 +38,6 @@ memory-match:
 story-paths:
   name: "Story Paths"
   line: "A picture book for ages 2 and up where you choose what happens next."
+i-spy:
+  name: "I Spy"
+  line: "A finding game for ages 2 and up."
