@@ -53,3 +53,6 @@ fish-tank:
 mini-golf:
   name: "Gentle Mini Golf"
   line: "A putting game for ages 2 and up."
+feelings-and-choices:
+  name: "Feelings and Choices"
+  line: "A gentle talking game for ages 2 and up."
