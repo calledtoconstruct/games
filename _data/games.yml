@@ -1,0 +1,31 @@
+# Optional nicer names. A folder with no entry still appears on the home page.
+pop-pals:
+  name: "Pop Pals"
+  line: "A touchscreen whack-a-mole for ages 2 and up."
+sugar-counter:
+  name: "Sugar Counter"
+  line: "A bakery and ice cream counter for ages 2 and up."
+sun-garden:
+  name: "Sun Garden"
+  line: "A garden for ages 2 and up."
+saddle-up:
+  name: "Saddle Up!"
+  line: "A horse farm for ages 2 and up."
+sudoku:
+  name: "Sudoku"
+  line: "A picture and digit board for ages 2 and up."
+math-practice:
+  name: "Math Practice"
+  line: "A quiet page of one hole for ages 2 and up."
+word-search:
+  name: "Word Search"
+  line: "A word puzzle for ages 2 and up."
+flash-cards:
+  name: "Flash Cards"
+  line: "A word and picture game for ages 2 and up."
+maze:
+  name: "Maze"
+  line: "A maze for ages 2 and up."
+coloring-book:
+  name: "Coloring Book"
+  line: "A coloring book for ages 2 and up."
