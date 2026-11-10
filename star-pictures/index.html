@@ -1,0 +1,1768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Star Pictures</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #view {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    display: block; pointer-events: none; z-index: 1;
+  }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 28; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 8px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 25; pointer-events: none;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 6px 14px; font-size: 18px; font-weight: 800;
+    text-align: center;
+  }
+  #menu-card, #rest-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-rest, #play, #dots, #menu-copy, #rest-line, h1, p, b, small {
+    pointer-events: none;
+  }
+  #dots { position: fixed; inset: 0; z-index: 4; }
+  #dots i {
+    position: fixed; z-index: 4; pointer-events: none;
+    color: #f4f0d8; font-style: normal; font-weight: 800;
+    font-size: 18px; line-height: 18px; width: 18px; height: 18px;
+    text-align: center;
+  }
+  #dots b {
+    position: fixed; z-index: 4; pointer-events: none;
+    background: #fff; border-radius: 50%;
+  }
+  #menu-copy, #rest-line {
+    position: fixed; z-index: 24; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line { font-size: 26px; font-weight: 800; line-height: 32px; }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush, #another, #play button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 15px; line-height: 1.1;
+    padding: 4px;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #another {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 26px;
+  }
+  #play button.star {
+    border: none; padding: 0; background: transparent;
+    color: var(--ink); font-weight: 800; font-size: 28px; line-height: 1;
+  }
+  #play button.star svg {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none; display: block;
+  }
+  #play button.star span {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    pointer-events: none; transform: translateY(-6px);
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick a night sky.</p>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Star Pictures</h1>
+    <p>Look at the big star and a line joins it.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Twinkle</b><small>Ages 2 to 3. A few big stars.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Starry</b><small>Ages 4 to 5. Count the stars.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Night Sky</b><small>Ages 6 to 8. More stars.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Star Map</b><small>Ages 9 and up. Letters and big pictures.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden><div id="dots"></div></div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">The sky is full of pictures.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const LINE_MS = 300;
+  const NAME_MS = 1800;
+  const SCALE_SEMIS = [0, 2, 4, 5, 7, 9, 11, 12];
+  const TWINKLES = [
+    [0.08, 0.22], [0.18, 0.16], [0.33, 0.2], [0.62, 0.14],
+    [0.8, 0.18], [0.92, 0.28], [0.12, 0.78], [0.22, 0.9],
+    [0.84, 0.72], [0.93, 0.88], [0.7, 0.92], [0.48, 0.12]
+  ];
+
+  const PICTURES = {
+    tent:      { name: "Tent",      fill: "#E69F00", points: [[0.5,0.15],[0.88,0.85],[0.12,0.85]] },
+    kite:      { name: "Kite",      fill: "#D55E00", points: [[0.5,0.1],[0.8,0.45],[0.5,0.9],[0.2,0.45]] },
+    house:     { name: "House",     fill: "#E69F00", points: [[0.2,0.9],[0.2,0.45],[0.5,0.15],[0.8,0.45],[0.8,0.9]] },
+    star:      { name: "Star",      fill: "#F0E442", points: [[0.5,0.1],[0.74,0.88],[0.12,0.4],[0.88,0.4],[0.26,0.88]] },
+    gem:       { name: "Gem",       fill: "#CC79A7", points: [[0.3,0.2],[0.7,0.2],[0.9,0.4],[0.5,0.9],[0.1,0.4]] },
+    crown:     { name: "Crown",     fill: "#F0E442", points: [[0.1,0.85],[0.1,0.3],[0.3,0.55],[0.5,0.2],[0.7,0.55],[0.9,0.3],[0.9,0.85]] },
+    fish:      { name: "Fish",      fill: "#56B4E9", points: [[0.15,0.5],[0.4,0.25],[0.7,0.35],[0.9,0.15],[0.9,0.85],[0.7,0.65],[0.4,0.75]] },
+    boat:      { name: "Boat",      fill: "#0072B2", points: [[0.25,0.85],[0.1,0.6],[0.5,0.6],[0.5,0.1],[0.8,0.55],[0.9,0.6],[0.75,0.85]] },
+    tree:      { name: "Tree",      fill: "#009E73", points: [[0.45,0.9],[0.45,0.7],[0.15,0.7],[0.5,0.1],[0.85,0.7],[0.55,0.7],[0.55,0.9]] },
+    heart:     { name: "Heart",     fill: "#D55E00", points: [[0.5,0.3],[0.3,0.12],[0.1,0.3],[0.15,0.55],[0.5,0.9],[0.85,0.55],[0.9,0.3],[0.7,0.12]] },
+    cat:       { name: "Cat",       fill: "#E69F00", points: [[0.2,0.15],[0.35,0.35],[0.65,0.35],[0.8,0.15],[0.85,0.5],[0.75,0.75],[0.5,0.88],[0.25,0.75],[0.15,0.5]] },
+    rocket:    { name: "Rocket",    fill: "#CC79A7", points: [[0.5,0.08],[0.65,0.3],[0.65,0.65],[0.8,0.85],[0.6,0.78],[0.4,0.78],[0.2,0.85],[0.35,0.65],[0.35,0.3]] },
+    butterfly: { name: "Butterfly", fill: "#56B4E9", points: [[0.5,0.2],[0.25,0.08],[0.08,0.3],[0.3,0.5],[0.12,0.75],[0.4,0.88],[0.5,0.6],[0.6,0.88],[0.88,0.75],[0.7,0.5],[0.92,0.3],[0.75,0.08]] },
+    castle:    { name: "Castle",    fill: "#BBBBBB", points: [[0.1,0.9],[0.1,0.25],[0.25,0.25],[0.25,0.4],[0.4,0.4],[0.4,0.15],[0.6,0.15],[0.6,0.4],[0.75,0.4],[0.75,0.25],[0.9,0.25],[0.9,0.9],[0.6,0.9],[0.6,0.7],[0.4,0.7],[0.4,0.9]] }
+  };
+  const BANDS = {
+    tiny:   { pictures: ["tent","kite","house","star","gem"], labels: "none", perSitting: 3 },
+    little: { pictures: ["house","star","gem","crown","fish","boat","tree","heart"], labels: "numbers", perSitting: 4 },
+    shop:   { pictures: ["crown","fish","boat","tree","heart","cat","rocket","butterfly"], labels: "numbers", perSitting: 4 },
+    rush:   { pictures: ["heart","cat","rocket","butterfly","castle","fish","boat","tree"], labels: "letters", perSitting: 4 }
+  };
+
+  function makeRng(seed) {
+    let state = seed >>> 0;
+    return function () {
+      state = (state + 0x6D2B79F5) >>> 0;
+      let t = Math.imul(state ^ (state >>> 15), state | 1);
+      t = (t ^ (t + Math.imul(t ^ (t >>> 7), t | 61))) >>> 0;
+      return (t ^ (t >>> 14)) >>> 0;
+    };
+  }
+  function playSeed(clockMs, n) {
+    return (Math.imul(((clockMs >>> 0) ^ Math.imul(n >>> 0, 0x9E3779B9)), 0x85EBCA6B)) >>> 0;
+  }
+
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d");
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const playEl = document.getElementById("play");
+  const dotsEl = document.getElementById("dots");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const anotherBtn = document.getElementById("another");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+
+  let screen = "menu";
+  let level = "tiny";
+  let muted = false;
+  let order = [];
+  let place = 0;
+  let index = 0;
+  let note = 0;
+  let nameClock = 0;
+  let anim = null;
+  let pin = null;
+  let counter = 1;
+  let checking = false;
+  let suppressReconnect = false;
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let trailOn = false;
+
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function knownBand(band) { return BAND_IDS.indexOf(band) >= 0; }
+  function pictureNow() {
+    if (!order.length || place < 0 || place >= order.length) return null;
+    return PICTURES[order[place]] || null;
+  }
+  function markAt(i) {
+    const mode = BANDS[level] ? BANDS[level].labels : "none";
+    if (mode === "numbers") return String(i + 1);
+    if (mode === "letters") return "ABCDEFGHIJKLMNOPQRSTUVWXYZ".charAt(i) || "";
+    return "";
+  }
+  function article(name) {
+    return "A " + name.charAt(0).toLowerCase() + name.slice(1) + "!";
+  }
+  function bannerText() {
+    if (screen === "menu") return "Pick a night sky.";
+    if (screen === "rest") return "The sky is full of pictures.";
+    const pic = pictureNow();
+    if (pic && index >= pic.points.length) return article(pic.name);
+    return "Look at the big star.";
+  }
+  function lineCount(pic) {
+    if (!pic) return 0;
+    const n = pic.points.length;
+    if (index <= 1) return 0;
+    if (index >= n) return n;
+    return index - 1;
+  }
+
+  function takePageSeed() {
+    let s;
+    if (pin !== null) s = pin;
+    else if (checking) s = 1;
+    else s = playSeed(Date.now(), counter);
+    pin = null;
+    counter += 1;
+    return s >>> 0;
+  }
+  function deal() {
+    const list = BANDS[level].pictures.slice();
+    const rng = makeRng(takePageSeed());
+    for (let i = list.length - 1; i >= 1; i--) {
+      const j = rng() % (i + 1);
+      const tmp = list[i];
+      list[i] = list[j];
+      list[j] = tmp;
+    }
+    order = list.slice(0, BANDS[level].perSitting);
+    place = 0;
+    note = 0;
+    beginPicture();
+  }
+  function beginPicture() {
+    index = 0;
+    nameClock = 0;
+    anim = null;
+  }
+  function useBand(band) {
+    if (!knownBand(band)) return false;
+    level = band;
+    return true;
+  }
+  function go(id) {
+    if (id !== "menu" && id !== "play" && id !== "rest") {
+      render();
+      return;
+    }
+    screen = id;
+    render();
+  }
+  function highlight(band) {
+    if (!useBand(band)) {
+      render();
+      return;
+    }
+    render();
+  }
+  function start(band) {
+    if (!useBand(band)) {
+      render();
+      return;
+    }
+    deal();
+    go("play");
+  }
+  function advance() {
+    place += 1;
+    if (place >= order.length) go("rest");
+    else {
+      beginPicture();
+      render();
+    }
+  }
+  function joinStar() {
+    const pic = pictureNow();
+    if (screen !== "play" || !pic || index >= pic.points.length) {
+      render();
+      return;
+    }
+    anim = { to: index, t0: clock, close: index + 1 === pic.points.length };
+    index += 1;
+    playNote();
+    if (index >= pic.points.length) {
+      nameClock = clock;
+      chime();
+    }
+    render();
+  }
+
+  function chromeBoxes(w) {
+    const y = 8;
+    const h = 72;
+    const mute = { id: "mute", x: 8, y: y, w: 72, h: h };
+    const full = { id: "full", x: 88, y: y, w: 72, h: h };
+    const room = w - 176 - 8;
+    const backW = Math.max(72, Math.min(176, room));
+    const back = { id: "back", x: w - 8 - backW, y: y, w: backW, h: h };
+    return { mute: mute, full: full, back: back };
+  }
+  function menuLayout(w, h) {
+    const btnH = 72;
+    const gap = 8;
+    const titleH = 64;
+    const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+    const columnH = titleH + gap + ids.length * btnH + (ids.length - 1) * gap;
+    const belowTop = 92;
+    const fitsBelow = belowTop + columnH <= h - 8;
+    let cardW;
+    let cardX;
+    let top;
+    if (fitsBelow) {
+      cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      cardX = (w - cardW) / 2;
+      top = belowTop;
+    } else if (8 + columnH <= h - 8) {
+      const leftLimit = 168;
+      const rightLimit = w - 8;
+      cardW = Math.min(460, Math.max(72, rightLimit - leftLimit));
+      cardX = leftLimit + Math.max(0, (rightLimit - leftLimit - cardW) / 2);
+      top = 8;
+    } else {
+      cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      cardX = (w - cardW) / 2;
+      top = 8;
+    }
+    const buttons = [];
+    const useGrid = top + columnH > h - 8;
+    let title;
+    if (!useGrid) {
+      title = { x: cardX, y: top, w: cardW, h: titleH };
+      let y = top + titleH + gap;
+      for (let i = 0; i < ids.length; i++) {
+        buttons.push({ id: ids[i], x: cardX, y: y, w: Math.max(72, cardW), h: btnH });
+        y += btnH + gap;
+      }
+      const card = { x: cardX, y: top, w: cardW, h: y - gap - top };
+      return { title: title, buttons: buttons, card: card };
+    }
+    const gridTitle = 48;
+    title = { x: cardX, y: top, w: cardW, h: gridTitle };
+    const colW = Math.max(72, Math.floor((cardW - gap) / 2));
+    const gridW = colW * 2 + gap;
+    const gridX = cardX + Math.max(0, (cardW - gridW) / 2);
+    let y = top + gridTitle + gap;
+    const bandIds = ["tiny", "little", "shop", "rush"];
+    for (let i = 0; i < bandIds.length; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      buttons.push({
+        id: bandIds[i],
+        x: gridX + col * (colW + gap),
+        y: y + row * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    y += 2 * (btnH + gap);
+    buttons.push({ id: "lets-go", x: cardX, y: y, w: Math.max(72, cardW), h: btnH });
+    const card = { x: cardX, y: top, w: cardW, h: y + btnH - top };
+    return { title: title, buttons: buttons, card: card };
+  }
+  function restLayout(w, h) {
+    const cardW = w < 480 ? Math.max(72, w - 32) : Math.min(460, w - 48);
+    const cardX = Math.max(16, (w - cardW) / 2);
+    const cardH = 200;
+    const y = Math.max(96, Math.min((h - cardH) / 2, h - cardH - 16));
+    return {
+      card: { x: cardX, y: y, w: cardW, h: cardH },
+      line: { x: cardX + 16, y: y + 24, w: Math.max(72, cardW - 32), h: 72 },
+      another: { id: "another", x: cardX + 16, y: y + 112, w: Math.max(72, cardW - 32), h: 72 }
+    };
+  }
+  function pictureSquare(w, h) {
+    const top = 88;
+    const bottom = 40;
+    const side = Math.floor(Math.min(w - 32, h - top - bottom));
+    const x = Math.floor((w - side) / 2);
+    const y = top + Math.floor((h - top - bottom - side) / 2);
+    return { x: x, y: y, side: side };
+  }
+  function starButtonBox(w, h, px, py) {
+    const sq = pictureSquare(w, h);
+    const size = 112;
+    const inset = 16;
+    const maxX = w - inset - size;
+    const maxY = h - inset - size;
+    if (maxX < inset || maxY < inset || sq.side < 32) return null;
+    const cx = sq.x + px * sq.side;
+    const cy = sq.y + py * sq.side;
+    const x = Math.min(maxX, Math.max(inset, cx - size / 2));
+    const y = Math.min(maxY, Math.max(inset, cy - size / 2));
+    return { x: x, y: y, w: size, h: size, cx: cx, cy: cy };
+  }
+  function starBoxFor(w, h) {
+    const pic = pictureNow();
+    if (screen !== "play" || !pic || index >= pic.points.length) return null;
+    const pt = pic.points[index];
+    const box = starButtonBox(w, h, pt[0], pt[1]);
+    if (!box) return null;
+    box.id = "star-" + index;
+    return box;
+  }
+  function layoutTargets(w, h) {
+    if (!(w >= 320)) return null;
+    const chrome = chromeBoxes(w);
+    const targets = [chrome.mute, chrome.full];
+    if (screen !== "menu") targets.push(chrome.back);
+    if (screen === "menu") {
+      const menu = menuLayout(w, h);
+      for (let i = 0; i < menu.buttons.length; i++) targets.push(menu.buttons[i]);
+    }
+    if (screen === "play") {
+      const star = starBoxFor(w, h);
+      if (pictureNow() && index < pictureNow().points.length) {
+        if (!star) return null;
+        targets.push(star);
+      }
+    }
+    if (screen === "rest") {
+      const rest = restLayout(w, h);
+      targets.push(rest.another);
+    }
+    for (let i = 0; i < targets.length; i++) {
+      const box = targets[i];
+      if (Math.min(box.w, box.h) < 72) return null;
+      if (box.x < -0.5 || box.y < -0.5 || box.x + box.w > w + 0.5 || box.y + box.h > h + 0.5) return null;
+    }
+    return targets;
+  }
+  function targetsAt(w, h) {
+    render();
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const boxes = layoutTargets(w, h);
+    if (!boxes) return { ok: false, targets: [] };
+    return {
+      ok: true,
+      targets: boxes.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+  function placeBox(el, box) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+  function bannerBox(w) {
+    const chrome = chromeBoxes(w);
+    const left = chrome.full.x + chrome.full.w + 8;
+    const right = screen === "menu" ? w - 8 : chrome.back.x - 8;
+    const bw = right - left;
+    if (bw >= 140) return { x: left, y: 16, w: bw, h: 52 };
+    return { x: 8, y: w < 700 ? 88 : 16, w: Math.min(280, w - 16), h: 40 };
+  }
+
+  function makeStarButton(id, mark) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = id;
+    btn.className = "star";
+    btn.setAttribute("data-play", "true");
+    btn.setAttribute("data-index", String(index));
+    btn.setAttribute("aria-label", mark ? "Star " + mark : "Big star");
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("aria-hidden", "true");
+    const poly = document.createElementNS("http://www.w3.org/2000/svg", "polygon");
+    poly.setAttribute("points", "50,6 63,36 96,36 69,56 79,90 50,70 21,90 31,56 4,36 37,36");
+    poly.setAttribute("fill", "#ffc857");
+    poly.setAttribute("stroke", "#fffdf6");
+    poly.setAttribute("stroke-width", "5");
+    poly.setAttribute("stroke-linejoin", "round");
+    svg.appendChild(poly);
+    const span = document.createElement("span");
+    span.textContent = mark;
+    btn.appendChild(svg);
+    btn.appendChild(span);
+    return btn;
+  }
+  function syncStar(box, mark) {
+    const want = box ? "star-" + index : "";
+    let btn = playEl.querySelector("button");
+    if (!want) {
+      if (btn) btn.remove();
+      return;
+    }
+    if (!btn || btn.id !== want) {
+      if (btn) btn.remove();
+      btn = makeStarButton(want, mark);
+      playEl.appendChild(btn);
+    } else {
+      const span = btn.querySelector("span");
+      if (span && span.textContent !== mark) span.textContent = mark;
+      btn.setAttribute("aria-label", mark ? "Star " + mark : "Big star");
+    }
+    placeBox(btn, box);
+  }
+  function syncDots(w, h) {
+    while (dotsEl.firstChild) dotsEl.removeChild(dotsEl.firstChild);
+    const pic = pictureNow();
+    if (screen !== "play" || !pic) return;
+    const sq = pictureSquare(w, h);
+    const n = pic.points.length;
+    const named = index >= n;
+    for (let i = 0; i < n; i++) {
+      if (!named && i === index) continue;
+      const p = pointPx(sq, pic.points[i]);
+      const d = i < index ? 24 : 16;
+      const dot = document.createElement("b");
+      dot.style.left = (p.x - d / 2) + "px";
+      dot.style.top = (p.y - d / 2) + "px";
+      dot.style.width = d + "px";
+      dot.style.height = d + "px";
+      dotsEl.appendChild(dot);
+      const mark = markAt(i);
+      if (!mark) continue;
+      const label = document.createElement("i");
+      label.className = "mark";
+      label.textContent = mark;
+      let lx = p.x + d / 2 + 4;
+      let ly = p.y - 9;
+      if (lx + 18 > w - 8) lx = p.x - d / 2 - 22;
+      if (ly < 8) ly = 8;
+      label.style.left = lx + "px";
+      label.style.top = ly + "px";
+      dotsEl.appendChild(label);
+    }
+  }
+
+  function state() {
+    const pic = pictureNow();
+    const marks = [];
+    if (pic) {
+      for (let i = 0; i < pic.points.length; i++) marks.push(markAt(i));
+    }
+    const snap = {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      picture: pic ? order[place] : null,
+      name: pic ? pic.name : "",
+      index: index,
+      count: pic ? pic.points.length : 0,
+      place: order.length ? place : 0,
+      cap: order.length,
+      order: order.slice(),
+      marks: marks,
+      closed: !!(pic && screen === "play" && index >= pic.points.length),
+      lines: lineCount(pic)
+    };
+    render();
+    return snap;
+  }
+
+  function resizeCanvas() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const bw = Math.max(1, Math.round(w * dpr));
+    const bh = Math.max(1, Math.round(h * dpr));
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw;
+      canvas.height = bh;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function pointPx(sq, pt) {
+    return { x: sq.x + pt[0] * sq.side, y: sq.y + pt[1] * sq.side };
+  }
+  function hexAlpha(hex, a) {
+    const n = parseInt(hex.slice(1), 16);
+    return "rgba(" + ((n >> 16) & 255) + "," + ((n >> 8) & 255) + "," + (n & 255) + "," + a + ")";
+  }
+  function segAmount(partial) {
+    if (!partial) return 1;
+    if (reducedMotion() || checking || !anim) return 1;
+    return Math.max(0, Math.min(1, (clock - anim.t0) / LINE_MS));
+  }
+  function strokeSeg(sq, pic, a, b, amount) {
+    if (amount <= 0) return;
+    const p = pointPx(sq, pic.points[a]);
+    const q = pointPx(sq, pic.points[b]);
+    ctx.strokeStyle = "#f4f0d8";
+    ctx.lineWidth = 6;
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    ctx.lineTo(p.x + (q.x - p.x) * amount, p.y + (q.y - p.y) * amount);
+    ctx.stroke();
+  }
+  function paint() {
+    resizeCanvas();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    ctx.clearRect(0, 0, w, h);
+    const sky = screen === "play" || screen === "rest";
+    ctx.fillStyle = sky ? "#1b2a4a" : "#f4f0d8";
+    ctx.fillRect(0, 0, w, h);
+    if (!sky) return;
+    for (let i = 0; i < TWINKLES.length; i++) {
+      const tw = TWINKLES[i];
+      let alpha = 0.75;
+      if (!reducedMotion() && !checking) {
+        alpha = 0.35 + 0.55 * (0.5 + 0.5 * Math.sin(clock / 420 + i));
+      }
+      ctx.fillStyle = "rgba(244, 240, 216, " + alpha + ")";
+      ctx.beginPath();
+      ctx.arc(tw[0] * w, tw[1] * h, 1.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    const pic = pictureNow();
+    if (screen !== "play" || !pic) return;
+    const sq = pictureSquare(w, h);
+    const n = pic.points.length;
+    const done = index;
+    if (done >= n) {
+      ctx.beginPath();
+      for (let i = 0; i < n; i++) {
+        const p = pointPx(sq, pic.points[i]);
+        if (i === 0) ctx.moveTo(p.x, p.y);
+        else ctx.lineTo(p.x, p.y);
+      }
+      ctx.closePath();
+      ctx.fillStyle = hexAlpha(pic.fill, 0.6);
+      ctx.fill("evenodd");
+    }
+    const newest = done - 1;
+    for (let i = 0; i < done - 1; i++) {
+      const partial = i + 1 === newest && anim && anim.to === newest;
+      strokeSeg(sq, pic, i, i + 1, segAmount(partial));
+    }
+    if (done >= n && n >= 2) {
+      strokeSeg(sq, pic, n - 1, 0, segAmount(!!(anim && anim.close && anim.to === n - 1)));
+    }
+  }
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const chrome = chromeBoxes(w);
+    placeBox(muteBtn, chrome.mute);
+    placeBox(fullBtn, chrome.full);
+    placeBox(backBtn, chrome.back);
+    backBtn.hidden = screen === "menu";
+    menuEl.hidden = screen !== "menu";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "play";
+    anotherBtn.hidden = screen !== "rest";
+    bannerEl.textContent = bannerText();
+    restLine.textContent = "The sky is full of pictures.";
+    placeBox(bannerEl, bannerBox(w));
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    const menu = menuLayout(w, h);
+    placeBox(menuCard, menu.card);
+    placeBox(menuCopy, menu.title);
+    for (let i = 0; i < menu.buttons.length; i++) {
+      placeBox(document.getElementById(menu.buttons[i].id), menu.buttons[i]);
+    }
+    const rest = restLayout(w, h);
+    placeBox(restCard, rest.card);
+    placeBox(restLine, rest.line);
+    placeBox(anotherBtn, rest.another);
+    const pic = pictureNow();
+    const mark = pic && index < pic.points.length ? markAt(index) : "";
+    const star = screen === "play" ? starBoxFor(w, h) : null;
+    syncStar(star, mark);
+    syncDots(w, h);
+    eyesEl.hidden = !eyesOn();
+    placeBox(eyesEl, { x: Math.max(8, w - 84), y: Math.max(8, h - 48), w: 72, h: 36 });
+    paint();
+  }
+
+  function ensureAudio() {
+    if (checking) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!ac && Ctx) {
+      try {
+        ac = new Ctx();
+        master = ac.createGain();
+        master.gain.value = muted ? 0 : 0.5;
+        master.connect(ac.destination);
+      } catch (err) {
+        ac = null;
+        master = null;
+      }
+    }
+    if (ac && ac.state === "suspended" && ac.resume) {
+      const pending = ac.resume();
+      if (pending && pending.catch) pending.catch(function () {});
+    }
+  }
+  function playTone(freq, dur, delay) {
+    if (checking || !ac || !master) return;
+    try {
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      osc.connect(g);
+      g.connect(master);
+      const t0 = ac.currentTime + (delay || 0);
+      const d = dur / 1000;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.35, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + Math.max(0.02, d));
+      osc.start(t0);
+      osc.stop(t0 + d + 0.02);
+    } catch (err) {}
+  }
+  function playNote() {
+    const semi = SCALE_SEMIS[note % 8];
+    playTone(262 * Math.pow(2, semi / 12), 160, 0);
+    note = (note + 1) % 8;
+  }
+  function chime() {
+    playTone(523, 120, 0.16);
+    playTone(659, 120, 0.28);
+    playTone(784, 120, 0.4);
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function activate(btn) {
+    if (!btn || !buttonVisible(btn)) {
+      render();
+      return;
+    }
+    if (!checking) ensureAudio();
+    if (btn.getAttribute("data-play") === "true") {
+      joinStar();
+      return;
+    }
+    const id = btn.id;
+    if (id === "lets-go") start(level);
+    else if (id === "back") go("menu");
+    else if (id === "another") start(level);
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (knownBand(id)) highlight(id);
+    else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+      trailOn = false;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+      trailOn = false;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        trailOn = false;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn)) activate(btn);
+      } else {
+        const p = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+        dwellProgress = p;
+        const btn = document.getElementById(dwellKey);
+        trailOn = p > 0 && !!(btn && btn.getAttribute("data-play") === "true") && !reducedMotion();
+      }
+    } else {
+      dwellProgress = 0;
+      trailOn = false;
+    }
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    const prev = clock;
+    const gap = prev ? now - prev : 0;
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    if (screen === "play" && pictureNow() && index >= pictureNow().points.length && gap > 0 && gap < 120000) {
+      if (nameClock && now - nameClock >= NAME_MS) advance();
+    }
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn);
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || btn.id !== armedId) return;
+    armedId = null;
+    activate(btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn); e.preventDefault(); }
+      return;
+    }
+    const arrows = { ArrowLeft: 1, ArrowRight: 1, ArrowUp: 1, ArrowDown: 1 };
+    if (!arrows[e.key] || screen !== "play") return;
+    const pic = pictureNow();
+    if (!pic || index >= pic.points.length) return;
+    const star = document.getElementById("star-" + index);
+    if (star && buttonVisible(star)) { activate(star); e.preventDefault(); }
+  });
+  window.addEventListener("resize", function () {
+    if (!checking) render();
+  });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+  function playTargets() {
+    return centers().targets.filter(function (t) { return t.play; });
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    let origSpeak = null;
+    let speakCalls = 0;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.speak) {
+        origSpeak = window.speechSynthesis.speak;
+        window.speechSynthesis.speak = function () {
+          speakCalls += 1;
+          return origSpeak.apply(window.speechSynthesis, arguments);
+        };
+      }
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    function boot(band, n) {
+      resetInput();
+      seed(n);
+      start(band);
+      step(10000);
+    }
+    function tapStar() {
+      const snap = state();
+      const box = targetById(centers().targets, "star-" + snap.index);
+      if (!box) throw new Error("The lit star was not a target.");
+      tap(box.nx, box.ny);
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+      if (state().picture !== null || state().cap !== 0) fail("family-query-inert", "A junk flag dealt a picture.");
+    });
+    run("family-plain-state", function () {
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snap.level !== "tiny" || snap.screen !== "menu" || snap.banner !== "Pick a night sky." || snap.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on Twinkle.");
+      }
+      const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank", "speech"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      boot("tiny", 1);
+      const box = targetById(centers().targets, "star-0");
+      if (!box || !box.play) fail("family-play-dwell", "The lit star was not a play target.");
+      else {
+        step(10000);
+        look(box.nx, box.ny);
+        step(10000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(10200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(10640);
+        if (state().index !== 0) fail("family-play-dwell", "640 ms joined the star.");
+        step(10660);
+        if (state().index !== 1) fail("family-play-dwell", "660 ms did not join the lit star.");
+      }
+      boot("tiny", 1);
+      const tapBox = targetById(centers().targets, "star-0");
+      tap(tapBox.nx, tapBox.ny);
+      if (state().index !== 1) fail("family-play-dwell", "A tap did not join the same star.");
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      if (state().screen !== "menu") go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "play") fail("family-menu-dwell", "1300 ms on Let's go did not open play.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "play") fail("family-menu-dwell", "600 ms on Back left play.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      boot("tiny", 1);
+      const box = targetById(centers().targets, "star-0");
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(30000);
+      step(30660);
+      if (state().index !== 0 || dwell() !== 0) fail("family-pointer-blocks", "A look during hold joined the star or filled the ring.");
+      release();
+      releaseLook();
+      enterLook(box, 32000);
+      step(32660);
+      if (state().index !== 1) fail("family-pointer-blocks", "A fresh look after release did not join the star.");
+    });
+    run("family-stale", function () {
+      boot("tiny", 1);
+      const box = targetById(centers().targets, "star-0");
+      try {
+        enterLook(box, 36000);
+        step(36200);
+        if (!(dwell() > 0) || state().index !== 0) fail("family-stale", "The ring did not fill before the sample went stale.");
+        refreshHold = false;
+        step(36700);
+        if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+        if (state().index !== 0) fail("family-stale", "A stale sample joined the star.");
+      } finally {
+        refreshHold = true;
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      boot("tiny", 1);
+      const liveBefore = targetById(centers().targets, "mute");
+      checkView("play");
+      const liveAfter = targetById(centers().targets, "mute");
+      if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+        fail("family-target-size", "targetsAt shrank a live play button.");
+      }
+    });
+    run("family-eyes", function () {
+      resetInput();
+      step(40000);
+      look(0.5, 0.5);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("family-mute", function () {
+      resetInput();
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    run("one-target", function () {
+      const bands = ["tiny", "little", "shop", "rush"];
+      for (let b = 0; b < bands.length; b++) {
+        boot(bands[b], 1);
+        let t = 10000;
+        const cap = state().cap;
+        for (let p = 0; p < cap; p++) {
+          const pic = PICTURES[state().picture];
+          const n = pic.points.length;
+          for (let i = 0; i < n; i++) {
+            step(t);
+            const plays = playTargets();
+            if (plays.length !== 1) fail("one-target", bands[b] + " showed " + plays.length + " play targets.");
+            else if (plays[0].id !== "star-" + i || state().index !== i) fail("one-target", bands[b] + " lit star " + plays[0].id + " instead of " + i + ".");
+            else {
+              const expect = starButtonBox(window.innerWidth, window.innerHeight, pic.points[i][0], pic.points[i][1]);
+              if (!expect || Math.abs(plays[0].x - expect.x) > 1.5 || Math.abs(plays[0].y - expect.y) > 1.5) {
+                fail("one-target", bands[b] + " star " + i + " was not on the next point.");
+              }
+            }
+            tapStar();
+            if (i < n - 1 && state().index !== i + 1) fail("one-target", bands[b] + " did not light the next star.");
+            t += 40;
+          }
+          if (p + 1 < cap) {
+            step(t + NAME_MS);
+            t = t + NAME_MS;
+            if (state().index !== 0 || state().screen !== "play") fail("one-target", bands[b] + " did not open the next picture on one star.");
+          }
+        }
+      }
+    });
+    run("join-dwell", function () {
+      boot("little", 2);
+      const before = state().index;
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      const spots = [[4, h - 4], [w / 2, h - 4], [4, h / 2]];
+      let spot = null;
+      for (let i = 0; i < spots.length; i++) {
+        if (!buttonAt(spots[i][0], spots[i][1])) { spot = spots[i]; break; }
+      }
+      if (!spot) fail("join-dwell", "Every sample point hit a button.");
+      else {
+        step(50000);
+        look(spot[0] / w, spot[1] / h);
+        step(50000);
+        step(50660);
+        if (state().index !== before || state().lines !== 0 || state().closed) fail("join-dwell", "A look off the star changed the picture.");
+      }
+      const box = targetById(centers().targets, "star-" + state().index);
+      step(52000);
+      look(box.nx, box.ny);
+      step(52000);
+      step(52640);
+      if (state().index !== before) fail("join-dwell", "640 ms joined the lit star.");
+      step(52660);
+      if (state().index !== before + 1) fail("join-dwell", "660 ms did not join the lit star and light the next.");
+    });
+    run("closes-and-names", function () {
+      boot("tiny", 4);
+      const snap0 = state();
+      const pic = PICTURES[snap0.picture];
+      const n = snap0.count;
+      for (let i = 0; i < n - 1; i++) tapStar();
+      if (state().closed || state().lines !== n - 2) fail("closes-and-names", "The shape closed before the last star.");
+      tapStar();
+      const named = state();
+      const expect = article(pic.name);
+      if (!named.closed || named.lines !== n) fail("closes-and-names", "The last star did not close the shape.");
+      if (named.banner !== expect) fail("closes-and-names", "The banner was " + named.banner + ".");
+      if (named.screen !== "play" || named.picture !== snap0.picture) fail("closes-and-names", "The named picture left the screen early.");
+      step(10000 + 1799);
+      if (state().picture !== snap0.picture || state().banner !== expect || state().screen !== "play") {
+        fail("closes-and-names", "The picture changed before 1800 ms.");
+      }
+      step(10000 + 1800);
+      const next = state();
+      if (next.picture === snap0.picture || next.index !== 0 || next.screen !== "play") {
+        fail("closes-and-names", "The next picture did not start after 1800 ms.");
+      }
+      if (next.banner !== "Look at the big star.") fail("closes-and-names", "The next picture kept the old name.");
+    });
+    run("sitting-rest", function () {
+      const caps = { tiny: 3, little: 4, shop: 4, rush: 4 };
+      const bands = ["tiny", "little", "shop", "rush"];
+      for (let b = 0; b < bands.length; b++) {
+        const band = bands[b];
+        boot(band, 5);
+        let t = 10000;
+        if (state().cap !== caps[band]) fail("sitting-rest", band + " did not deal " + caps[band] + " pictures.");
+        const seen = {};
+        for (let p = 0; p < caps[band]; p++) {
+          const id = state().picture;
+          if (seen[id]) fail("sitting-rest", band + " repeated " + id + ".");
+          seen[id] = true;
+          const n = state().count;
+          for (let i = 0; i < n; i++) tapStar();
+          if (state().screen !== "play" || !state().closed) fail("sitting-rest", band + " left play before the name.");
+          step(t + 1799);
+          if (state().screen !== "play" || state().picture !== id) fail("sitting-rest", band + " advanced before 1800 ms.");
+          step(t + 1800);
+          t += 1800;
+        }
+        if (state().screen !== "rest") fail("sitting-rest", band + " did not rest after the sitting.");
+        if (state().banner !== "The sky is full of pictures.") fail("sitting-rest", "The rest banner changed.");
+        const restText = (restEl.innerText || "").toLowerCase();
+        if (restText.indexOf("grade") >= 0 || restText.indexOf("score") >= 0 || restText.indexOf("rank") >= 0) {
+          fail("sitting-rest", "Rest showed a grade.");
+        }
+        const again = targetById(centers().targets, "another");
+        if (!again || again.play) fail("sitting-rest", "Another was missing or marked as play.");
+        else tap(again.nx, again.ny);
+        if (state().screen !== "play" || state().level !== band) fail("sitting-rest", "Another did not start the same band.");
+      }
+    });
+    run("data-valid", function () {
+      const ids = Object.keys(PICTURES);
+      if (ids.length !== 14) fail("data-valid", "The picture list was not the 14 authored shapes.");
+      for (let i = 0; i < ids.length; i++) {
+        const pic = PICTURES[ids[i]];
+        if (!pic.points || pic.points.length < 3) fail("data-valid", ids[i] + " had fewer than 3 points.");
+        if (!/^#[0-9A-Fa-f]{6}$/.test(pic.fill)) fail("data-valid", ids[i] + " fill was not a color.");
+        for (let p = 0; p < pic.points.length; p++) {
+          const x = pic.points[p][0];
+          const y = pic.points[p][1];
+          if (x < 0.08 || x > 0.92 || y < 0.08 || y > 0.92) fail("data-valid", ids[i] + " point " + p + " sat outside 0.08 to 0.92.");
+        }
+      }
+      const expect = { tiny: 3, little: 4, shop: 4, rush: 4 };
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        const id = BAND_IDS[b];
+        const band = BANDS[id];
+        if (!band || band.perSitting !== expect[id]) fail("data-valid", id + " sitting size changed.");
+        for (let i = 0; i < band.pictures.length; i++) {
+          if (!PICTURES[band.pictures[i]]) fail("data-valid", id + " listed an unknown picture.");
+        }
+      }
+    });
+    run("labels", function () {
+      function texts(mode) {
+        const pic = pictureNow();
+        const n = pic.points.length;
+        const got = [];
+        for (let i = 0; i < n; i++) {
+          const btn = document.getElementById("star-" + i);
+          if (index !== i || !btn) {
+            index = i;
+            render();
+          }
+          const live = document.getElementById("star-" + i);
+          const span = live ? live.querySelector("span") : null;
+          got.push(span ? span.textContent : null);
+        }
+        index = 0;
+        render();
+        const beside = [];
+        const nodes = dotsEl.querySelectorAll(".mark");
+        for (let i = 0; i < nodes.length; i++) beside.push(nodes[i].textContent);
+        return { lit: got, beside: beside, mode: mode };
+      }
+      boot("little", 1);
+      const little = texts("numbers");
+      const n1 = state().count;
+      for (let i = 0; i < n1; i++) {
+        if (little.lit[i] !== String(i + 1)) fail("labels", "Starry lit star " + i + " was not numbered.");
+      }
+      if (little.beside.join(",") !== little.lit.slice(1).join(",")) fail("labels", "Starry dots were not numbered beside the stars.");
+      boot("shop", 1);
+      const shop = texts("numbers");
+      if (shop.lit[0] !== "1" || shop.lit[shop.lit.length - 1] !== String(shop.lit.length)) fail("labels", "Night Sky did not number the stars.");
+      boot("rush", 1);
+      const rush = texts("letters");
+      const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+      for (let i = 0; i < rush.lit.length; i++) {
+        if (rush.lit[i] !== letters.charAt(i)) fail("labels", "Star Map star " + i + " was not a letter.");
+      }
+      if (rush.beside[0] !== "B") fail("labels", "Star Map did not letter the other stars.");
+      boot("tiny", 1);
+      const tinyBtn = document.getElementById("star-0");
+      const tinyText = tinyBtn ? tinyBtn.querySelector("span").textContent : "x";
+      if (tinyText !== "" || dotsEl.querySelector(".mark")) fail("labels", "Twinkle labeled a star.");
+      if (speakCalls !== 0) fail("labels", "A label spoke.");
+    });
+    run("edge-inset", function () {
+      const views = [[390, 700], [1024, 768]];
+      const ids = Object.keys(PICTURES);
+      for (let v = 0; v < views.length; v++) {
+        const w = views[v][0];
+        const h = views[v][1];
+        const sq = pictureSquare(w, h);
+        if (w === 390 && h === 700 && (sq.side !== 358 || sq.x !== 16)) fail("edge-inset", "The 390 by 700 square was not 358 px.");
+        if (w === 1024 && h === 768 && sq.side !== 640) fail("edge-inset", "The 1024 by 768 square was not 640 px.");
+        for (let p = 0; p < ids.length; p++) {
+          const pic = PICTURES[ids[p]];
+          for (let i = 0; i < pic.points.length; i++) {
+            const box = starButtonBox(w, h, pic.points[i][0], pic.points[i][1]);
+            if (!box || box.w < 112 || box.h < 112) fail("edge-inset", ids[p] + " point " + i + " was under 112 at " + w + ".");
+            else if (box.x < 16 || box.y < 16 || box.x + box.w > w - 16 || box.y + box.h > h - 16) {
+              fail("edge-inset", ids[p] + " point " + i + " left the 16 px inset at " + w + " by " + h + ".");
+            }
+          }
+        }
+      }
+      boot("rush", 1);
+      const live = targetById(centers().targets, "star-" + state().index);
+      if (!live || live.w < 112 || live.h < 112) fail("edge-inset", "The live lit star was under 112.");
+      else if (live.x < 16 || live.y < 16 || live.x + live.w > window.innerWidth - 16 || live.y + live.h > window.innerHeight - 16) {
+        fail("edge-inset", "The live lit star left the 16 px inset.");
+      }
+    });
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+      const end = state();
+      if (!("level" in end) || !("screen" in end) || !("banner" in end) || !("muted" in end)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+    });
+    try {
+      assertJunk("at the end");
+    } catch (err) {
+      fail("family-query-inert", err && err.message ? err.message : "The junk check threw.");
+    }
+    try {
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+      if (origSpeak && window.speechSynthesis) window.speechSynthesis.speak = origSpeak;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.starPictures = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) {
+      result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
