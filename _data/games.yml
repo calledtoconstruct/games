@@ -68,3 +68,6 @@ echo-garden:
 sky-keeper:
   name: "Sky Keeper"
   line: "A sky game for ages 2 and up."
+two-pairs-of-eyes:
+  name: "Two Pairs of Eyes"
+  line: "A cave game for two people."

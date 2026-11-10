@@ -30,6 +30,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Painter of Light](https://calledtoconstruct.github.io/games/painter-of-light/)
 - [Echo Garden](https://calledtoconstruct.github.io/games/echo-garden/)
 - [Sky Keeper](https://calledtoconstruct.github.io/games/sky-keeper/)
+- [Two Pairs of Eyes](https://calledtoconstruct.github.io/games/two-pairs-of-eyes/)
 
 ## Pop Pals
 
@@ -226,6 +227,14 @@ A sky game for ages 2 and up. You look at a cloud and it rains on the field unde
 Open `sky-keeper/index.html` in a browser, or play [Sky Keeper](https://calledtoconstruct.github.io/games/sky-keeper/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Two Pairs of Eyes
+
+A team game for two. The guide looks at the map with an eye tracker, and the helper walks the explorer through a dark cave with a mouse or the arrow keys. The helper sees a soft light wherever the guide is looking. Little Cave has one gem. Cozy Cave, Deep Cave, and Giant Cave have more gems and puddles. It works best on one computer with two screens, and there is a one-screen and a solo way to play. The helper's window is the same page with `?cave`, and that window does not open the gaze socket. Nothing is timed.
+
+Open `two-pairs-of-eyes/index.html` in a browser, or play [Two Pairs of Eyes](https://calledtoconstruct.github.io/games/two-pairs-of-eyes/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears on the map window. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the map on the panel that was calibrated. An https page will not open that socket.
 
 ## Add a game
 
