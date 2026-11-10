@@ -1,0 +1,2189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Sky Keeper</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 28; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 8px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 25; pointer-events: none;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 6px 14px; font-size: 18px; font-weight: 800;
+    text-align: center;
+  }
+  #menu-card, #rest-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-rest, #play, #menu-copy, #rest-line, h1, p, b, small {
+    pointer-events: none;
+  }
+  #scene, #scene * { pointer-events: none; }
+  #menu-copy, #rest-line {
+    position: fixed; z-index: 24; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line { font-size: 28px; font-weight: 800; }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush, #another, #done, #play button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 15px; line-height: 1.1;
+    padding: 4px;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #another, #done {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 26px;
+  }
+  #play button.cloud {
+    border: 3px solid #fff;
+    border-radius: 50%;
+    padding: 0;
+    background: #fff;
+    box-shadow: 0 8px 0 #d5dde6;
+  }
+  #play button.cloud.busy {
+    background: #6f86a6;
+    border-color: #d5dde6;
+    pointer-events: none;
+    box-shadow: 0 10px 0 #5c7394;
+  }
+  #scene {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    z-index: 1; display: block;
+  }
+  @keyframes bob {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(4px); }
+  }
+  @keyframes bob-busy {
+    0%, 100% { transform: translateY(0) scale(1.08); }
+    50% { transform: translateY(4px) scale(1.08); }
+  }
+  @keyframes drip {
+    from { transform: translateY(-6px); }
+    to { transform: translateY(6px); }
+  }
+  @keyframes dance {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+  }
+  #play button.cloud { animation: bob 3.2s ease-in-out infinite; }
+  #play button.cloud.busy { animation: bob-busy 3.2s ease-in-out infinite; }
+  .drip { animation: drip 0.9s linear infinite; }
+  .dance { animation: dance 0.8s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    #play button.cloud, #play button.cloud.busy, .drip, .dance { animation: none !important; }
+    #play button.cloud.busy { transform: scale(1.08); }
+  }
+</style>
+</head>
+<body>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick who is playing.</p>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Sky Keeper</h1>
+    <p>You are the sky over a tiny village. Look at a cloud to bring rain.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Little Sky</b><small>Ages 2 to 3. Two fields.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Village Sky</b><small>Ages 4 to 5. Three fields.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Farm Sky</b><small>Ages 6 to 8. Four fields, thirsty pumpkins.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Weather Keeper</b><small>Ages 9 and up. Not too much rain.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <svg id="scene" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg>
+  <button id="cloud-0" class="cloud" type="button" data-play="true" data-field="0" aria-label="Wheat cloud"></button>
+  <button id="cloud-1" class="cloud" type="button" data-play="true" data-field="1" aria-label="Carrots cloud"></button>
+  <button id="cloud-2" class="cloud" type="button" data-play="true" data-field="2" aria-label="Corn cloud"></button>
+  <button id="cloud-3" class="cloud" type="button" data-play="true" data-field="3" aria-label="Pumpkins cloud"></button>
+  <button id="done" type="button">Done</button>
+</div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">The village thanks the sky.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const CROPS = {
+    wheat: { name: "Wheat", drainMs: 10000, colors: { sprout: "#7fbf6a", ripe: "#F0E442" }, shape: "tall thin stalks with grain heads" },
+    carrots: { name: "Carrots", drainMs: 10000, colors: { sprout: "#7fbf6a", ripe: "#E69F00" }, shape: "leafy tufts; ripe shows orange tops" },
+    corn: { name: "Corn", drainMs: 10000, colors: { sprout: "#7fbf6a", ripe: "#F0E442" }, shape: "tall stalks with broad leaves and cobs" },
+    pumpkins: { name: "Pumpkins", drainMs: 6000, colors: { sprout: "#7fbf6a", ripe: "#D55E00" }, shape: "low vines; ripe shows round ribbed pumpkins" }
+  };
+  const BANDS = {
+    tiny: { fields: ["wheat", "carrots"], stageMs: 10000, festivalEvery: 2, tooWet: false },
+    little: { fields: ["wheat", "carrots", "corn"], stageMs: 15000, festivalEvery: 3, tooWet: false },
+    shop: { fields: ["wheat", "carrots", "corn", "pumpkins"], stageMs: 20000, festivalEvery: 4, tooWet: false },
+    rush: { fields: ["wheat", "carrots", "corn", "pumpkins"], stageMs: 20000, festivalEvery: 4, tooWet: true }
+  };
+  const RAIN_MS = 6000;
+  const PLANT_DELAY_MS = 5000;
+  const HARVEST_DELAY_MS = 3000;
+  const FESTIVAL_MS = 8000;
+  const PUDDLE_MS = 10000;
+  const FESTIVALS_TO_REST = 3;
+  const STAGE_NAME = ["empty", "seed", "sprout", "growing", "ripe"];
+  const NS = "http://www.w3.org/2000/svg";
+
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const playEl = document.getElementById("play");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const scene = document.getElementById("scene");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+  const doneBtn = document.getElementById("done");
+  const anotherBtn = document.getElementById("another");
+  const cloudBtns = [0, 1, 2, 3].map(function (i) { return document.getElementById("cloud-" + i); });
+
+  let level = "tiny";
+  let screen = "menu";
+  let muted = false;
+  let fields = [];
+  let harvests = 0;
+  let sinceFest = 0;
+  let festivals = 0;
+  let festLeft = 0;
+  let baskets = 0;
+  let pin = null;
+  let checking = false;
+  let suppressReconnect = false;
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let rainSrc = null;
+  let rainGain = null;
+  let rainStop = 0;
+  let festNoteAt = 0;
+  let festNoteI = 0;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let sceneReady = false;
+  let skyRect = null;
+  let groundRect = null;
+  let sunCircle = null;
+  let houseNodes = [];
+  let barnNode = null;
+  let squareNode = null;
+  let basketNodes = [];
+  let festGroup = null;
+  let fieldNodes = [];
+
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function knownBand(band) { return BAND_IDS.indexOf(band) >= 0; }
+  function bandSpec() { return BANDS[level] || BANDS.tiny; }
+  function stageMs() { return bandSpec().stageMs; }
+
+  function svgEl(name, attrs) {
+    const node = document.createElementNS(NS, name);
+    if (attrs) {
+      for (const k in attrs) node.setAttribute(k, attrs[k]);
+    }
+    return node;
+  }
+  function show(node, on) {
+    if (!node) return;
+    node.setAttribute("visibility", on ? "visible" : "hidden");
+  }
+
+  function buildScene() {
+    if (sceneReady) return;
+    sceneReady = true;
+    skyRect = svgEl("rect", { fill: "#c5dff5" });
+    groundRect = svgEl("rect", { fill: "#8fbf6a" });
+    sunCircle = svgEl("circle", { fill: "#ffc857", stroke: "#e2a62e", "stroke-width": "4" });
+    scene.appendChild(skyRect);
+    scene.appendChild(sunCircle);
+    scene.appendChild(groundRect);
+    for (let h = 0; h < 3; h++) {
+      const g = svgEl("g");
+      g.appendChild(svgEl("rect", { fill: "#fffdf6", stroke: "#2c2416", "stroke-width": "3" }));
+      g.appendChild(svgEl("polygon", { fill: "#d55e00", stroke: "#2c2416", "stroke-width": "3" }));
+      houseNodes.push(g);
+      scene.appendChild(g);
+    }
+    barnNode = svgEl("g");
+    barnNode.appendChild(svgEl("rect", { fill: "#c47b4a", stroke: "#2c2416", "stroke-width": "3" }));
+    barnNode.appendChild(svgEl("polygon", { fill: "#8c3b2a", stroke: "#2c2416", "stroke-width": "3" }));
+    const barnDoor = svgEl("rect", { fill: "#5c3a22" });
+    barnNode.appendChild(barnDoor);
+    for (let b = 0; b < 8; b++) {
+      const basket = svgEl("g");
+      basket.appendChild(svgEl("path", { fill: "#c47b4a", stroke: "#2c2416", "stroke-width": "2" }));
+      basket.appendChild(svgEl("path", { fill: "none", stroke: "#2c2416", "stroke-width": "2" }));
+      basketNodes.push(basket);
+      barnNode.appendChild(basket);
+    }
+    scene.appendChild(barnNode);
+    squareNode = svgEl("rect", { fill: "#e6d3a3", stroke: "#2c2416", "stroke-width": "3", rx: "8" });
+    scene.appendChild(squareNode);
+    festGroup = svgEl("g");
+    for (let i = 0; i < 4; i++) {
+      const lamp = svgEl("g");
+      lamp.appendChild(svgEl("line", { stroke: "#2c2416", "stroke-width": "2" }));
+      lamp.appendChild(svgEl("circle", { fill: "#ffc857", stroke: "#e2a62e", "stroke-width": "2" }));
+      festGroup.appendChild(lamp);
+    }
+    for (let d = 0; d < 3; d++) {
+      const dancer = svgEl("g", { class: "dance" });
+      dancer.appendChild(svgEl("circle", { fill: "#2458a8", r: "7" }));
+      dancer.appendChild(svgEl("path", { fill: "#2458a8", stroke: "#fffdf6", "stroke-width": "2" }));
+      festGroup.appendChild(dancer);
+    }
+    scene.appendChild(festGroup);
+    for (let i = 0; i < 4; i++) {
+      const g = svgEl("g");
+      const soil = svgEl("rect", { fill: "#c4a15a", stroke: "#6b4f2a", "stroke-width": "3", rx: "8" });
+      const cracks = svgEl("g");
+      for (let c = 0; c < 3; c++) cracks.appendChild(svgEl("path", { fill: "none", stroke: "#6b4f2a", "stroke-width": "2" }));
+      const puddle = svgEl("ellipse", { fill: "#7eb6d9", stroke: "#2c2416", "stroke-width": "2" });
+      const crop = svgEl("g");
+      const seed = svgEl("circle", { fill: "#6b4f2a" });
+      const body = svgEl("path", { fill: "#7fbf6a", stroke: "#2c2416", "stroke-width": "2" });
+      const fruits = [0, 1, 2].map(function () {
+        return svgEl("ellipse", { stroke: "#2c2416", "stroke-width": "2" });
+      });
+      crop.appendChild(body);
+      fruits.forEach(function (fr) { crop.appendChild(fr); });
+      crop.appendChild(seed);
+      const rain = svgEl("g");
+      for (let r = 0; r < 6; r++) {
+        rain.appendChild(svgEl("line", { stroke: "#3d7ea6", "stroke-width": "3", "stroke-linecap": "round", class: "drip" }));
+      }
+      const drops = [0, 1, 2].map(function () {
+        return svgEl("path", { stroke: "#1d6fd4", "stroke-width": "2" });
+      });
+      const sign = svgEl("g");
+      sign.appendChild(svgEl("rect", { fill: "#fffdf6", stroke: "#2c2416", "stroke-width": "2", rx: "6" }));
+      const label = svgEl("text", {
+        fill: "#2c2416",
+        "font-family": "Trebuchet MS, Segoe UI, sans-serif",
+        "font-size": "13",
+        "font-weight": "800",
+        "text-anchor": "middle"
+      });
+      sign.appendChild(label);
+      const villager = svgEl("g");
+      villager.appendChild(svgEl("circle", { fill: "#f0d2b4", stroke: "#2c2416", "stroke-width": "2", r: "7" }));
+      villager.appendChild(svgEl("path", { fill: "#2458a8", stroke: "#2c2416", "stroke-width": "2" }));
+      const can = svgEl("g");
+      can.appendChild(svgEl("rect", { fill: "#6f86a6", stroke: "#2c2416", "stroke-width": "2" }));
+      can.appendChild(svgEl("path", { fill: "none", stroke: "#2c2416", "stroke-width": "2" }));
+      villager.appendChild(can);
+      const vbasket = svgEl("path", { fill: "#c47b4a", stroke: "#2c2416", "stroke-width": "2" });
+      villager.appendChild(vbasket);
+      const fieldSun = svgEl("g");
+      fieldSun.appendChild(svgEl("circle", { fill: "#ffc857", stroke: "#e2a62e", "stroke-width": "2", r: "8" }));
+      for (let s = 0; s < 4; s++) fieldSun.appendChild(svgEl("line", { stroke: "#e2a62e", "stroke-width": "2" }));
+      g.appendChild(soil);
+      g.appendChild(cracks);
+      g.appendChild(puddle);
+      g.appendChild(fieldSun);
+      g.appendChild(crop);
+      g.appendChild(rain);
+      drops.forEach(function (d) { g.appendChild(d); });
+      g.appendChild(sign);
+      g.appendChild(villager);
+      scene.appendChild(g);
+      fieldNodes.push({
+        g: g, soil: soil, cracks: cracks, puddle: puddle, crop: crop, seed: seed, body: body,
+        fruits: fruits, rain: rain, drops: drops, sign: sign, label: label, villager: villager,
+        can: can, vbasket: vbasket, fieldSun: fieldSun
+      });
+    }
+  }
+
+  function bannerText() {
+    if (screen === "menu") return "Pick who is playing.";
+    if (screen === "rest") return "The village thanks the sky.";
+    if (festLeft > 0) return "Harvest festival!";
+    if (fields) {
+      for (let i = 0; i < fields.length; i++) {
+        if (fields[i].puddle > 0) return "That field is very wet.";
+      }
+      for (let i = 0; i < fields.length; i++) {
+        const f = fields[i];
+        if (f.water === 0 && f.stage > 0) {
+          return "The " + CROPS[f.crop].name.toLowerCase() + " are thirsty.";
+        }
+      }
+    }
+    return "Look at a cloud to bring rain.";
+  }
+
+  function resetSitting() {
+    const spec = bandSpec();
+    fields = spec.fields.map(function (crop) {
+      return {
+        crop: crop,
+        stage: 0,
+        water: 3,
+        rain: 0,
+        puddle: 0,
+        drain: 0,
+        grow: 0,
+        plant: 0,
+        harvest: 0
+      };
+    });
+    harvests = 0;
+    sinceFest = 0;
+    festivals = 0;
+    festLeft = 0;
+    baskets = 0;
+    festNoteAt = 0;
+    festNoteI = 0;
+  }
+
+  function go(id) {
+    if (id !== "menu" && id !== "play" && id !== "rest") {
+      render();
+      return;
+    }
+    screen = id;
+    render();
+  }
+  function highlight(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    render();
+  }
+  function start(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    pin = null;
+    resetSitting();
+    go("play");
+  }
+  function another() {
+    start(level);
+  }
+
+  function fieldSnap(f) {
+    return {
+      crop: f.crop,
+      name: CROPS[f.crop].name,
+      stage: STAGE_NAME[f.stage],
+      water: f.water,
+      raining: f.rain > 0,
+      thirsty: f.water === 0 && f.stage > 0,
+      puddle: f.puddle > 0
+    };
+  }
+  function state() {
+    render();
+    return {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      fields: fields.map(fieldSnap),
+      harvests: harvests,
+      festivals: festivals,
+      festival: festLeft > 0
+    };
+  }
+
+  function nextWait() {
+    let wait = null;
+    function consider(v) {
+      if (v > 0 && (wait === null || v < wait)) wait = v;
+    }
+    if (festLeft > 0) consider(festLeft);
+    const sms = stageMs();
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i];
+      const drainMs = CROPS[f.crop].drainMs;
+      if (f.rain > 0) consider(f.rain);
+      if (f.puddle > 0) consider(f.puddle);
+      if (f.water > 0) consider(drainMs - f.drain);
+      if (f.stage === 0) consider(PLANT_DELAY_MS - f.plant);
+      if (f.stage === 4) consider(HARVEST_DELAY_MS - f.harvest);
+      if (f.stage >= 1 && f.stage < 4 && f.water > 0 && f.rain <= 0 && f.puddle <= 0) consider(sms - f.grow);
+    }
+    return wait === null ? 1e15 : wait;
+  }
+  function applySlice(dt) {
+    const sms = stageMs();
+    const festOn = festLeft > 0;
+    if (festOn) festLeft -= dt;
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i];
+      const raining = f.rain > 0;
+      const pud = f.puddle > 0;
+      const wet = f.water > 0;
+      const canGrow = f.stage >= 1 && f.stage < 4 && wet && !raining && !pud;
+      if (raining) f.rain -= dt;
+      if (pud) f.puddle -= dt;
+      if (wet) f.drain += dt;
+      if (f.stage === 0) f.plant += dt;
+      if (f.stage === 4) f.harvest += dt;
+      if (canGrow) f.grow += dt;
+    }
+    void sms;
+  }
+  function resolveSlice() {
+    let started = false;
+    if (festLeft < 1e-6) festLeft = 0;
+    const sms = stageMs();
+    const every = bandSpec().festivalEvery;
+    for (let i = 0; i < fields.length; i++) {
+      const f = fields[i];
+      const drainMs = CROPS[f.crop].drainMs;
+      if (f.rain < 1e-6) f.rain = 0;
+      if (f.puddle < 1e-6) f.puddle = 0;
+      if (f.stage >= 1 && f.stage < 4 && f.water > 0 && f.rain <= 0 && f.puddle <= 0 && f.grow >= sms) {
+        f.stage += 1;
+        f.grow = 0;
+        f.harvest = 0;
+      }
+      if (f.water > 0 && f.drain >= drainMs) {
+        f.water -= 1;
+        f.drain = 0;
+      }
+      if (f.stage === 0 && f.plant >= PLANT_DELAY_MS) {
+        f.stage = 1;
+        f.plant = 0;
+        f.grow = 0;
+        plantSound();
+      }
+      if (f.stage === 4 && f.harvest >= HARVEST_DELAY_MS) {
+        f.stage = 0;
+        f.plant = 0;
+        f.harvest = 0;
+        f.grow = 0;
+        harvests += 1;
+        baskets += 1;
+        sinceFest += 1;
+        harvestSound();
+        if (sinceFest >= every) {
+          sinceFest = 0;
+          festivals += 1;
+          festLeft = FESTIVAL_MS;
+          started = true;
+          festNoteAt = 0;
+          festNoteI = 0;
+        }
+      }
+    }
+    if (!started && festivals >= FESTIVALS_TO_REST && festLeft <= 0 && screen === "play") {
+      go("rest");
+    }
+  }
+  function advance(dt) {
+    let left = dt;
+    let guard = 0;
+    while (left > 1e-6 && screen === "play" && guard < 5000) {
+      guard += 1;
+      const wait = nextWait();
+      const slice = Math.min(left, wait);
+      if (!(slice > 0)) break;
+      applySlice(slice);
+      left -= slice;
+      resolveSlice();
+    }
+  }
+
+  function bringRain(i) {
+    if (screen !== "play" || !fields[i]) {
+      render();
+      return;
+    }
+    const f = fields[i];
+    if (f.rain > 0) {
+      render();
+      return;
+    }
+    if (bandSpec().tooWet && f.water >= 3) {
+      f.puddle = PUDDLE_MS;
+    } else {
+      f.water = 3;
+      f.drain = 0;
+    }
+    f.rain = RAIN_MS;
+    render();
+  }
+
+  function ensureAudio() {
+    if (checking || ac) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(ac.destination);
+    } catch (err) {
+      ac = null;
+      master = null;
+    }
+  }
+  function tone(freq, when, dur, gain) {
+    if (checking || !ac || !master) return;
+    try {
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      osc.connect(g);
+      g.connect(master);
+      g.gain.setValueAtTime(0.0001, when);
+      g.gain.exponentialRampToValueAtTime(gain, when + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+      osc.start(when);
+      osc.stop(when + dur + 0.02);
+    } catch (err) {}
+  }
+  function plantSound() {
+    if (!ac) return;
+    tone(180, ac.currentTime, 0.09, 0.35);
+  }
+  function harvestSound() {
+    if (!ac) return;
+    const t0 = ac.currentTime;
+    tone(392, t0, 0.16, 0.3);
+    tone(523, t0 + 0.16, 0.22, 0.3);
+  }
+  function syncRainAudio() {
+    if (checking || !ac || !master) return;
+    const any = fields.some(function (f) { return f.rain > 0; });
+    const now = ac.currentTime;
+    if (any && !rainSrc) {
+      const rate = ac.sampleRate;
+      const buffer = ac.createBuffer(1, rate, rate);
+      const data = buffer.getChannelData(0);
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+      const filter = ac.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 1200;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(0.0001, now);
+      g.gain.exponentialRampToValueAtTime(0.18, now + 0.35);
+      src.connect(filter);
+      filter.connect(g);
+      g.connect(master);
+      src.start();
+      rainSrc = src;
+      rainGain = g;
+      rainStop = 0;
+    } else if (!any && rainSrc && !rainStop) {
+      try {
+        rainGain.gain.cancelScheduledValues(now);
+        rainGain.gain.setValueAtTime(Math.max(0.0001, rainGain.gain.value), now);
+        rainGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+        rainSrc.stop(now + 0.4);
+      } catch (err) {}
+      rainStop = 1;
+      rainSrc = null;
+      rainGain = null;
+    }
+  }
+  function pumpFestival() {
+    if (checking || !ac || !master || festLeft <= 0) return;
+    const notes = [262, 330, 392, 523, 392, 330, 262, 523];
+    const step = 0.3;
+    let t = Math.max(ac.currentTime + 0.05, festNoteAt);
+    const horizon = ac.currentTime + 2.4;
+    while (t < horizon) {
+      tone(notes[festNoteI % 8], t, 0.24, 0.22);
+      festNoteI += 1;
+      t += step;
+    }
+    festNoteAt = t;
+  }
+
+  function chromeBoxes(w) {
+    const y = 8;
+    const h = 72;
+    const mute = { id: "mute", x: 8, y: y, w: 72, h: h };
+    const full = { id: "full", x: 88, y: y, w: 72, h: h };
+    const room = w - 176 - 8;
+    const backW = Math.max(72, Math.min(176, room));
+    const back = { id: "back", x: w - 8 - backW, y: y, w: backW, h: h };
+    return { mute: mute, full: full, back: back };
+  }
+  function menuLayout(w, h) {
+    const btnH = 72;
+    const gap = 8;
+    const titleH = 64;
+    const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+    const columnH = titleH + gap + ids.length * btnH + (ids.length - 1) * gap;
+    const belowTop = 92;
+    const fitsBelow = belowTop + columnH <= h - 8;
+    let cardW;
+    let cardX;
+    let top;
+    if (fitsBelow) {
+      cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      cardX = (w - cardW) / 2;
+      top = belowTop;
+    } else if (8 + columnH <= h - 8) {
+      const leftLimit = 168;
+      const rightLimit = w - 8;
+      cardW = Math.min(460, Math.max(72, rightLimit - leftLimit));
+      cardX = leftLimit + Math.max(0, (rightLimit - leftLimit - cardW) / 2);
+      top = 8;
+    } else {
+      cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      cardX = (w - cardW) / 2;
+      top = 8;
+    }
+    const buttons = [];
+    const useGrid = top + columnH > h - 8;
+    let title;
+    if (!useGrid) {
+      title = { x: cardX, y: top, w: cardW, h: titleH };
+      let y = top + titleH + gap;
+      for (let i = 0; i < ids.length; i++) {
+        buttons.push({ id: ids[i], x: cardX, y: y, w: Math.max(72, cardW), h: btnH });
+        y += btnH + gap;
+      }
+      const card = { x: cardX, y: top, w: cardW, h: y - gap - top };
+      return { title: title, buttons: buttons, card: card };
+    }
+    const gridTitle = 48;
+    title = { x: cardX, y: top, w: cardW, h: gridTitle };
+    const colW = Math.max(72, Math.floor((cardW - gap) / 2));
+    const gridW = colW * 2 + gap;
+    const gridX = cardX + Math.max(0, (cardW - gridW) / 2);
+    let y = top + gridTitle + gap;
+    const bandIds = ["tiny", "little", "shop", "rush"];
+    for (let i = 0; i < bandIds.length; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      buttons.push({
+        id: bandIds[i],
+        x: gridX + col * (colW + gap),
+        y: y + row * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    y += 2 * (btnH + gap);
+    buttons.push({ id: "lets-go", x: cardX, y: y, w: Math.max(72, cardW), h: btnH });
+    const card = { x: cardX, y: top, w: cardW, h: y + btnH - top };
+    return { title: title, buttons: buttons, card: card };
+  }
+  function restLayout(w, h) {
+    const cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+    const cardX = Math.round((w - cardW) / 2);
+    const y = 96;
+    return {
+      card: { x: cardX, y: y, w: cardW, h: 168 },
+      line: { x: cardX + 12, y: y + 48, w: cardW - 24, h: 72 }
+    };
+  }
+  function anotherBox(w, h) {
+    const aw = Math.min(200, Math.max(72, w - 160));
+    return { id: "another", x: 16, y: h - 16 - 72, w: aw, h: 72 };
+  }
+  function doneBox(w, h) {
+    const dw = Math.min(160, Math.max(72, w - 200));
+    return { id: "done", x: 16, y: h - 16 - 72, w: dw, h: 72 };
+  }
+  function cloudSize(n, w) {
+    if (w < 700) {
+      if (n <= 2) return { w: 150, h: 100 };
+      if (n === 3) return { w: 110, h: 90 };
+      return { w: 83, h: 80 };
+    }
+    const gap = 8;
+    const inner = w - 32 - gap * (n - 1);
+    const cw = Math.min(200, Math.floor(inner / n));
+    const ch = Math.min(120, Math.max(80, Math.round(cw * 0.6)));
+    return { w: cw, h: ch };
+  }
+  function cloudBoxes(n, w, h) {
+    if (!n) return null;
+    const size = cloudSize(n, w);
+    if (size.w < 72 || size.h < 72) return null;
+    const gap = 8;
+    const total = n * size.w + (n - 1) * gap;
+    const x0 = Math.round((w - total) / 2);
+    const y = 96;
+    if (x0 < 16 || y < 16) return null;
+    const boxes = [];
+    for (let i = 0; i < n; i++) {
+      const x = x0 + i * (size.w + gap);
+      if (x < 16 || x + size.w > w - 16) return null;
+      if (y + size.h > h - 16) return null;
+      boxes.push({ id: "cloud-" + i, x: x, y: y, w: size.w, h: size.h, play: true, field: i });
+    }
+    const last = boxes[n - 1];
+    if (last.x + last.w > w - 16) return null;
+    return boxes;
+  }
+  function sceneGeom(w, h) {
+    const n = fields.length;
+    const clouds = cloudBoxes(n, w, h);
+    if (!clouds) return null;
+    const ch = clouds[0].h;
+    const fieldTop = clouds[0].y + ch + 10;
+    const foot = 16 + 72 + 10;
+    const room = h - fieldTop - foot;
+    const villageH = Math.max(78, Math.min(130, Math.floor(room * 0.34)));
+    const fieldH = room - villageH;
+    if (fieldH < 64) return null;
+    const cols = clouds.map(function (c, i) {
+      return { x: c.x, y: fieldTop, w: c.w, h: fieldH, i: i };
+    });
+    const left = clouds[0].x;
+    const right = clouds[n - 1].x + clouds[n - 1].w;
+    const village = { x: left, y: fieldTop + fieldH, w: right - left, h: villageH };
+    return { clouds: clouds, cols: cols, village: village };
+  }
+  function overlaps(a, b) {
+    return a.x < b.x + b.w - 0.5 && a.x + a.w > b.x + 0.5 && a.y < b.y + b.h - 0.5 && a.y + a.h > b.y + 0.5;
+  }
+  function eyesBox(w, h, obstacles) {
+    const spots = [
+      { x: w - 8 - 78, y: h - 8 - 40, w: 74, h: 36 },
+      { x: w - 8 - 78, y: h - 16 - 72 - 8 - 36, w: 74, h: 36 },
+      { x: 8, y: h - 8 - 40, w: 74, h: 36 }
+    ];
+    for (let s = 0; s < spots.length; s++) {
+      const box = spots[s];
+      if (box.x < 0 || box.y < 0 || box.x + box.w > w || box.y + box.h > h) continue;
+      let hit = false;
+      for (let i = 0; i < obstacles.length; i++) {
+        if (overlaps(box, obstacles[i])) { hit = true; break; }
+      }
+      if (!hit) return box;
+    }
+    return spots[0];
+  }
+  function bannerBox(w, h) {
+    const chrome = chromeBoxes(w);
+    if (screen === "menu") {
+      const left = chrome.full.x + chrome.full.w + 8;
+      const right = w - 8;
+      const bw = right - left;
+      if (bw >= 160) return { x: left, y: 16, w: bw, h: 48 };
+    }
+    const bw = Math.min(420, Math.max(72, w - 120));
+    return { x: 16, y: h - 16 - 72 - 8 - 44, w: bw, h: 44 };
+  }
+  function layoutTargets(w, h) {
+    if (!(w >= 320) || !(h >= 320)) return null;
+    const chrome = chromeBoxes(w);
+    const targets = [chrome.mute, chrome.full];
+    if (screen !== "menu") targets.push(chrome.back);
+    if (screen === "menu") {
+      const menu = menuLayout(w, h);
+      for (let i = 0; i < menu.buttons.length; i++) targets.push(menu.buttons[i]);
+    }
+    if (screen === "play") {
+      const geom = sceneGeom(w, h);
+      if (!geom) return null;
+      for (let i = 0; i < geom.clouds.length; i++) {
+        const f = fields[i];
+        if (f && f.rain > 0) continue;
+        targets.push(geom.clouds[i]);
+      }
+      targets.push(doneBox(w, h));
+    }
+    if (screen === "rest") targets.push(anotherBox(w, h));
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      if (Math.min(t.w, t.h) < 72) return null;
+      if (t.x < 0 || t.y < 0 || t.x + t.w > w || t.y + t.h > h) return null;
+    }
+    return targets;
+  }
+  function targetsAt(w, h) {
+    render();
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const boxes = layoutTargets(w, h);
+    if (!boxes) return { ok: false, targets: [] };
+    return {
+      ok: true,
+      targets: boxes.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+  function place(el, box) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+
+  function cropDrawing(crop, stage, col) {
+    const x = col.x;
+    const y = col.y;
+    const w = col.w;
+    const h = col.h;
+    const base = y + h - 28;
+    const cx = x + w * 0.5;
+    const fruits = [];
+    let d = "";
+    let seedOn = false;
+    let bodyOn = false;
+    if (stage <= 0) return { d: d, fruits: fruits, seedOn: false, bodyOn: false, base: base, cx: cx };
+    if (stage === 1) {
+      seedOn = true;
+      return { d: d, fruits: fruits, seedOn: seedOn, bodyOn: false, base: base, cx: cx };
+    }
+    bodyOn = true;
+    const ripe = stage === 4;
+    const growing = stage === 3;
+    const sprout = stage === 2;
+    const tall = sprout ? 18 : growing ? 36 : 54;
+    const green = "#7fbf6a";
+    if (crop === "wheat") {
+      const hh = sprout ? 16 : growing ? 40 : 62;
+      d = "M" + (cx - 10) + " " + base + " L" + (cx - 12) + " " + (base - hh) +
+        " M" + cx + " " + base + " L" + cx + " " + (base - hh - 6) +
+        " M" + (cx + 10) + " " + base + " L" + (cx + 12) + " " + (base - hh);
+      if (ripe) {
+        fruits.push({ cx: cx - 12, cy: base - hh, rx: 5, ry: 8, fill: "#F0E442" });
+        fruits.push({ cx: cx, cy: base - hh - 6, rx: 5, ry: 8, fill: "#F0E442" });
+        fruits.push({ cx: cx + 12, cy: base - hh, rx: 5, ry: 8, fill: "#F0E442" });
+      }
+    } else if (crop === "carrots") {
+      const hh = sprout ? 14 : growing ? 28 : 36;
+      d = "M" + (cx - 8) + " " + base + " Q" + (cx - 16) + " " + (base - hh) + " " + cx + " " + (base - hh - 4) +
+        " Q" + (cx + 16) + " " + (base - hh) + " " + (cx + 8) + " " + base + " Z";
+      if (ripe) {
+        fruits.push({ cx: cx - 8, cy: base + 6, rx: 5, ry: 8, fill: "#E69F00" });
+        fruits.push({ cx: cx + 6, cy: base + 8, rx: 5, ry: 8, fill: "#E69F00" });
+      }
+    } else if (crop === "corn") {
+      const hh = sprout ? 16 : growing ? 42 : 64;
+      d = "M" + (cx - 14) + " " + base + " L" + (cx - 18) + " " + (base - hh * 0.6) +
+        " L" + cx + " " + (base - hh) + " L" + (cx + 18) + " " + (base - hh * 0.6) +
+        " L" + (cx + 14) + " " + base + " Z";
+      if (ripe) {
+        fruits.push({ cx: cx - 8, cy: base - hh * 0.45, rx: 6, ry: 10, fill: "#F0E442" });
+        fruits.push({ cx: cx + 8, cy: base - hh * 0.35, rx: 6, ry: 10, fill: "#F0E442" });
+      }
+    } else {
+      const hh = sprout ? 10 : growing ? 16 : 18;
+      d = "M" + (x + 8) + " " + (base - 4) + " Q" + cx + " " + (base - hh - 10) + " " + (x + w - 8) + " " + (base - 4);
+      if (ripe) {
+        fruits.push({ cx: cx - 10, cy: base - 8, rx: 12, ry: 10, fill: "#D55E00" });
+        fruits.push({ cx: cx + 12, cy: base - 4, rx: 11, ry: 9, fill: "#D55E00" });
+      } else {
+        bodyOn = true;
+      }
+    }
+    void green;
+    void tall;
+    return { d: d, fruits: fruits, seedOn: seedOn, bodyOn: bodyOn, base: base, cx: cx };
+  }
+
+  function updateScene(geom, w, h) {
+    buildScene();
+    scene.setAttribute("viewBox", "0 0 " + w + " " + h);
+    skyRect.setAttribute("x", "0");
+    skyRect.setAttribute("y", "0");
+    skyRect.setAttribute("width", String(w));
+    skyRect.setAttribute("height", String(geom.cols[0].y));
+    groundRect.setAttribute("x", "0");
+    groundRect.setAttribute("y", String(geom.cols[0].y));
+    groundRect.setAttribute("width", String(w));
+    groundRect.setAttribute("height", String(h - geom.cols[0].y));
+    sunCircle.setAttribute("cx", String(w - 70));
+    sunCircle.setAttribute("cy", "46");
+    sunCircle.setAttribute("r", "22");
+    const v = geom.village;
+    const houseW = Math.max(36, Math.min(70, v.w * 0.18));
+    for (let i = 0; i < houseNodes.length; i++) {
+      const hx = v.x + 8 + i * (houseW + 8);
+      const hy = v.y + 16;
+      const hh = Math.min(48, v.h - 24);
+      const rect = houseNodes[i].children[0];
+      const roof = houseNodes[i].children[1];
+      rect.setAttribute("x", String(hx));
+      rect.setAttribute("y", String(hy + 12));
+      rect.setAttribute("width", String(houseW));
+      rect.setAttribute("height", String(Math.max(20, hh - 12)));
+      roof.setAttribute("points", hx + "," + (hy + 14) + " " + (hx + houseW / 2) + "," + hy + " " + (hx + houseW) + "," + (hy + 14));
+      show(houseNodes[i], hx + houseW < v.x + v.w * 0.62);
+    }
+    const barnW = Math.max(54, Math.min(110, v.w * 0.28));
+    const barnX = v.x + v.w - barnW - 4;
+    const barnY = v.y + 8;
+    const barnH = Math.max(40, v.h - 16);
+    const barnRect = barnNode.children[0];
+    const barnRoof = barnNode.children[1];
+    barnRect.setAttribute("x", String(barnX));
+    barnRect.setAttribute("y", String(barnY + 14));
+    barnRect.setAttribute("width", String(barnW));
+    barnRect.setAttribute("height", String(barnH - 14));
+    barnRoof.setAttribute("points", barnX + "," + (barnY + 16) + " " + (barnX + barnW / 2) + "," + barnY + " " + (barnX + barnW) + "," + (barnY + 16));
+    const door = barnNode.children[2];
+    door.setAttribute("x", String(barnX + barnW * 0.35));
+    door.setAttribute("y", String(barnY + barnH * 0.45));
+    door.setAttribute("width", String(barnW * 0.3));
+    door.setAttribute("height", String(barnH * 0.4));
+    for (let b = 0; b < basketNodes.length; b++) {
+      const on = b < Math.min(baskets, basketNodes.length);
+      show(basketNodes[b], on);
+      const bx = barnX + 6 + (b % 4) * 16;
+      const by = barnY + 20 + Math.floor(b / 4) * 16;
+      const p = basketNodes[b].children[0];
+      p.setAttribute("d", "M" + bx + " " + by + " L" + (bx + 12) + " " + by + " L" + (bx + 10) + " " + (by + 10) + " L" + (bx + 2) + " " + (by + 10) + " Z");
+    }
+    const sqW = Math.max(40, Math.min(120, v.w * 0.3));
+    const sqX = v.x + (v.w - sqW) / 2;
+    const sqY = v.y + v.h - Math.min(36, v.h * 0.4) - 4;
+    squareNode.setAttribute("x", String(sqX));
+    squareNode.setAttribute("y", String(sqY));
+    squareNode.setAttribute("width", String(sqW));
+    squareNode.setAttribute("height", String(Math.min(32, v.h * 0.35)));
+    show(festGroup, festLeft > 0);
+    if (festLeft > 0) {
+      const lamps = [];
+      for (let i = 0; i < festGroup.children.length; i++) {
+        if (festGroup.children[i].tagName === "g" && !festGroup.children[i].classList.contains("dance")) lamps.push(festGroup.children[i]);
+      }
+      for (let i = 0; i < 4; i++) {
+        const lamp = festGroup.children[i];
+        const lx = sqX + 8 + i * ((sqW - 16) / 3);
+        const line = lamp.children[0];
+        const circ = lamp.children[1];
+        line.setAttribute("x1", String(lx));
+        line.setAttribute("y1", String(sqY));
+        line.setAttribute("x2", String(lx));
+        line.setAttribute("y2", String(sqY + 10));
+        circ.setAttribute("cx", String(lx));
+        circ.setAttribute("cy", String(sqY + 14));
+        circ.setAttribute("r", "5");
+      }
+      for (let d = 0; d < 3; d++) {
+        const dancer = festGroup.children[4 + d];
+        const dx = sqX + 16 + d * 28;
+        const dy = sqY + 8;
+        dancer.children[0].setAttribute("cx", String(dx));
+        dancer.children[0].setAttribute("cy", String(dy));
+        dancer.children[1].setAttribute("d", "M" + (dx - 8) + " " + (dy + 8) + " L" + dx + " " + (dy + 4) + " L" + (dx + 8) + " " + (dy + 8) + " L" + dx + " " + (dy + 22) + " Z");
+      }
+    }
+    for (let i = 0; i < 4; i++) {
+      const node = fieldNodes[i];
+      const on = i < fields.length;
+      show(node.g, on);
+      if (!on) continue;
+      const f = fields[i];
+      const col = geom.cols[i];
+      const thirsty = f.water === 0 && f.stage > 0;
+      node.soil.setAttribute("x", String(col.x));
+      node.soil.setAttribute("y", String(col.y + col.h * 0.42));
+      node.soil.setAttribute("width", String(col.w));
+      node.soil.setAttribute("height", String(col.h * 0.58));
+      show(node.cracks, thirsty);
+      const soilTop = col.y + col.h * 0.55;
+      for (let c = 0; c < 3; c++) {
+        const crack = node.cracks.children[c];
+        const cx = col.x + col.w * (0.25 + c * 0.22);
+        crack.setAttribute("d", "M" + cx + " " + soilTop + " l" + (c - 1) * 4 + " 10 l" + (2 - c) + " 8");
+      }
+      show(node.puddle, f.puddle > 0);
+      node.puddle.setAttribute("cx", String(col.x + col.w * 0.5));
+      node.puddle.setAttribute("cy", String(col.y + col.h * 0.72));
+      node.puddle.setAttribute("rx", String(Math.max(10, col.w * 0.28)));
+      node.puddle.setAttribute("ry", "8");
+      const draw = cropDrawing(f.crop, f.stage, col);
+      show(node.seed, draw.seedOn);
+      node.seed.setAttribute("cx", String(draw.cx));
+      node.seed.setAttribute("cy", String(draw.base - 4));
+      node.seed.setAttribute("r", "5");
+      show(node.body, draw.bodyOn);
+      node.body.setAttribute("d", draw.d || "M0 0");
+      node.body.setAttribute("fill", f.stage >= 2 ? CROPS[f.crop].colors.sprout : "#7fbf6a");
+      if (f.crop === "carrots" && f.stage >= 2) node.body.setAttribute("fill", "#7fbf6a");
+      for (let k = 0; k < 3; k++) {
+        const fr = node.fruits[k];
+        const spec = draw.fruits[k];
+        show(fr, !!spec);
+        if (spec) {
+          fr.setAttribute("cx", String(spec.cx));
+          fr.setAttribute("cy", String(spec.cy));
+          fr.setAttribute("rx", String(spec.rx));
+          fr.setAttribute("ry", String(spec.ry));
+          fr.setAttribute("fill", spec.fill);
+        }
+      }
+      if (thirsty && f.stage > 1) {
+        node.crop.setAttribute("transform", "rotate(10 " + draw.cx + " " + draw.base + ")");
+      } else {
+        node.crop.removeAttribute("transform");
+      }
+      show(node.rain, f.rain > 0);
+      const cloud = geom.clouds[i];
+      for (let r = 0; r < 6; r++) {
+        const line = node.rain.children[r];
+        const lx = cloud.x + 10 + r * ((cloud.w - 20) / 5);
+        line.setAttribute("x1", String(lx));
+        line.setAttribute("y1", String(cloud.y + cloud.h - 4));
+        line.setAttribute("x2", String(lx - 2));
+        line.setAttribute("y2", String(cloud.y + cloud.h + 16 + (r % 3) * 6));
+      }
+      const signY = col.y + 4;
+      const sign = node.sign.children[0];
+      sign.setAttribute("x", String(col.x));
+      sign.setAttribute("y", String(signY));
+      sign.setAttribute("width", String(col.w));
+      sign.setAttribute("height", "22");
+      node.label.textContent = CROPS[f.crop].name;
+      node.label.setAttribute("x", String(col.x + col.w / 2));
+      node.label.setAttribute("y", String(signY + 16));
+      for (let d = 0; d < 3; d++) {
+        const drop = node.drops[d];
+        const dx = col.x + col.w - 18 - (2 - d) * 12;
+        const dy = signY + 28;
+        const filled = d < f.water;
+        drop.setAttribute("d", "M" + dx + " " + (dy + 8) + " C" + (dx - 6) + " " + dy + " " + (dx + 6) + " " + dy + " " + dx + " " + (dy + 8) + " Z");
+        drop.setAttribute("fill", filled ? "#1d6fd4" : "#fffdf6");
+      }
+      show(node.fieldSun, f.rain <= 0);
+      const sun = node.fieldSun.children[0];
+      const sx = col.x + 16;
+      const sy = col.y + 40;
+      sun.setAttribute("cx", String(sx));
+      sun.setAttribute("cy", String(sy));
+      for (let s = 0; s < 4; s++) {
+        const ray = node.fieldSun.children[1 + s];
+        const ang = s * Math.PI / 2;
+        ray.setAttribute("x1", String(sx + Math.cos(ang) * 12));
+        ray.setAttribute("y1", String(sy + Math.sin(ang) * 12));
+        ray.setAttribute("x2", String(sx + Math.cos(ang) * 18));
+        ray.setAttribute("y2", String(sy + Math.sin(ang) * 18));
+      }
+      const vx = col.x + 6;
+      const vy = col.y + col.h - 46;
+      const head = node.villager.children[0];
+      const body = node.villager.children[1];
+      head.setAttribute("cx", String(vx + 10));
+      head.setAttribute("cy", String(vy));
+      body.setAttribute("d", "M" + vx + " " + (vy + 10) + " L" + (vx + 20) + " " + (vy + 10) + " L" + (vx + 16) + " " + (vy + 32) + " L" + (vx + 4) + " " + (vy + 32) + " Z");
+      show(node.can, thirsty);
+      const canRect = node.can.children[0];
+      canRect.setAttribute("x", String(vx + 18));
+      canRect.setAttribute("y", String(vy + 8));
+      canRect.setAttribute("width", "12");
+      canRect.setAttribute("height", "8");
+      node.can.children[1].setAttribute("d", "M" + (vx + 30) + " " + (vy + 8) + " q6 4 0 8");
+      show(node.vbasket, f.stage === 4);
+      node.vbasket.setAttribute("d", "M" + (vx + 18) + " " + (vy + 14) + " l10 0 l-2 8 l-6 0 z");
+    }
+  }
+
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const chrome = chromeBoxes(w);
+    place(muteBtn, chrome.mute);
+    place(fullBtn, chrome.full);
+    place(backBtn, chrome.back);
+    backBtn.hidden = screen === "menu";
+    menuEl.hidden = screen !== "menu";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "play";
+    bannerEl.textContent = bannerText();
+    place(bannerEl, bannerBox(w, h));
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    const menu = menuLayout(w, h);
+    place(menuCard, menu.card);
+    place(menuCopy, menu.title);
+    for (let i = 0; i < menu.buttons.length; i++) {
+      place(document.getElementById(menu.buttons[i].id), menu.buttons[i]);
+    }
+    const rest = restLayout(w, h);
+    place(restCard, rest.card);
+    place(restLine, rest.line);
+    const again = anotherBox(w, h);
+    place(anotherBtn, again);
+    const obstacles = [];
+    if (screen === "menu") obstacles.push(menu.card);
+    if (screen === "rest") obstacles.push(rest.card);
+    const laid = layoutTargets(w, h);
+    if (laid) {
+      for (let i = 0; i < laid.length; i++) obstacles.push(laid[i]);
+    }
+    place(eyesEl, eyesBox(w, h, obstacles));
+    eyesEl.hidden = !eyesOn();
+    if (screen === "play" && fields.length) {
+      const geom = sceneGeom(w, h);
+      if (geom) {
+        updateScene(geom, w, h);
+        for (let i = 0; i < 4; i++) {
+          const btn = cloudBtns[i];
+          const live = i < fields.length;
+          btn.hidden = !live;
+          if (!live) {
+            btn.removeAttribute("data-play");
+            continue;
+          }
+          place(btn, geom.clouds[i]);
+          const raining = fields[i].rain > 0;
+          btn.className = raining ? "cloud busy" : "cloud";
+          btn.setAttribute("aria-label", CROPS[fields[i].crop].name + " cloud");
+          if (raining) btn.removeAttribute("data-play");
+          else btn.setAttribute("data-play", "true");
+        }
+        place(doneBtn, doneBox(w, h));
+      }
+    }
+    syncRainAudio();
+    pumpFestival();
+  }
+
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function activate(btn) {
+    if (!btn || !buttonVisible(btn)) {
+      render();
+      return;
+    }
+    if (!checking) ensureAudio();
+    const id = btn.id;
+    if (id.indexOf("cloud-") === 0) {
+      const idx = +btn.getAttribute("data-field");
+      bringRain(idx);
+      return;
+    }
+    if (id === "lets-go") start(level);
+    else if (id === "back") go("menu");
+    else if (id === "another") another();
+    else if (id === "done") go("rest");
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (knownBand(id)) highlight(id);
+    else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn)) activate(btn);
+      } else {
+        dwellProgress = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+      }
+    } else {
+      dwellProgress = 0;
+    }
+    if (LEAVE_MS < 0) clearDwell();
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    if (clock && screen === "play") {
+      const gap = now - clock;
+      if (gap > 0 && gap < 120000) advance(gap);
+    }
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn);
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || btn.id !== armedId) return;
+    armedId = null;
+    activate(btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn); e.preventDefault(); }
+    }
+  });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+  function fresh(band) {
+    resetInput();
+    start(band);
+    step(clock);
+    return clock;
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    let origSpeak = null;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.speak) {
+        origSpeak = window.speechSynthesis.speak;
+        window.speechSynthesis.speak = function () {
+          return origSpeak.apply(window.speechSynthesis, arguments);
+        };
+      }
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+      if (state().fields.length !== 0) fail("family-query-inert", "A junk flag started a sky.");
+    });
+    run("family-plain-state", function () {
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snap.level !== "tiny" || snap.screen !== "menu" || snap.banner !== "Pick who is playing." || snap.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on Little Sky.");
+      }
+      const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank", "speech"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const box = targetById(centers().targets, "cloud-0");
+      if (!box || !box.play) fail("family-play-dwell", "The cloud was not a play target.");
+      else {
+        step(10000);
+        look(box.nx, box.ny);
+        step(10000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(10200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(10640);
+        if (state().fields[0].raining) fail("family-play-dwell", "640 ms started rain.");
+        step(10660);
+        if (!state().fields[0].raining) fail("family-play-dwell", "660 ms did not start rain.");
+      }
+      resetInput();
+      seed(1);
+      start("tiny");
+      const tapBox = targetById(centers().targets, "cloud-0");
+      tap(tapBox.nx, tapBox.ny);
+      if (!state().fields[0].raining) fail("family-play-dwell", "A tap did not start rain.");
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      if (state().screen !== "menu") go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "play") fail("family-menu-dwell", "1300 ms on Let's go did not open the sky.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "play") fail("family-menu-dwell", "600 ms on Back left the sky.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const box = targetById(centers().targets, "cloud-0");
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(30000);
+      step(30660);
+      if (state().fields[0].raining || dwell() !== 0) fail("family-pointer-blocks", "A look during hold started rain or filled the ring.");
+      release();
+      releaseLook();
+      enterLook(box, 32000);
+      step(32660);
+      if (!state().fields[0].raining) fail("family-pointer-blocks", "A fresh look after release did not start rain.");
+    });
+    run("family-stale", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const box = targetById(centers().targets, "cloud-0");
+      try {
+        enterLook(box, 36000);
+        step(36200);
+        if (!(dwell() > 0) || state().fields[0].raining) fail("family-stale", "The ring did not fill before the sample went stale.");
+        refreshHold = false;
+        step(36700);
+        if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+        if (state().fields[0].raining) fail("family-stale", "A stale sample started rain.");
+      } finally {
+        refreshHold = true;
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+            if (list[i].x < -1 || list[i].y < -1 || list[i].x + list[i].w > views[v][0] + 1 || list[i].y + list[i].h > views[v][1] + 1) {
+              fail("family-target-size", where + " target " + list[i].id + " was off the screen.");
+            }
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      seed(1);
+      start("tiny");
+      const liveBefore = targetById(centers().targets, "mute");
+      checkView("play");
+      const liveAfter = targetById(centers().targets, "mute");
+      if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+        fail("family-target-size", "targetsAt shrank a live play button.");
+      }
+    });
+    run("family-eyes", function () {
+      resetInput();
+      step(40000);
+      look(0.5, 0.5);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("family-mute", function () {
+      resetInput();
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    run("rain-dwell", function () {
+      const t = fresh("tiny");
+      step(t + 10000);
+      const box = targetById(centers().targets, "cloud-0");
+      if (!box) fail("rain-dwell", "The wheat cloud was missing.");
+      else {
+        if (state().fields[0].water !== 2) fail("rain-dwell", "Water was not 2 before the look.");
+        const nx = box.nx;
+        const ny = box.ny;
+        step(t + 10000);
+        look(nx, ny);
+        step(t + 10000);
+        step(t + 10640);
+        if (state().fields[0].raining || state().fields[0].water !== 2) fail("rain-dwell", "640 ms started rain or changed the water.");
+        releaseLook();
+        step(t + 10640);
+        look(nx, ny);
+        step(t + 10640);
+        step(t + 11300);
+        const poured = state().fields[0];
+        if (!poured.raining || poured.water !== 3) fail("rain-dwell", "660 ms did not start rain or set water to 3.");
+        releaseLook();
+        const t2 = t + 11300;
+        step(t2);
+        look(nx, ny);
+        step(t2);
+        step(t2 + 660);
+        if (dwell() !== 0) fail("rain-dwell", "A raining cloud took a look.");
+        step(t2 + 6000);
+        if (state().fields[0].raining) fail("rain-dwell", "A second look kept the rain going.");
+      }
+    });
+    run("drain", function () {
+      const t = fresh("tiny");
+      const wheat = targetById(centers().targets, "cloud-0");
+      tap(wheat.nx, wheat.ny);
+      if (state().fields[0].water !== 3) fail("drain", "Rain did not set wheat water to 3.");
+      step(t + 10000);
+      if (state().fields[0].water !== 2) fail("drain", "Wheat water did not drop after 10 s.");
+      step(t + 20000);
+      if (state().fields[0].water !== 1) fail("drain", "Wheat water did not drop to 1.");
+      step(t + 30000);
+      if (state().fields[0].water !== 0) fail("drain", "Wheat water did not stop at 0.");
+      step(t + 40000);
+      if (state().fields[0].water !== 0) fail("drain", "Wheat water fell below 0.");
+      const u = fresh("shop");
+      const pump = targetById(centers().targets, "cloud-3");
+      if (!pump || state().fields[3].crop !== "pumpkins") fail("drain", "The pumpkin cloud was missing.");
+      else {
+        tap(pump.nx, pump.ny);
+        step(u + 6000);
+        if (state().fields[3].water !== 2) fail("drain", "Pumpkin water did not drop after 6 s.");
+        step(u + 12000);
+        if (state().fields[3].water !== 1) fail("drain", "Pumpkin water did not drop to 1.");
+        step(u + 18000);
+        if (state().fields[3].water !== 0) fail("drain", "Pumpkin water did not stop at 0.");
+        step(u + 24000);
+        if (state().fields[3].water !== 0) fail("drain", "Pumpkin water fell below 0.");
+      }
+    });
+    run("grow-and-pause", function () {
+      const t = fresh("tiny");
+      step(t + 5000);
+      if (state().fields[0].stage !== "seed") fail("grow-and-pause", "Tiny wheat was not a seed at 5 s.");
+      step(t + 15000);
+      if (state().fields[0].stage !== "sprout") fail("grow-and-pause", "Tiny wheat did not grow one stage in 10 s of sun.");
+      step(t + 30000);
+      const held = state().fields[0];
+      if (held.water !== 0) fail("grow-and-pause", "Tiny wheat was not thirsty.");
+      if (held.stage === "empty") fail("grow-and-pause", "The thirsty crop was cleared.");
+      const stage = held.stage;
+      step(t + 40000);
+      if (state().fields[0].stage !== stage) fail("grow-and-pause", "A thirsty field kept growing.");
+      const u = fresh("little");
+      step(u + 5000);
+      if (state().fields[0].stage !== "seed") fail("grow-and-pause", "Village wheat was not planted.");
+      step(u + 15000);
+      if (state().fields[0].stage !== "seed") fail("grow-and-pause", "Village wheat grew before its 15 s stage.");
+      step(u + 20000);
+      if (state().fields[0].stage !== "sprout") fail("grow-and-pause", "Village wheat did not grow after 15 s of sun.");
+    });
+    run("villagers", function () {
+      const t = fresh("tiny");
+      step(t + 4999);
+      if (state().fields[0].stage !== "empty") fail("villagers", "The field was planted before 5 s.");
+      step(t + 5000);
+      if (state().fields[0].stage !== "seed" || state().fields[1].stage !== "seed") fail("villagers", "An empty field was not planted at 5 s.");
+      step(t + 25000);
+      const wheat = targetById(centers().targets, "cloud-0");
+      const carrots = targetById(centers().targets, "cloud-1");
+      tap(wheat.nx, wheat.ny);
+      tap(carrots.nx, carrots.ny);
+      step(t + 41000);
+      if (state().fields[0].stage !== "ripe" || state().fields[1].stage !== "ripe") fail("villagers", "The watered fields were not ripe.");
+      step(t + 43999);
+      if (state().fields[0].stage !== "ripe") fail("villagers", "The ripe field was harvested before 3 s.");
+      step(t + 44000);
+      if (state().fields[0].stage !== "empty" || state().fields[1].stage !== "empty") fail("villagers", "A ripe field was not empty after 3 s.");
+    });
+    run("festival", function () {
+      const t = fresh("tiny");
+      step(t + 25000);
+      const a = targetById(centers().targets, "cloud-0");
+      const b = targetById(centers().targets, "cloud-1");
+      tap(a.nx, a.ny);
+      tap(b.nx, b.ny);
+      step(t + 43999);
+      if (state().banner === "Harvest festival!") fail("festival", "The festival started before the second harvest.");
+      step(t + 44000);
+      if (state().banner !== "Harvest festival!" || state().screen !== "play") fail("festival", "Two harvests did not start the festival.");
+      step(t + 51999);
+      if (state().banner !== "Harvest festival!") fail("festival", "The festival ended before 8 s.");
+      step(t + 52000);
+      if (state().banner === "Harvest festival!") fail("festival", "The festival lasted past 8 s.");
+      if (state().screen !== "play") fail("festival", "One festival ended the sky.");
+    });
+    run("too-wet", function () {
+      const t = fresh("rush");
+      const cloud = targetById(centers().targets, "cloud-0");
+      tap(cloud.nx, cloud.ny);
+      if (!state().fields[0].puddle || state().fields[0].water !== 3) fail("too-wet", "Rain on a full Weather Keeper field did not make a puddle.");
+      if (state().banner !== "That field is very wet.") fail("too-wet", "The wet banner was missing.");
+      step(t + 10000);
+      if (state().fields[0].puddle) fail("too-wet", "The puddle stayed past 10 s.");
+      step(t + 26000);
+      if (state().fields[0].stage !== "seed") fail("too-wet", "The puddle did not pause growth.");
+      step(t + 30000);
+      if (state().fields[0].stage !== "sprout") fail("too-wet", "Growth did not resume after the puddle.");
+      const u = fresh("shop");
+      const shopCloud = targetById(centers().targets, "cloud-0");
+      tap(shopCloud.nx, shopCloud.ny);
+      if (state().fields[0].puddle) fail("too-wet", "Farm Sky made a puddle.");
+      step(u + 26000);
+      if (state().fields[0].stage !== "sprout") fail("too-wet", "Farm Sky did not grow after ordinary rain.");
+    });
+    run("rest", function () {
+      const t = fresh("tiny");
+      const done = targetById(centers().targets, "done");
+      if (!done) fail("rest", "Done was not a target.");
+      else {
+        tap(done.nx, done.ny);
+        if (state().screen !== "rest") fail("rest", "Done did not open the rest screen.");
+        if (state().banner !== "The village thanks the sky.") fail("rest", "The rest line was missing.");
+      }
+      const u = fresh("tiny");
+      let now = u;
+      let guard = 0;
+      while (state().screen === "play" && guard < 12) {
+        guard += 1;
+        step(now + 20000);
+        now += 20000;
+        const snap = state();
+        for (let i = 0; i < snap.fields.length; i++) {
+          if (snap.fields[i].water <= 1 && !snap.fields[i].raining) {
+            const box = targetById(centers().targets, "cloud-" + i);
+            if (box) tap(box.nx, box.ny);
+          }
+        }
+      }
+      if (state().screen !== "rest") fail("rest", "Three festivals did not open the rest screen.");
+    });
+    run("sizes", function () {
+      const views = [[390, 700], [1024, 768]];
+      const phone = { tiny: [150, 100, 2], little: [110, 90, 3], shop: [83, 80, 4], rush: [83, 80, 4] };
+      const bands = ["tiny", "little", "shop", "rush"];
+      for (let b = 0; b < bands.length; b++) {
+        start(bands[b]);
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const lay = targetsAt(w, h);
+          if (!lay.ok) fail("sizes", bands[b] + " at " + w + " by " + h + " was not ok.");
+          const clouds = (lay.targets || []).filter(function (t) { return t.id.indexOf("cloud-") === 0; });
+          const expectN = phone[bands[b]][2];
+          if (clouds.length !== expectN) fail("sizes", bands[b] + " listed " + clouds.length + " clouds.");
+          clouds.sort(function (a, c) { return a.x - c.x; });
+          for (let i = 0; i < clouds.length; i++) {
+            const c = clouds[i];
+            if (Math.min(c.w, c.h) < 72) fail("sizes", c.id + " was under 72.");
+            if (c.x < 16 || c.y < 16 || c.x + c.w > w - 16 || c.y + c.h > h - 16) fail("sizes", c.id + " left the 16 px margin.");
+            if (i > 0) {
+              const gap = c.x - (clouds[i - 1].x + clouds[i - 1].w);
+              if (gap < 8) fail("sizes", "Clouds were closer than 8 px.");
+            }
+            if (w === 390) {
+              if (c.w !== phone[bands[b]][0] || c.h !== phone[bands[b]][1]) {
+                fail("sizes", bands[b] + " cloud was " + c.w + " by " + c.h + ".");
+              }
+            } else if (c.w > 200 || c.h > 120) {
+              fail("sizes", "A wide cloud was over 200 by 120.");
+            }
+          }
+          const cards = [];
+          const eyes = eyesBox(w, h, (lay.targets || []).concat(cards));
+          for (let i = 0; i < lay.targets.length; i++) {
+            if (overlaps(eyes, lay.targets[i])) fail("sizes", "Eyes sat on " + lay.targets[i].id + " at " + w + " by " + h + ".");
+          }
+        }
+      }
+      go("menu");
+      for (let v = 0; v < views.length; v++) {
+        const w = views[v][0];
+        const h = views[v][1];
+        const lay = targetsAt(w, h);
+        const menu = menuLayout(w, h);
+        const eyes = eyesBox(w, h, (lay.targets || []).concat([menu.card]));
+        if (overlaps(eyes, menu.card)) fail("sizes", "Eyes sat on the menu card at " + w + " by " + h + ".");
+        for (let i = 0; i < lay.targets.length; i++) {
+          if (overlaps(eyes, lay.targets[i])) fail("sizes", "Eyes sat on " + lay.targets[i].id + ".");
+        }
+      }
+    });
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+      const end = state();
+      if (!("level" in end) || !("screen" in end) || !("banner" in end) || !("muted" in end)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+    });
+    try { assertJunk("at the end"); }
+    catch (err) { fail("family-query-inert", err && err.message ? err.message : "The junk check threw."); }
+    try {
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+      if (origSpeak && window.speechSynthesis) window.speechSynthesis.speak = origSpeak;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.skyKeeper = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) {
+      result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
