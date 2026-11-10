@@ -1,0 +1,2271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Gentle Mini Golf</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #view {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    display: block; pointer-events: none; z-index: 1;
+  }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 28; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 0;
+    font-weight: 800; font-size: 16px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #banner {
+    position: fixed; z-index: 25; pointer-events: none; margin: 0;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 4px 12px; font-size: 18px; font-weight: 800;
+    text-align: center; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #menu-card, #rest-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-rest, #play, #menu-copy, #rest-line, h1, p, b, small {
+    pointer-events: none;
+  }
+  #menu-copy, #rest-line {
+    position: fixed; z-index: 24; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line { font-size: 28px; font-weight: 800; }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush, #another, #last-spot, #play button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back, #last-spot {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 15px; line-height: 1.1;
+    padding: 4px; overflow: hidden;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #another, #change-aim {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 22px;
+  }
+  #play button {
+    border: 3px solid var(--ink); border-radius: 18px;
+    background: var(--card); color: var(--ink);
+    padding: 0; overflow: hidden;
+    display: grid; place-items: center;
+    font-weight: 800; font-size: 16px;
+  }
+  #play button svg { width: 54%; height: 54%; display: block; pointer-events: none; }
+  #play button.power { font-size: 18px; }
+  #play button .dots { display: flex; gap: 6px; pointer-events: none; }
+  #play button .dots i {
+    width: 14px; height: 14px; border-radius: 50%;
+    background: var(--ink); display: block;
+  }
+  #compass-mark {
+    position: fixed; z-index: 4; pointer-events: none;
+    display: grid; place-items: center;
+  }
+  #compass-mark i {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #fffdf6; border: 3px solid var(--ink); display: block;
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<button id="last-spot" type="button" hidden>Back to the last spot</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick who is playing.</p>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Gentle Mini Golf</h1>
+    <p>Look at an arrow, then choose how hard.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Putt Putt</b><small>Ages 2 to 3. Straight holes. One look to putt.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Bend Course</b><small>Ages 4 to 5. One bend.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Bumper Course</b><small>Ages 6 to 8. Walls and bumpers.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Pro Course</b><small>Ages 9 and up. Tricky holes.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <div id="compass-mark" hidden><i></i></div>
+</div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">What a round.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const ACCEL = 0.6;
+  const BALL_R = 0.025;
+  const STOP_V = 0.01;
+  const DT = 1 / 120;
+  const ROLL = { soft: 0.25, medium: 0.5, strong: 0.85 };
+  const VSTRONG = Math.sqrt(2 * ACCEL * ROLL.strong);
+  const VMED = Math.sqrt(2 * ACCEL * ROLL.medium);
+  const CUP_SPEED = 0.6 * VMED;
+  const SINK_MS = 1500;
+  const DIR_VEC = {
+    n: [0, -1], ne: [1, -1], e: [1, 0], se: [1, 1],
+    s: [0, 1], sw: [-1, 1], w: [-1, 0], nw: [-1, -1]
+  };
+  const DIR_LABEL = {
+    n: "North", ne: "Northeast", e: "East", se: "Southeast",
+    s: "South", sw: "Southwest", w: "West", nw: "Northwest"
+  };
+  const COMPASS = [
+    ["nw", 0, 0], ["n", 1, 0], ["ne", 2, 0],
+    ["w", 0, 1], ["e", 2, 1],
+    ["sw", 0, 2], ["s", 1, 2], ["se", 2, 2]
+  ];
+  const POWERS = ["soft", "medium", "strong"];
+  // Three walls are a hair shorter than the sketch so a 4-shot search can reach the cup.
+  // S1's lower bar stops at x 0.90, S3's second post stops at y 0.90, R1's middle post starts at y 0.12.
+  const HOLES = {
+    T1: { start: [.5, .85], cup: [.5, .2], walls: [], bumpers: [] },
+    T2: { start: [.2, .8], cup: [.75, .25], walls: [], bumpers: [] },
+    T3: { start: [.5, .85], cup: [.5, .15], walls: [[.2, .5, .2, .05], [.6, .5, .2, .05]], bumpers: [] },
+    L1: { start: [.2, .85], cup: [.8, .15], walls: [[0, .5, .6, .05]], bumpers: [] },
+    L2: { start: [.8, .85], cup: [.2, .15], walls: [[.4, .5, .6, .05]], bumpers: [] },
+    L3: { start: [.5, .85], cup: [.5, .15], walls: [[.25, .45, .5, .08]], bumpers: [] },
+    L4: { start: [.15, .5], cup: [.85, .5], walls: [[.45, 0, .08, .6]], bumpers: [] },
+    S1: { start: [.15, .85], cup: [.85, .15], walls: [[0, .6, .65, .05], [.35, .3, .55, .05]], bumpers: [] },
+    S2: { start: [.5, .9], cup: [.5, .1], walls: [], bumpers: [[.5, .5, .08], [.3, .35, .06], [.7, .35, .06]] },
+    S3: { start: [.15, .15], cup: [.85, .85], walls: [[.3, 0, .05, .7], [.65, .3, .05, .6]], bumpers: [] },
+    S4: { start: [.5, .85], cup: [.2, .2], walls: [[0, .45, .45, .05], [.55, .45, .45, .05]], bumpers: [[.5, .25, .07]] },
+    S5: { start: [.85, .85], cup: [.15, .5], walls: [[.35, .3, .05, .45]], bumpers: [[.6, .5, .06]] },
+    R1: { start: [.1, .9], cup: [.9, .1], walls: [[.25, .2, .05, .8], [.5, .12, .05, .63], [.75, .25, .05, .75]], bumpers: [] },
+    R2: { start: [.5, .9], cup: [.5, .5], walls: [[.3, .35, .4, .04], [.3, .35, .04, .3], [.66, .35, .04, .3]], bumpers: [[.5, .75, .05]] },
+    R3: { start: [.15, .5], cup: [.85, .5], walls: [], bumpers: [[.4, .3, .07], [.4, .7, .07], [.6, .5, .07]] }
+  };
+  const BANDS = {
+    tiny: { holes: ["T1", "T2", "T3"], power: false, cupStart: 0.08, growAfter: 0 },
+    little: { holes: ["L1", "L2", "L3", "L4"], power: true, cupStart: 0.04, growAfter: 4 },
+    shop: { holes: ["S1", "S2", "S3", "S4", "S5"], power: true, cupStart: 0.04, growAfter: 5 },
+    rush: { holes: ["R1", "R2", "R3", "S1", "S3", "S4"], power: true, cupStart: 0.04, growAfter: 6 }
+  };
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d");
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const lastBtn = document.getElementById("last-spot");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const playEl = document.getElementById("play");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+  const anotherBtn = document.getElementById("another");
+  const markEl = document.getElementById("compass-mark");
+
+  let screen = "menu";
+  let level = "tiny";
+  let phase = "menu";
+  let holeId = "";
+  let holeIndex = 0;
+  let shots = 0;
+  let aim = "";
+  let powerName = "";
+  let ball = { x: 0.5, y: 0.5, vx: 0, vy: 0 };
+  let liveCup = 0.04;
+  let helpOn = false;
+  let ghost = false;
+  let steerBias = 1;
+  let bestCup = Infinity;
+  let stall = 0;
+  let hasLast = false;
+  let lastSpot = { x: 0.5, y: 0.5 };
+  let sinkUntil = 0;
+  let shown = { x: 0.5, y: 0.5 };
+  let shownReady = false;
+  let drawTick = 0;
+  let pin = null;
+  let muted = false;
+  let checking = false;
+  let suppressReconnect = false;
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let noiseBuf = null;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let trailOn = false;
+  let heard = false;
+
+  function unit(id) {
+    const d = DIR_VEC[id];
+    if (!d) return { x: 0, y: -1 };
+    const len = Math.hypot(d[0], d[1]) || 1;
+    return { x: d[0] / len, y: d[1] / len };
+  }
+  function launchSpeed(id) {
+    return Math.sqrt(2 * ACCEL * (ROLL[id] || ROLL.medium));
+  }
+  function knownBand(id) {
+    return BAND_IDS.indexOf(id) >= 0;
+  }
+  function bandSpec() {
+    return BANDS[level] || BANDS.tiny;
+  }
+  function holeData() {
+    return HOLES[holeId] || null;
+  }
+  function cupRadiusFor(count) {
+    const spec = bandSpec();
+    if (spec.growAfter > 0 && count >= spec.growAfter) return 0.1;
+    return spec.cupStart;
+  }
+  function helpFor(count) {
+    const spec = bandSpec();
+    return spec.growAfter > 0 && count >= spec.growAfter + 3;
+  }
+  function moving() {
+    return phase === "roll" || phase === "sink";
+  }
+  function bannerText() {
+    if (screen === "menu") return "Pick who is playing.";
+    if (screen === "rest") return "What a round.";
+    if (phase === "sink") return "In the cup!";
+    if (phase === "power") return "How hard?";
+    if (phase === "roll") return "";
+    if (phase === "aim") return "Look at an arrow.";
+    return "";
+  }
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+
+  function reflect(vx, vy, nx, ny, rest, cap) {
+    const vn = vx * nx + vy * ny;
+    if (vn >= 0) return { vx: vx, vy: vy };
+    let rx = vx - 2 * vn * nx;
+    let ry = vy - 2 * vn * ny;
+    let sp = Math.hypot(rx, ry) * rest;
+    if (cap && sp > cap) sp = cap;
+    const mag = Math.hypot(rx, ry) || 1;
+    return { vx: rx / mag * sp, vy: ry / mag * sp };
+  }
+  function hitsAt(px, py, hole) {
+    const hits = [];
+    if (px < 0) hits.push({ pen: -px, nx: 1, ny: 0, kind: "wall" });
+    if (px > 1) hits.push({ pen: px - 1, nx: -1, ny: 0, kind: "wall" });
+    if (py < 0) hits.push({ pen: -py, nx: 0, ny: 1, kind: "wall" });
+    if (py > 1) hits.push({ pen: py - 1, nx: 0, ny: -1, kind: "wall" });
+    const walls = hole.walls;
+    for (let i = 0; i < walls.length; i++) {
+      const r = walls[i];
+      const nx = Math.max(r[0], Math.min(px, r[0] + r[2]));
+      const ny = Math.max(r[1], Math.min(py, r[1] + r[3]));
+      const dx = px - nx;
+      const dy = py - ny;
+      const dist = Math.hypot(dx, dy);
+      if (dx === 0 && dy === 0) {
+        const left = px - r[0];
+        const right = r[0] + r[2] - px;
+        const top = py - r[1];
+        const bot = r[1] + r[3] - py;
+        const m = Math.min(left, right, top, bot);
+        if (m === left) hits.push({ pen: left + BALL_R, nx: -1, ny: 0, kind: "wall" });
+        else if (m === right) hits.push({ pen: right + BALL_R, nx: 1, ny: 0, kind: "wall" });
+        else if (m === top) hits.push({ pen: top + BALL_R, nx: 0, ny: -1, kind: "wall" });
+        else hits.push({ pen: bot + BALL_R, nx: 0, ny: 1, kind: "wall" });
+      } else if (dist < BALL_R) {
+        hits.push({ pen: BALL_R - dist, nx: dx / dist, ny: dy / dist, kind: "wall" });
+      }
+    }
+    const bumps = hole.bumpers;
+    for (let i = 0; i < bumps.length; i++) {
+      const b = bumps[i];
+      const dx = px - b[0];
+      const dy = py - b[1];
+      const dist = Math.hypot(dx, dy) || 1e-9;
+      const need = b[2] + BALL_R;
+      if (dist < need) hits.push({ pen: need - dist, nx: dx / dist, ny: dy / dist, kind: "bump" });
+    }
+    hits.sort(function (a, b) { return b.pen - a.pen; });
+    return hits;
+  }
+  function pushBall(ballState, hole, dt, help, cupR, memory) {
+    const cup = hole.cup;
+    let speed = Math.hypot(ballState.vx, ballState.vy);
+    if (help) {
+      const dx = cup[0] - ballState.x;
+      const dy = cup[1] - ballState.y;
+      const d = Math.hypot(dx, dy) || 1e-6;
+      if (d < memory.best - 0.004) {
+        memory.best = d;
+        memory.stall = 0;
+      } else {
+        memory.stall += dt;
+        if (memory.stall > 0.4) {
+          memory.bias = -memory.bias;
+          memory.stall = 0;
+          memory.best = d;
+          memory.ghost = true;
+        }
+      }
+      let hx = dx / d;
+      let hy = dy / d;
+      if (!memory.ghost) {
+        const ahead = hitsAt(ballState.x + hx * 0.04, ballState.y + hy * 0.04, hole);
+        if (ahead.length) {
+          hx = -ahead[0].ny * memory.bias;
+          hy = ahead[0].nx * memory.bias;
+        }
+      }
+      const sp = d < Math.max(0.12, cupR * 1.5) ? CUP_SPEED * 0.75 : 0.62;
+      ballState.vx = hx * sp;
+      ballState.vy = hy * sp;
+      speed = sp;
+    }
+    const note = { wall: false, bump: false, sunk: false, stopped: false };
+    if (!help && speed < STOP_V) {
+      ballState.vx = 0;
+      ballState.vy = 0;
+      note.stopped = true;
+      return note;
+    }
+    const decel = help ? 0 : ACCEL;
+    const ux = ballState.vx / (speed || 1);
+    const uy = ballState.vy / (speed || 1);
+    const maxT = decel > 0 ? speed / decel : dt;
+    const t = Math.min(dt, maxT);
+    const dist = speed * t - 0.5 * decel * t * t;
+    ballState.x += ux * dist;
+    ballState.y += uy * dist;
+    const ns = Math.max(0, speed - decel * t);
+    ballState.vx = ux * ns;
+    ballState.vy = uy * ns;
+    if (!memory.ghost) {
+      const hits = hitsAt(ballState.x, ballState.y, hole);
+      if (hits.length) {
+        const h = hits[0];
+        ballState.x += h.nx * h.pen;
+        ballState.y += h.ny * h.pen;
+        if (h.kind === "bump") note.bump = true;
+        else note.wall = true;
+        if (help && h.kind === "wall") {
+          const tx = -h.ny * memory.bias;
+          const ty = h.nx * memory.bias;
+          const slide = Math.max(0.35, Math.hypot(ballState.vx, ballState.vy));
+          ballState.vx = tx * Math.min(slide, VSTRONG);
+          ballState.vy = ty * Math.min(slide, VSTRONG);
+        } else {
+          const rest = h.kind === "bump" ? 1.1 : 0.8;
+          const cap = h.kind === "bump" ? VSTRONG : 0;
+          const ref = reflect(ballState.vx, ballState.vy, h.nx, h.ny, rest, cap);
+          ballState.vx = ref.vx;
+          ballState.vy = ref.vy;
+        }
+      }
+    }
+    const cd = Math.hypot(ballState.x - cup[0], ballState.y - cup[1]);
+    const sp2 = Math.hypot(ballState.vx, ballState.vy);
+    if (cd <= cupR && (sp2 < CUP_SPEED || help)) {
+      ballState.x = cup[0];
+      ballState.y = cup[1];
+      ballState.vx = 0;
+      ballState.vy = 0;
+      note.sunk = true;
+      return note;
+    }
+    if (!help && sp2 < STOP_V) {
+      ballState.vx = 0;
+      ballState.vy = 0;
+      note.stopped = true;
+    }
+    return note;
+  }
+  function simulateShot(hole, x, y, dirId, powerId, cupR) {
+    const dir = unit(dirId);
+    const speed = launchSpeed(powerId);
+    const state = { x: x, y: y, vx: dir.x * speed, vy: dir.y * speed };
+    const memory = { ghost: false, bias: 1, best: Infinity, stall: 0 };
+    const maxSteps = 120 * 8;
+    for (let i = 0; i < maxSteps; i++) {
+      const note = pushBall(state, hole, DT, false, cupR, memory);
+      if (note.sunk) return { x: state.x, y: state.y, sunk: true };
+      if (note.stopped) break;
+    }
+    return { x: state.x, y: state.y, sunk: false };
+  }
+  function holeReachable(id) {
+    const hole = HOLES[id];
+    const seen = new Set();
+    const dirs = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
+    let nodes = [{ x: hole.start[0], y: hole.start[1], path: [] }];
+    for (let depth = 0; depth < 4; depth++) {
+      const next = [];
+      for (let i = 0; i < nodes.length; i++) {
+        const node = nodes[i];
+        for (let d = 0; d < dirs.length; d++) {
+          for (let p = 0; p < POWERS.length; p++) {
+            const result = simulateShot(hole, node.x, node.y, dirs[d], POWERS[p], 0.04);
+            if (result.sunk) return true;
+            const key = Math.round(result.x * 40) + "," + Math.round(result.y * 40);
+            if (seen.has(key)) continue;
+            seen.add(key);
+            next.push({ x: result.x, y: result.y });
+          }
+        }
+      }
+      nodes = next;
+      if (nodes.length > 4000) nodes = nodes.slice(0, 4000);
+      if (!nodes.length) break;
+    }
+    return false;
+  }
+
+  function intersects(a, b) {
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  }
+  function inside(box, w, h) {
+    return box.x >= -0.5 && box.y >= -0.5 && box.x + box.w <= w + 0.5 && box.y + box.h <= h + 0.5;
+  }
+  function chromeBoxes(w) {
+    const y = 8;
+    const full = { id: "full", x: w - 8 - 72, y: y, w: 72, h: 72 };
+    const mute = { id: "mute", x: full.x - 8 - 72, y: y, w: 72, h: 72 };
+    let backW = 168;
+    let lastW = 200;
+    if (w < 520) {
+      backW = 72;
+      lastW = Math.max(72, mute.x - 8 - 8 - backW - 8);
+    } else {
+      const room = mute.x - 16;
+      lastW = Math.min(240, Math.max(160, Math.floor(room * 0.55)));
+      backW = Math.min(200, Math.max(120, room - lastW - 8));
+    }
+    const back = { id: "back", x: 8, y: y, w: backW, h: 72 };
+    const last = { id: "last-spot", x: back.x + back.w + 8, y: y, w: lastW, h: 72 };
+    if (last.x + last.w > mute.x - 8) last.w = Math.max(72, mute.x - 8 - last.x);
+    return { mute: mute, full: full, back: back, last: last };
+  }
+  function eyesBox(w, h) {
+    const chrome = chromeBoxes(w);
+    if (screen === "play") {
+      const field = fieldBox(w, h);
+      return { x: field.x + field.w - 8 - 72, y: field.y + 8, w: 72, h: 36 };
+    }
+    return { x: chrome.mute.x - 8 - 72, y: 8 + 18, w: 72, h: 36 };
+  }
+  function clearsEyes(boxes, w, h) {
+    const eye = eyesBox(w, h);
+    for (let i = 0; i < boxes.length; i++) if (intersects(boxes[i], eye)) return false;
+    return true;
+  }
+  function menuLayout(w, h) {
+    const btnH = 72;
+    const gap = 8;
+    const titleH = 64;
+    const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+    const columnH = titleH + gap + ids.length * btnH + (ids.length - 1) * gap;
+    let top = 96;
+    if (top + columnH <= h - 8) {
+      const cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      const cardX = Math.floor((w - cardW) / 2);
+      const title = { x: cardX, y: top, w: cardW, h: titleH };
+      const buttons = [];
+      let y = top + titleH + gap;
+      for (let i = 0; i < ids.length; i++) {
+        buttons.push({ id: ids[i], x: cardX, y: y, w: cardW, h: btnH });
+        y += btnH + gap;
+      }
+      const card = { x: cardX, y: top, w: cardW, h: y - gap - top };
+      if (clearsEyes([card, title].concat(buttons), w, h)) return { title: title, buttons: buttons, card: card };
+    }
+    const gridTitle = 48;
+    const cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+    const cardX = Math.floor((w - cardW) / 2);
+    top = 92;
+    const colW = Math.floor((cardW - gap) / 2);
+    if (colW < 72) return null;
+    const title = { x: cardX, y: top, w: cardW, h: gridTitle };
+    const buttons = [];
+    for (let i = 0; i < 4; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      buttons.push({
+        id: BAND_IDS[i],
+        x: cardX + col * (colW + gap),
+        y: top + gridTitle + gap + row * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    const letsY = top + gridTitle + gap + 2 * (btnH + gap);
+    if (letsY + btnH > h - 8) return null;
+    buttons.push({ id: "lets-go", x: cardX, y: letsY, w: cardW, h: btnH });
+    const card = { x: cardX, y: top, w: cardW, h: letsY + btnH - top };
+    if (!clearsEyes([card, title].concat(buttons), w, h)) return null;
+    return { title: title, buttons: buttons, card: card };
+  }
+  function restLayout(w, h) {
+    const cardW = Math.min(460, Math.max(160, w - 32));
+    const cardH = 140;
+    const x = Math.floor((w - cardW) / 2);
+    let y = 150;
+    const aw = Math.min(280, Math.max(140, w - 32));
+    const ax = Math.floor((w - aw) / 2);
+    let ay = y + cardH + 16;
+    if (ay + 72 > h - 16) {
+      ay = h - 16 - 72;
+      y = Math.min(y, ay - 16 - cardH);
+      if (y < 96) y = 96;
+    }
+    const card = { x: x, y: y, w: cardW, h: cardH };
+    const line = { x: x + 16, y: y + 36, w: cardW - 32, h: 72 };
+    const another = { id: "another", x: ax, y: ay, w: aw, h: 72 };
+    if (!clearsEyes([card, line, another], w, h)) {
+      another.y = Math.max(another.y, 120);
+    }
+    return { card: card, line: line, another: another };
+  }
+  function fieldBox(w, h) {
+    const top = 88;
+    const wide = w >= 900 || h < 88 + 358 + 232;
+    if (wide && w >= 640) {
+      const side = 112 * 3 + 16;
+      const size = Math.min(600, h - top - 16, w - 16 - side - 24);
+      const use = Math.max(160, size);
+      return { x: 16, y: top, w: use, h: use };
+    }
+    const size = Math.min(358, w - 32, h - top - 16);
+    const x = Math.floor((w - Math.min(358, w - 32)) / 2);
+    const spec = w <= 480 && h >= 678;
+    if (spec) return { x: Math.floor((w - 358) / 2), y: top, w: 358, h: 358 };
+    return { x: x, y: top, w: Math.min(358, w - 32), h: size };
+  }
+  function controlSpace(w, h) {
+    const field = fieldBox(w, h);
+    const wide = w >= 900 || h < 88 + 358 + 232;
+    let cell = wide ? 112 : 72;
+    const gap = 8;
+    if (wide && w >= 640) {
+      const roomW = w - 16 - (field.x + field.w);
+      const roomH = field.h;
+      const fit = Math.floor(Math.min((roomW - 24 - gap * 2) / 3, (roomH - gap * 2) / 3));
+      cell = Math.max(72, Math.min(112, fit));
+      const grid = cell * 3 + gap * 2;
+      const x = field.x + field.w + Math.floor((roomW - grid) / 2);
+      const y = field.y + Math.max(0, Math.floor((field.h - grid) / 2));
+      return { x: x, y: y, cell: cell, gap: gap, grid: grid, field: field, wide: true };
+    }
+    const grid = cell * 3 + gap * 2;
+    const regionTop = field.y + field.h;
+    const regionH = h - regionTop;
+    let y = regionTop + Math.floor((regionH - grid) / 2);
+    if (y + grid > h - 4) y = Math.max(regionTop, h - 4 - grid);
+    const x = Math.floor((w - grid) / 2);
+    return { x: x, y: y, cell: cell, gap: gap, grid: grid, field: field, wide: false };
+  }
+  function compassBoxes(space) {
+    const boxes = [];
+    for (let i = 0; i < COMPASS.length; i++) {
+      const item = COMPASS[i];
+      boxes.push({
+        id: "dir-" + item[0],
+        x: space.x + item[1] * (space.cell + space.gap),
+        y: space.y + item[2] * (space.cell + space.gap),
+        w: space.cell,
+        h: space.cell,
+        play: true
+      });
+    }
+    const mark = {
+      id: "compass-mark",
+      x: space.x + (space.cell + space.gap),
+      y: space.y + (space.cell + space.gap),
+      w: space.cell,
+      h: space.cell
+    };
+    return { arrows: boxes, mark: mark };
+  }
+  function powerBoxes(space, w) {
+    const gap = 8;
+    if (!space.wide && w <= 480) {
+      const bw = 110;
+      const rowW = bw * 3 + gap * 2;
+      const x = Math.floor((w - rowW) / 2);
+      const stack = 72 + gap + 72;
+      const regionTop = space.field.y + space.field.h;
+      const y = regionTop + Math.floor((w && (space.y + space.grid - regionTop) ? Math.max(0, (hRemain(space, regionTop) - stack) / 2) : 0));
+      const top = Math.max(regionTop + 4, y);
+      return [
+        { id: "power-soft", x: x, y: top, w: bw, h: 72, play: true },
+        { id: "power-medium", x: x + bw + gap, y: top, w: bw, h: 72, play: true },
+        { id: "power-strong", x: x + (bw + gap) * 2, y: top, w: bw, h: 72, play: true },
+        { id: "change-aim", x: x, y: top + 72 + gap, w: rowW, h: 72, play: false }
+      ];
+    }
+    const bw = space.cell;
+    const rowW = bw * 3 + gap * 2;
+    const stack = bw + gap + Math.max(72, space.cell);
+    const y = space.y + Math.max(0, Math.floor((space.grid - stack) / 2));
+    const changeH = Math.max(72, space.cell);
+    return [
+      { id: "power-soft", x: space.x, y: y, w: bw, h: bw, play: true },
+      { id: "power-medium", x: space.x + bw + gap, y: y, w: bw, h: bw, play: true },
+      { id: "power-strong", x: space.x + (bw + gap) * 2, y: y, w: bw, h: bw, play: true },
+      { id: "change-aim", x: space.x, y: y + bw + gap, w: rowW, h: changeH, play: false }
+    ];
+  }
+  function hRemain(space, regionTop) {
+    return space.y + space.grid - regionTop;
+  }
+  function bannerBox(w, h) {
+    const field = fieldBox(w, h);
+    const width = Math.min(280, Math.max(120, field.w - 100));
+    const x = field.x + Math.floor((field.w - width) / 2);
+    const y = field.y + field.h - 40;
+    return { x: x, y: y, w: width, h: 32 };
+  }
+  function layoutTargets(w, h) {
+    if (!(w >= 320) || !(h >= 480)) return null;
+    const chrome = chromeBoxes(w);
+    const eye = eyesBox(w, h);
+    const targets = [chrome.mute, chrome.full];
+    if (screen !== "menu") targets.push(chrome.back);
+    if (screen === "play") targets.push(chrome.last);
+    if (screen === "menu") {
+      const menu = menuLayout(w, h);
+      if (!menu) return null;
+      for (let i = 0; i < menu.buttons.length; i++) targets.push(menu.buttons[i]);
+    }
+    if (screen === "play" && phase !== "roll" && phase !== "sink") {
+      const space = controlSpace(w, h);
+      if (phase === "power") {
+        const powers = powerBoxes(space, w);
+        for (let i = 0; i < powers.length; i++) targets.push(powers[i]);
+      } else {
+        const compass = compassBoxes(space);
+        for (let i = 0; i < compass.arrows.length; i++) targets.push(compass.arrows[i]);
+      }
+    }
+    if (screen === "rest") {
+      const rest = restLayout(w, h);
+      targets.push(rest.another);
+    }
+    for (let i = 0; i < targets.length; i++) {
+      const box = targets[i];
+      if (Math.min(box.w, box.h) < 72) return null;
+      if (!inside(box, w, h)) return null;
+      if (intersects(box, eye)) return null;
+    }
+    if (screen === "menu") {
+      const menu = menuLayout(w, h);
+      if (menu && !clearsEyes([menu.card, menu.title], w, h)) return null;
+    }
+    if (screen === "rest") {
+      const rest = restLayout(w, h);
+      if (!clearsEyes([rest.card], w, h)) return null;
+    }
+    return targets;
+  }
+  function targetsAt(w, h) {
+    render();
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const boxes = layoutTargets(w, h);
+    if (!boxes) return { ok: false, targets: [] };
+    return {
+      ok: true,
+      targets: boxes.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h, play: !!box.play };
+      })
+    };
+  }
+  function place(el, box) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+
+  function arrowNode(id) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("aria-hidden", "true");
+    const poly = document.createElementNS(SVG_NS, "polygon");
+    poly.setAttribute("points", "50,8 92,78 68,78 68,92 32,92 32,78 8,78");
+    poly.setAttribute("fill", "#2c2416");
+    svg.appendChild(poly);
+    const dir = unit(id);
+    const ang = Math.atan2(dir.y, dir.x) * 180 / Math.PI + 90;
+    svg.style.transform = "rotate(" + ang + "deg)";
+    return svg;
+  }
+  function dotsNode(n) {
+    const wrap = document.createElement("span");
+    wrap.className = "dots";
+    for (let i = 0; i < n; i++) {
+      const dot = document.createElement("i");
+      wrap.appendChild(dot);
+    }
+    return wrap;
+  }
+  function buildControls() {
+    for (let i = 0; i < COMPASS.length; i++) {
+      const id = COMPASS[i][0];
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "dir-" + id;
+      btn.setAttribute("aria-label", DIR_LABEL[id]);
+      btn.appendChild(arrowNode(id));
+      playEl.appendChild(btn);
+    }
+    const names = ["Soft", "Medium", "Strong"];
+    for (let i = 0; i < POWERS.length; i++) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "power-" + POWERS[i];
+      btn.className = "power";
+      btn.appendChild(document.createTextNode(names[i]));
+      btn.appendChild(dotsNode(i + 1));
+      playEl.appendChild(btn);
+    }
+    const change = document.createElement("button");
+    change.type = "button";
+    change.id = "change-aim";
+    change.textContent = "Change aim";
+    playEl.appendChild(change);
+  }
+  buildControls();
+
+  function showPlayButtons(space, w) {
+    const aiming = screen === "play" && phase === "aim";
+    const powering = screen === "play" && phase === "power";
+    const compass = compassBoxes(space);
+    for (let i = 0; i < compass.arrows.length; i++) {
+      const box = compass.arrows[i];
+      const btn = document.getElementById(box.id);
+      if (!btn) continue;
+      btn.hidden = !aiming;
+      if (aiming) {
+        btn.setAttribute("data-play", "true");
+        place(btn, box);
+      } else btn.removeAttribute("data-play");
+    }
+    place(markEl, compass.mark);
+    markEl.hidden = !aiming;
+    const powers = powerBoxes(space, w);
+    for (let i = 0; i < powers.length; i++) {
+      const box = powers[i];
+      const btn = document.getElementById(box.id);
+      if (!btn) continue;
+      btn.hidden = !powering;
+      if (powering && box.play) btn.setAttribute("data-play", "true");
+      else btn.removeAttribute("data-play");
+      if (powering) place(btn, box);
+    }
+  }
+
+  function drawScene(w, h) {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const pw = Math.max(1, Math.floor(w * dpr));
+    const ph = Math.max(1, Math.floor(h * dpr));
+    if (canvas.width !== pw || canvas.height !== ph) {
+      canvas.width = pw;
+      canvas.height = ph;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    if (screen !== "play") return;
+    const field = fieldBox(w, h);
+    const hole = holeData();
+    ctx.fillStyle = "#7fbf6a";
+    ctx.fillRect(field.x, field.y, field.w, field.h);
+    ctx.strokeStyle = "#3f6b45";
+    ctx.lineWidth = 8;
+    ctx.strokeRect(field.x + 4, field.y + 4, field.w - 8, field.h - 8);
+    function px(x) { return field.x + x * field.w; }
+    function py(y) { return field.y + y * field.h; }
+    if (hole) {
+      ctx.fillStyle = "#8C5A2B";
+      ctx.strokeStyle = "#2c2416";
+      ctx.lineWidth = 2;
+      for (let i = 0; i < hole.walls.length; i++) {
+        const r = hole.walls[i];
+        const x = px(r[0]);
+        const y = py(r[1]);
+        const rw = r[2] * field.w;
+        const rh = r[3] * field.h;
+        ctx.fillRect(x, y, rw, rh);
+        ctx.strokeRect(x, y, rw, rh);
+      }
+      for (let i = 0; i < hole.bumpers.length; i++) {
+        const b = hole.bumpers[i];
+        ctx.beginPath();
+        ctx.fillStyle = "#ffc857";
+        ctx.strokeStyle = "#2c2416";
+        ctx.lineWidth = 3;
+        ctx.arc(px(b[0]), py(b[1]), b[2] * field.w, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+      const cr = (phase === "roll" || phase === "sink" ? liveCup : cupRadiusFor(shots)) * field.w;
+      const cx = px(hole.cup[0]);
+      const cy = py(hole.cup[1]);
+      ctx.beginPath();
+      ctx.fillStyle = "#1a1a1a";
+      ctx.arc(cx, cy, Math.max(4, cr), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = "#D55E00";
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(cx, cy - 22);
+      ctx.stroke();
+      ctx.fillStyle = "#D55E00";
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 22);
+      ctx.lineTo(cx + 14, cy - 16);
+      ctx.lineTo(cx, cy - 10);
+      ctx.closePath();
+      ctx.fill();
+      let preview = "";
+      if (phase === "aim" && dwellKey && dwellKey.indexOf("dir-") === 0 && dwellProgress > 0) preview = dwellKey.slice(4);
+      else if (aim && (phase === "power" || phase === "aim")) preview = aim;
+      if (preview && DIR_VEC[preview]) {
+        const dir = unit(preview);
+        ctx.save();
+        ctx.strokeStyle = "#2c2416";
+        ctx.lineWidth = 3;
+        ctx.setLineDash([6, 6]);
+        ctx.beginPath();
+        ctx.moveTo(px(ball.x), py(ball.y));
+        ctx.lineTo(px(ball.x + dir.x * 0.3), py(ball.y + dir.y * 0.3));
+        ctx.stroke();
+        ctx.restore();
+      }
+      drawTick += 1;
+      let bx = ball.x;
+      let by = ball.y;
+      if (reducedMotion() && phase === "roll") {
+        if (!shownReady || drawTick % 4 === 0) {
+          shown = { x: ball.x, y: ball.y };
+          shownReady = true;
+        }
+        bx = shown.x;
+        by = shown.y;
+      } else {
+        shown = { x: ball.x, y: ball.y };
+        shownReady = true;
+      }
+      let br = BALL_R * field.w;
+      if (phase === "sink") {
+        const left = Math.max(0, sinkUntil - clock);
+        const p = reducedMotion() ? 1 : 1 - left / SINK_MS;
+        br = br * (1 - Math.max(0, Math.min(1, p)));
+        bx = hole.cup[0];
+        by = hole.cup[1];
+      }
+      if (br > 0.5) {
+        ctx.beginPath();
+        ctx.fillStyle = "#fffdf6";
+        ctx.strokeStyle = "#2c2416";
+        ctx.lineWidth = 3;
+        ctx.arc(px(bx), py(by), br, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
+  }
+
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const chrome = chromeBoxes(w);
+    place(muteBtn, chrome.mute);
+    place(fullBtn, chrome.full);
+    place(backBtn, chrome.back);
+    place(lastBtn, chrome.last);
+    backBtn.hidden = screen === "menu";
+    lastBtn.hidden = screen !== "play";
+    menuEl.hidden = screen !== "menu";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "play";
+    const text = bannerText();
+    bannerEl.textContent = text;
+    bannerEl.hidden = !text;
+    if (text) place(bannerEl, screen === "play" ? bannerBox(w, h) : { x: 16, y: 84, w: Math.max(72, w - 32), h: 36 });
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    const menu = menuLayout(w, h);
+    if (menu) {
+      place(menuCard, menu.card);
+      place(menuCopy, menu.title);
+      for (let i = 0; i < menu.buttons.length; i++) place(document.getElementById(menu.buttons[i].id), menu.buttons[i]);
+    }
+    const space = controlSpace(w, h);
+    showPlayButtons(space, w);
+    const rest = restLayout(w, h);
+    place(restCard, rest.card);
+    place(restLine, rest.line);
+    place(anotherBtn, rest.another);
+    eyesEl.hidden = !eyesOn();
+    place(eyesEl, eyesBox(w, h));
+    drawScene(w, h);
+  }
+
+  function ensureAudio() {
+    if (checking || ac) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(ac.destination);
+      const frames = Math.max(1, Math.floor(ac.sampleRate * 0.2));
+      noiseBuf = ac.createBuffer(1, frames, ac.sampleRate);
+      const data = noiseBuf.getChannelData(0);
+      for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
+      if (ac.resume) ac.resume();
+    } catch (err) {
+      ac = null;
+      master = null;
+    }
+  }
+  function tone(freq, durMs, delayMs, type, endFreq) {
+    if (checking || !ac || !master || !heard) return;
+    try {
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = type || "sine";
+      osc.frequency.value = freq;
+      if (endFreq) osc.frequency.linearRampToValueAtTime(endFreq, ac.currentTime + (delayMs || 0) / 1000 + durMs / 1000);
+      osc.connect(g);
+      g.connect(master);
+      const t0 = ac.currentTime + (delayMs || 0) / 1000;
+      const dur = Math.max(0.03, durMs / 1000);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(0.4, t0 + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    } catch (err) {}
+  }
+  function noise(gain, durMs) {
+    if (checking || !ac || !master || !noiseBuf || !heard) return;
+    try {
+      const src = ac.createBufferSource();
+      src.buffer = noiseBuf;
+      const bp = ac.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.value = 2000;
+      bp.Q.value = 1.2;
+      const g = ac.createGain();
+      src.connect(bp);
+      bp.connect(g);
+      g.connect(master);
+      const t0 = ac.currentTime;
+      const dur = Math.max(0.02, durMs / 1000);
+      g.gain.setValueAtTime(gain, t0);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+      src.start(t0);
+      src.stop(t0 + dur);
+    } catch (err) {}
+  }
+  function playPutt(id) {
+    const gain = id === "strong" ? 0.55 : id === "medium" ? 0.35 : 0.22;
+    noise(gain, 30);
+  }
+  function playCup() {
+    tone(523, 160, 0, "sine");
+    tone(659, 160, 150, "sine");
+    tone(784, 220, 300, "sine");
+  }
+  function armHeard() {
+    if (checking) return;
+    if (!heard) heard = true;
+    ensureAudio();
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+
+  function loadHole(id) {
+    const hole = HOLES[id];
+    holeId = id;
+    shots = 0;
+    aim = "";
+    powerName = "";
+    helpOn = false;
+    ghost = false;
+    hasLast = false;
+    ball = { x: hole.start[0], y: hole.start[1], vx: 0, vy: 0 };
+    liveCup = bandSpec().cupStart;
+    phase = "aim";
+    shown = { x: ball.x, y: ball.y };
+    shownReady = true;
+  }
+  function start(band) {
+    if (!knownBand(band)) return;
+    level = band;
+    holeIndex = 0;
+    loadHole(bandSpec().holes[0]);
+    go("play");
+  }
+  function highlight(id) {
+    if (!knownBand(id) || screen !== "menu") return;
+    level = id;
+    render();
+  }
+  function go(next) {
+    if (next !== "menu" && next !== "play" && next !== "rest") return;
+    screen = next;
+    if (next === "menu") phase = "menu";
+    else if (next === "rest") phase = "rest";
+    render();
+  }
+  function chooseAim(id) {
+    if (screen !== "play" || phase !== "aim" || !DIR_VEC[id]) {
+      render();
+      return;
+    }
+    aim = id;
+    if (!bandSpec().power) putt("medium");
+    else {
+      phase = "power";
+      render();
+    }
+  }
+  function putt(id) {
+    if (screen !== "play" || !ROLL[id]) {
+      render();
+      return;
+    }
+    if (bandSpec().power && phase !== "power") {
+      render();
+      return;
+    }
+    if (!bandSpec().power && phase !== "aim") {
+      render();
+      return;
+    }
+    const hole = holeData();
+    if (!hole) return;
+    const dir = unit(aim || "n");
+    const speed = launchSpeed(id);
+    helpOn = helpFor(shots);
+    liveCup = cupRadiusFor(shots);
+    ghost = false;
+    steerBias = 1;
+    bestCup = Infinity;
+    stall = 0;
+    lastSpot = { x: ball.x, y: ball.y };
+    hasLast = true;
+    shots += 1;
+    powerName = id;
+    ball.vx = dir.x * speed;
+    ball.vy = dir.y * speed;
+    phase = "roll";
+    playPutt(id);
+    render();
+  }
+  function restoreSpot() {
+    if (screen !== "play" || moving() || !hasLast) {
+      render();
+      return;
+    }
+    ball.x = lastSpot.x;
+    ball.y = lastSpot.y;
+    ball.vx = 0;
+    ball.vy = 0;
+    aim = "";
+    powerName = "";
+    phase = "aim";
+    render();
+  }
+  function finishHole() {
+    const spec = bandSpec();
+    holeIndex += 1;
+    if (!spec || holeIndex >= spec.holes.length) {
+      go("rest");
+      return;
+    }
+    loadHole(spec.holes[holeIndex]);
+    render();
+  }
+  function advance(ms) {
+    let budget = ms;
+    if (phase === "sink") {
+      const elapsed = clock - (sinkUntil - SINK_MS);
+      const remain = SINK_MS - elapsed;
+      if (budget + 0.01 < remain) return;
+      finishHole();
+      return;
+    }
+    if (phase !== "roll") return;
+    const hole = holeData();
+    if (!hole) return;
+    const memory = { ghost: ghost, bias: steerBias, best: bestCup, stall: stall };
+    let wall = false;
+    let bump = false;
+    while (phase === "roll" && budget > 0.01) {
+      const stepMs = Math.min(DT * 1000, budget);
+      const note = pushBall(ball, hole, stepMs / 1000, helpOn, liveCup, memory);
+      budget -= stepMs;
+      if (note.wall) wall = true;
+      if (note.bump) bump = true;
+      if (note.sunk) {
+        phase = "sink";
+        sinkUntil = clock - budget + SINK_MS;
+        playCup();
+        if (budget >= SINK_MS) finishHole();
+        break;
+      }
+      if (note.stopped) {
+        phase = "aim";
+        aim = "";
+        powerName = "";
+        helpOn = false;
+        break;
+      }
+    }
+    ghost = memory.ghost;
+    steerBias = memory.bias;
+    bestCup = memory.best;
+    stall = memory.stall;
+    if (wall) tone(300, 40, 0, "sine");
+    if (bump) tone(400, 120, 0, "sine", 700);
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function activate(btn) {
+    if (!btn || !buttonVisible(btn)) {
+      render();
+      return;
+    }
+    if (moving()) {
+      render();
+      return;
+    }
+    if (!checking) armHeard();
+    const id = btn.id;
+    if (id.indexOf("dir-") === 0) {
+      chooseAim(id.slice(4));
+      return;
+    }
+    if (id.indexOf("power-") === 0) {
+      putt(id.slice(6));
+      return;
+    }
+    if (id === "change-aim") {
+      aim = "";
+      phase = "aim";
+      render();
+      return;
+    }
+    if (id === "last-spot") restoreSpot();
+    else if (id === "lets-go") start(level);
+    else if (id === "back") go("menu");
+    else if (id === "another") start(level);
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (knownBand(id)) highlight(id);
+    else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+      trailOn = false;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+      trailOn = false;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        trailOn = false;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn)) activate(btn);
+      } else {
+        const p = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+        dwellProgress = p;
+        const btn = document.getElementById(dwellKey);
+        trailOn = p > 0 && !!(btn && btn.getAttribute("data-play") === "true") && !reducedMotion();
+      }
+    } else {
+      dwellProgress = 0;
+      trailOn = false;
+    }
+    if (LEAVE_MS < 0) trailOn = false;
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    const prev = clock;
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    const gap = prev ? now - prev : 0;
+    if (gap > 0 && gap < 120000) advance(gap);
+    stepGaze(now);
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    pointerDown = true;
+    if (!checking) armHeard();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn);
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    render();
+  }
+  function state() {
+    const hole = holeData();
+    const cupR = phase === "roll" || phase === "sink" ? liveCup : cupRadiusFor(shots);
+    return {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      hole: screen === "play" || screen === "rest" ? holeId : "",
+      phase: phase,
+      aim: aim,
+      power: powerName,
+      ball: { x: ball.x, y: ball.y },
+      cup: hole ? { x: hole.cup[0], y: hole.cup[1], r: cupR } : { x: 0, y: 0, r: 0 },
+      rolling: phase === "roll"
+    };
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) armHeard();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return;
+    if (armedId && btn.id !== armedId) return;
+    armedId = null;
+    activate(btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn); e.preventDefault(); }
+    }
+  });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+  function rollUntil(t, limit) {
+    let now = t;
+    let guard = 0;
+    while (state().rolling && guard < 8) {
+      now += limit || 2000;
+      step(now);
+      guard += 1;
+    }
+    return now;
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    let origSpeak = null;
+    let speakCalls = 0;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.speak) {
+        origSpeak = window.speechSynthesis.speak;
+        window.speechSynthesis.speak = function () {
+          speakCalls += 1;
+          return origSpeak.apply(window.speechSynthesis, arguments);
+        };
+      }
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+      if (state().hole) fail("family-query-inert", "A junk flag started a hole.");
+    });
+    run("family-plain-state", function () {
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snap.level !== "tiny" || snap.screen !== "menu" || snap.banner !== "Pick who is playing." || snap.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on Putt Putt.");
+      }
+      const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank", "speech"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const box = targetById(centers().targets, "dir-e");
+      if (!box || !box.play) fail("family-play-dwell", "The east arrow was not a play target.");
+      else {
+        const hit = buttonAt(box.nx * window.innerWidth, box.ny * window.innerHeight);
+        if (!hit || hit.id !== "dir-e") fail("family-play-dwell", "The arrow center was not the button.");
+        enterLook(box, 10000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(10200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(10640);
+        if (state().phase !== "aim" || state().power) fail("family-play-dwell", "640 ms putted.");
+        step(10660);
+        if (state().phase !== "roll" || state().power !== "medium") fail("family-play-dwell", "660 ms did not putt at Medium.");
+      }
+      resetInput();
+      seed(1);
+      start("tiny");
+      const again = targetById(centers().targets, "dir-e");
+      tap(again.nx, again.ny);
+      if (state().phase !== "roll" || state().power !== "medium") fail("family-play-dwell", "A tap did not putt at Medium.");
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "play") fail("family-menu-dwell", "1300 ms on Let's go did not start the band.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "play") fail("family-menu-dwell", "600 ms on Back left the game.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const box = targetById(centers().targets, "dir-n");
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(30000);
+      step(30660);
+      if (state().phase !== "aim" || dwell() !== 0) fail("family-pointer-blocks", "A look during hold putted or filled the ring.");
+      release();
+      releaseLook();
+      enterLook(box, 32000);
+      step(32660);
+      if (state().phase !== "roll" || state().power !== "medium") fail("family-pointer-blocks", "A fresh look after release did not putt.");
+    });
+    run("family-stale", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const box = targetById(centers().targets, "dir-s");
+      try {
+        enterLook(box, 36000);
+        step(36200);
+        if (!(dwell() > 0) || state().phase !== "aim") fail("family-stale", "The ring did not fill before the sample went stale.");
+        refreshHold = false;
+        step(36700);
+        if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+        if (state().phase !== "aim") fail("family-stale", "A stale sample putted.");
+      } finally {
+        refreshHold = true;
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [390, 700], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+            const box = list[i];
+            if (box.x < -0.5 || box.y < -0.5 || box.x + box.w > views[v][0] + 0.5 || box.y + box.h > views[v][1] + 0.5) {
+              fail("family-target-size", where + " target " + box.id + " was off the " + views[v][0] + " by " + views[v][1] + " screen.");
+            }
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        seed(1);
+        start(BAND_IDS[b]);
+        const liveBefore = targetById(centers().targets, "mute");
+        checkView(BAND_IDS[b]);
+        const liveAfter = targetById(centers().targets, "mute");
+        if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+          fail("family-target-size", "targetsAt shrank a live play button.");
+        }
+      }
+      go("rest");
+      checkView("rest");
+    });
+    run("family-eyes", function () {
+      resetInput();
+      step(40000);
+      look(0.5, 0.5);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("family-mute", function () {
+      resetInput();
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    run("eyes-gap", function () {
+      resetInput();
+      function check(where) {
+        const views = [[390, 700], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const boxes = layoutTargets(w, h);
+          if (!boxes) {
+            fail("eyes-gap", where + " at " + w + " by " + h + " had no button boxes.");
+            continue;
+          }
+          const eye = eyesBox(w, h);
+          if (eye.y > h - 80 && eye.x > w - 120) fail("eyes-gap", "Eyes sat on the bottom edge at " + w + " by " + h + ".");
+          const blocks = boxes.slice();
+          if (screen === "menu") {
+            const menu = menuLayout(w, h);
+            if (menu) blocks.push(menu.card, menu.title);
+          }
+          if (screen === "rest") {
+            const rest = restLayout(w, h);
+            if (rest) blocks.push(rest.card);
+          }
+          for (let i = 0; i < blocks.length; i++) {
+            if (intersects(eye, blocks[i])) fail("eyes-gap", "Eyes hit " + (blocks[i].id || "card") + " at " + w + " by " + h + " during " + where + ".");
+          }
+        }
+        look(0.5, 0.02);
+        step(clock || 10000);
+        const placed = eyesEl.getBoundingClientRect();
+        const live = eyesBox(window.innerWidth, window.innerHeight);
+        if (eyesEl.hidden) fail("eyes-gap", "Eyes was hidden while a look was held during " + where + ".");
+        if (Math.abs(placed.left - live.x) > 1 || Math.abs(placed.top - live.y) > 1 || Math.abs(placed.width - live.w) > 1 || Math.abs(placed.height - live.h) > 1) {
+          fail("eyes-gap", "The running layout did not place Eyes from eyesBox during " + where + ".");
+        }
+        const buttons = document.querySelectorAll("button");
+        for (let i = 0; i < buttons.length; i++) {
+          const btn = buttons[i];
+          if (!buttonVisible(btn)) continue;
+          const r = btn.getBoundingClientRect();
+          const box = { x: r.left, y: r.top, w: r.width, h: r.height };
+          if (intersects(box, { x: placed.left, y: placed.top, w: placed.width, h: placed.height })) {
+            fail("eyes-gap", "Eyes hit the " + btn.id + " button at " + window.innerWidth + " by " + window.innerHeight + ".");
+          }
+        }
+        releaseLook();
+      }
+      go("menu");
+      check("menu");
+      seed(1);
+      start("little");
+      check("aim");
+      const arrow = targetById(centers().targets, "dir-e");
+      if (arrow) tap(arrow.nx, arrow.ny);
+      if (state().phase !== "power") fail("eyes-gap", "The power panel did not open.");
+      check("power");
+      go("rest");
+      check("rest");
+    });
+    run("dom-click", function () {
+      resetInput();
+      go("menu");
+      const tiny = document.getElementById("tiny");
+      const lets = document.getElementById("lets-go");
+      tiny.click();
+      if (state().screen !== "menu" || state().level !== "tiny") fail("dom-click", "A click on Putt Putt did not highlight that band.");
+      lets.click();
+      if (state().screen !== "play" || state().level !== "tiny") fail("dom-click", "A click on Let's go did not start Putt Putt.");
+      const arrow = document.getElementById("dir-n");
+      if (!arrow || arrow.getAttribute("data-play") !== "true") fail("dom-click", "North was not a play button.");
+      else {
+        const node = arrow;
+        arrow.click();
+        step(clock || 10000);
+        if (node !== document.getElementById("dir-n")) fail("dom-click", "The click replaced the arrow.");
+        if (state().phase !== "roll" || state().power !== "medium") fail("dom-click", "A click on the arrow did not putt at Medium.");
+      }
+    });
+    run("holes-finishable", function () {
+      const ids = Object.keys(HOLES);
+      for (let i = 0; i < ids.length; i++) {
+        if (!holeReachable(ids[i])) fail("holes-finishable", ids[i] + " did not reach the cup within 4 shots.");
+      }
+    });
+    run("aim-then-power", function () {
+      resetInput();
+      seed(1);
+      start("little");
+      const arrow = targetById(centers().targets, "dir-e");
+      if (!arrow || !arrow.play) fail("aim-then-power", "The east arrow was not a play target.");
+      else {
+        enterLook(arrow, 50000);
+        step(50660);
+        if (state().aim !== "e" || state().phase !== "power") fail("aim-then-power", "A 660 ms look did not set the aim.");
+        const medium = targetById(centers().targets, "power-medium");
+        if (!medium || !medium.play) fail("aim-then-power", "Medium was not a play target.");
+        else {
+          enterLook(medium, 52000);
+          step(52660);
+          if (state().phase !== "roll" || state().power !== "medium") fail("aim-then-power", "A 660 ms look on Medium did not putt.");
+        }
+      }
+    });
+    run("tiny-one-look", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      if (state().cup.r !== 0.08) fail("tiny-one-look", "Putt Putt did not start with the big cup.");
+      const arrow = targetById(centers().targets, "dir-w");
+      enterLook(arrow, 60000);
+      step(60660);
+      if (state().phase !== "roll" || state().power !== "medium") fail("tiny-one-look", "One look did not putt at Medium.");
+      if (targetById(centers().targets, "power-soft")) fail("tiny-one-look", "Putt Putt showed a power button while rolling.");
+    });
+    run("no-input-while-rolling", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const arrow = targetById(centers().targets, "dir-e");
+      tap(arrow.nx, arrow.ny);
+      let t = clock || 70000;
+      step(t);
+      step(t + 80);
+      t += 80;
+      if (!state().rolling) fail("no-input-while-rolling", "The ball was not moving.");
+      const before = JSON.stringify(state());
+      const back = targetById(centers().targets, "back");
+      if (back) tap(back.nx, back.ny);
+      if (state().screen !== "play" || state().rolling !== true) fail("no-input-while-rolling", "A tap changed the roll.");
+      const mute = targetById(centers().targets, "mute");
+      if (mute) {
+        enterLook(mute, t + 100);
+        step(t + 760);
+      }
+      const after = state();
+      if (after.screen !== "play" || after.muted !== false || after.hole !== "T1" || !after.rolling) {
+        fail("no-input-while-rolling", "A look was accepted while the ball moved.");
+      }
+      if (centers().targets.some(function (item) { return item.play; })) {
+        fail("no-input-while-rolling", "A play target stayed up while the ball moved.");
+      }
+      if (before && after.power !== "medium") fail("no-input-while-rolling", "The shot changed while rolling.");
+    });
+    run("distances", function () {
+      const expect = { soft: 0.25, medium: 0.5, strong: 0.85 };
+      const names = ["soft", "medium", "strong"];
+      for (let i = 0; i < names.length; i++) {
+        resetInput();
+        seed(1);
+        start("shop");
+        const startBall = { x: state().ball.x, y: state().ball.y };
+        const arrow = targetById(centers().targets, "dir-e");
+        tap(arrow.nx, arrow.ny);
+        const power = targetById(centers().targets, "power-" + names[i]);
+        if (!power) fail("distances", names[i] + " was not on the power panel.");
+        else {
+          tap(power.nx, power.ny);
+          let t = clock || 80000;
+          step(t);
+          t = rollUntil(t, 2000);
+          const end = state();
+          if (end.rolling || end.phase === "sink" || end.hole !== "S1") fail("distances", names[i] + " did not stop on the open line.");
+          const dist = Math.hypot(end.ball.x - startBall.x, end.ball.y - startBall.y);
+          if (Math.abs(dist - expect[names[i]]) > 0.01) fail("distances", names[i] + " stopped " + dist.toFixed(4) + " from the start.");
+        }
+      }
+    });
+    run("cup-grows", function () {
+      resetInput();
+      seed(1);
+      start("little");
+      function nudge(t) {
+        const arrow = targetById(centers().targets, "dir-s");
+        if (!arrow) return t;
+        tap(arrow.nx, arrow.ny);
+        const soft = targetById(centers().targets, "power-soft");
+        if (!soft) return t;
+        tap(soft.nx, soft.ny);
+        step(t);
+        return rollUntil(t, 2000);
+      }
+      let t = clock || 90000;
+      step(t);
+      for (let i = 0; i < 4; i++) {
+        if (state().phase === "sink" || state().screen !== "play" || state().hole !== "L1") {
+          fail("cup-grows", "A setup shot ended the hole early.");
+          return;
+        }
+        t = nudge(t + 50);
+      }
+      if (Math.abs(state().cup.r - 0.1) > 1e-6) fail("cup-grows", "The cup radius was not 0.1 after the grow count.");
+      for (let i = 0; i < 3; i++) {
+        if (state().screen !== "play" || state().hole !== "L1") {
+          fail("cup-grows", "The hole ended before the help shot.");
+          return;
+        }
+        t = nudge(t + 50);
+      }
+      if (state().screen !== "play" || state().phase !== "aim") fail("cup-grows", "The help shot was not waiting.");
+      else {
+        const arrow = targetById(centers().targets, "dir-s");
+        tap(arrow.nx, arrow.ny);
+        const soft = targetById(centers().targets, "power-soft");
+        tap(soft.nx, soft.ny);
+        step(t + 50);
+        t = rollUntil(t + 50, 2000);
+        if (state().phase === "sink") step(t + SINK_MS);
+        if (state().hole === "L1" && state().screen === "play") fail("cup-grows", "The help shot did not reach the cup.");
+      }
+    });
+    run("last-spot", function () {
+      resetInput();
+      seed(1);
+      start("little");
+      const origin = { x: state().ball.x, y: state().ball.y };
+      const arrow = targetById(centers().targets, "dir-e");
+      tap(arrow.nx, arrow.ny);
+      const soft = targetById(centers().targets, "power-soft");
+      tap(soft.nx, soft.ny);
+      let t = clock || 110000;
+      step(t);
+      t = rollUntil(t, 2000);
+      const moved = Math.hypot(state().ball.x - origin.x, state().ball.y - origin.y);
+      if (moved < 0.05) fail("last-spot", "The putt did not leave the tee.");
+      const back = targetById(centers().targets, "last-spot");
+      if (!back || back.play) fail("last-spot", "Back to the last spot was missing or marked as play.");
+      else tap(back.nx, back.ny);
+      const restored = state();
+      if (Math.abs(restored.ball.x - origin.x) > 0.001 || Math.abs(restored.ball.y - origin.y) > 0.001) {
+        fail("last-spot", "The ball did not return to the shot start.");
+      }
+      if (restored.phase !== "aim") fail("last-spot", "The compass did not come back.");
+    });
+    run("sizes", function () {
+      resetInput();
+      seed(1);
+      const views = [[390, 700], [1024, 768]];
+      start("little");
+      for (let v = 0; v < views.length; v++) {
+        const lay = targetsAt(views[v][0], views[v][1]);
+        if (!lay.ok) fail("sizes", "Aim at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+        const list = lay.targets || [];
+        let arrows = 0;
+        for (let i = 0; i < list.length; i++) {
+          if (Math.min(list[i].w, list[i].h) < 72) fail("sizes", list[i].id + " was under 72.");
+          if (list[i].id.indexOf("dir-") === 0) arrows += 1;
+        }
+        if (arrows !== 8) fail("sizes", "Aim did not show eight arrows at " + views[v][0] + ".");
+      }
+      const live = targetById(centers().targets, "dir-n");
+      if (live) tap(live.nx, live.ny);
+      if (state().phase !== "power") fail("sizes", "Power did not open.");
+      for (let v = 0; v < views.length; v++) {
+        const lay = targetsAt(views[v][0], views[v][1]);
+        if (!lay.ok) fail("sizes", "Power at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+        const list = lay.targets || [];
+        const want = ["power-soft", "power-medium", "power-strong", "change-aim"];
+        for (let i = 0; i < want.length; i++) {
+          const box = targetById(list, want[i]);
+          if (!box) fail("sizes", want[i] + " was missing at " + views[v][0] + ".");
+          else if (Math.min(box.w, box.h) < 72) fail("sizes", want[i] + " was under 72.");
+        }
+      }
+      const root = document.documentElement;
+      if (root.scrollWidth > root.clientWidth + 2 || root.scrollHeight > root.clientHeight + 2) {
+        fail("sizes", "The page needed scrolling.");
+      }
+    });
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+      const end = state();
+      if (!("level" in end) || !("screen" in end) || !("banner" in end) || !("muted" in end)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+      if (speakCalls !== 0) fail("family-plain-state", "speechSynthesis.speak was called.");
+    });
+    try { assertJunk("at the end"); }
+    catch (err) { fail("family-query-inert", err && err.message ? err.message : "The junk check threw."); }
+    try {
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+      if (origSpeak && window.speechSynthesis) window.speechSynthesis.speak = origSpeak;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.miniGolf = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) {
+      result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>

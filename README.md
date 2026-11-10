@@ -24,6 +24,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Music Maker](https://calledtoconstruct.github.io/games/music-maker/)
 - [Follow the Lights](https://calledtoconstruct.github.io/games/follow-the-lights/)
 - [Fish Tank](https://calledtoconstruct.github.io/games/fish-tank/)
+- [Gentle Mini Golf](https://calledtoconstruct.github.io/games/mini-golf/)
 
 ## Pop Pals
 
@@ -170,6 +171,14 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 A caretaking game for ages 2 and up. Feed the fish, wipe the glass, and add plants, rocks, and new fish. Little Bowl has two fish to feed and clean. Tank adds plants. Big Tank lets you add more fish. Reef adds fish that like plants or rocks. Fish get hungry slowly and never get sick.
 
 Open `fish-tank/index.html` in a browser, or play [Fish Tank](https://calledtoconstruct.github.io/games/fish-tank/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Gentle Mini Golf
+
+A putting game for ages 2 and up. Look at an arrow to aim, then choose Soft, Medium, or Strong. Putt Putt putts as soon as you aim. The cup grows after a few shots, and a later shot rolls into the cup. Nothing is timed, and nothing keeps a score.
+
+Open `mini-golf/index.html` in a browser, or play [Gentle Mini Golf](https://calledtoconstruct.github.io/games/mini-golf/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
