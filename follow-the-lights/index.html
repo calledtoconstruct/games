@@ -1,0 +1,1919 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Follow the Lights</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 28; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 8px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 25; pointer-events: none;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 4px 12px; font-size: 18px; font-weight: 800;
+    text-align: center; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #dots {
+    position: fixed; z-index: 24; pointer-events: none;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  #dots i {
+    width: 10px; height: 10px; border-radius: 50%;
+    border: 2px solid var(--ink); background: transparent;
+    display: block;
+  }
+  #dots i.on { background: var(--ink); }
+  #menu-card, #rest-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-rest, #play, #menu-copy, #rest-line, h1, p, b, small {
+    pointer-events: none;
+  }
+  #menu-copy, #rest-line {
+    position: fixed; z-index: 24; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line { font-size: 28px; font-weight: 800; }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush, #another, #play button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 15px; line-height: 1.1;
+    padding: 4px; overflow: hidden;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #another {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 26px;
+  }
+  #play button {
+    border: 4px solid var(--ink); border-radius: 28px;
+    background: var(--card); color: var(--ink);
+    padding: 0; overflow: hidden;
+    display: grid; place-items: center;
+  }
+  #play button.lit {
+    background: var(--pad, var(--sun));
+    border-width: 8px;
+  }
+  #play button svg { width: 68%; height: 68%; display: block; pointer-events: none; }
+  @media (prefers-reduced-motion: reduce) {
+    #play button.lit { transform: none; }
+  }
+</style>
+</head>
+<body>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick who is playing.</p>
+<div id="dots" hidden></div>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Follow the Lights</h1>
+    <p>Watch the lights, then look at them in the same order.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>One Light</b><small>Ages 2 to 3. Two big pads.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Light Show</b><small>Ages 4 to 5. Three pads.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Light Chain</b><small>Ages 6 to 8. Four pads.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Long Chain</b><small>Ages 9 and up. Four pads, longer chains.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden></div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">You followed every light.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const PADS = [
+    { id: "sun", shape: "circle", color: "#E69F00", tone: 262, label: "Sun" },
+    { id: "sea", shape: "square", color: "#56B4E9", tone: 330, label: "Sea" },
+    { id: "leaf", shape: "triangle", color: "#009E73", tone: 392, label: "Leaf" },
+    { id: "flower", shape: "star", color: "#CC79A7", tone: 523, label: "Flower" }
+  ];
+  const BANDS = {
+    tiny: { pads: 2, start: 1, longest: 3, on: 900, gap: 450 },
+    little: { pads: 3, start: 2, longest: 5, on: 800, gap: 400 },
+    shop: { pads: 4, start: 2, longest: 7, on: 700, gap: 350 },
+    rush: { pads: 4, start: 3, longest: 9, on: 600, gap: 300 }
+  };
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const STAR = (function () {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? 36 : 15;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      pts.push((50 + r * Math.cos(a)).toFixed(1) + "," + (52 + r * Math.sin(a)).toFixed(1));
+    }
+    return pts.join(" ");
+  })();
+
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const dotsEl = document.getElementById("dots");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const playEl = document.getElementById("play");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+  const anotherBtn = document.getElementById("another");
+
+  let screen = "menu";
+  let level = "tiny";
+  let phase = "menu";
+  let pattern = [];
+  let matched = 0;
+  let misses = 0;
+  let lit = null;
+  let beats = [];
+  let pin = null;
+  let counter = 1;
+  let rng = null;
+  let muted = false;
+  let checking = false;
+  let suppressReconnect = false;
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let trailOn = false;
+
+  function makeRng(seed) {
+    let state = seed >>> 0;
+    return {
+      uint() {
+        state = (state + 0x6D2B79F5) >>> 0;
+        let t = Math.imul(state ^ (state >>> 15), state | 1);
+        t = t ^ (t + Math.imul(t ^ (t >>> 7), t | 61));
+        return (t ^ (t >>> 14)) >>> 0;
+      }
+    };
+  }
+  function rngUint(rngNow) { return rngNow.uint(); }
+  function rngInt(rngNow, lo, hi) {
+    return lo + (rngUint(rngNow) % (hi - lo + 1));
+  }
+  function playSeed(clockMs, count) {
+    return (Math.imul(((clockMs >>> 0) ^ Math.imul(count >>> 0, 0x9E3779B9)), 0x85EBCA6B)) >>> 0;
+  }
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function knownBand(band) { return BAND_IDS.indexOf(band) >= 0; }
+  function padById(id) {
+    for (let i = 0; i < PADS.length; i++) if (PADS[i].id === id) return PADS[i];
+    return null;
+  }
+  function padIndex(id) {
+    for (let i = 0; i < PADS.length; i++) if (PADS[i].id === id) return i;
+    return -1;
+  }
+  function allowRepeat() { return level === "shop" || level === "rush"; }
+  function padSlot(count, prevIndex, repeatOk) {
+    if (prevIndex < 0 || repeatOk) return rngInt(rng, 0, count - 1);
+    const pick = rngInt(rng, 0, count - 2);
+    return pick >= prevIndex ? pick + 1 : pick;
+  }
+  function takePageSeed() {
+    let s;
+    if (pin !== null) s = pin;
+    else if (checking) s = 1;
+    else s = playSeed(Date.now(), counter);
+    pin = null;
+    counter += 1;
+    return s >>> 0;
+  }
+  function addOne() {
+    const spec = BANDS[level];
+    if (!spec || pattern.length >= spec.longest) return;
+    const prev = pattern.length ? padIndex(pattern[pattern.length - 1]) : -1;
+    pattern.push(PADS[padSlot(spec.pads, prev, allowRepeat())].id);
+  }
+
+  function bannerText() {
+    if (screen === "menu") return "Pick who is playing.";
+    if (screen === "rest") return "You followed every light.";
+    if (phase === "again") return "Watch again.";
+    if (phase === "turn" || phase === "flash") return "Your turn.";
+    return "Watch.";
+  }
+  function state() {
+    const spec = BANDS[level];
+    return {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      phase: phase,
+      pattern: pattern.slice(),
+      matched: matched,
+      lit: lit,
+      pads: spec ? spec.pads : 0
+    };
+  }
+  function go(next) {
+    if (next !== "menu" && next !== "play" && next !== "rest") return;
+    screen = next;
+    if (next === "menu") {
+      beats = [];
+      phase = "menu";
+      lit = null;
+    }
+    render();
+  }
+  function armHead() {
+    const beat = beats[0];
+    if (!beat || beat.armed) return;
+    beat.armed = true;
+    if (beat.kind === "show" || beat.kind === "gap") phase = "watch";
+    else if (beat.kind === "lock") phase = "flash";
+    else if (beat.kind === "pause") phase = "celebrate";
+    else if (beat.kind === "again") phase = "again";
+    else if (beat.kind === "turn") phase = "turn";
+    lit = beat.lit || null;
+    if ((beat.kind === "show" || beat.kind === "lock" || beat.kind === "again") && beat.lit) {
+      const ms = beat.kind === "again" ? 300 : beat.ms;
+      toneFor(beat.lit, ms);
+    }
+    if (beat.chime === "happy") playChime([262, 330, 392, 523], 80);
+    if (beat.chime === "win") playChime([523, 659, 784, 1047], 80);
+  }
+  function enqueueShow() {
+    const spec = BANDS[level];
+    const next = [];
+    matched = 0;
+    if (!spec) {
+      beats = [];
+      phase = "watch";
+      lit = null;
+      return;
+    }
+    for (let i = 0; i < pattern.length; i++) {
+      next.push({ kind: "show", ms: spec.on, lit: pattern[i] });
+      next.push({ kind: "gap", ms: spec.gap, lit: null });
+    }
+    next.push({ kind: "turn", ms: 0, lit: null });
+    beats = next;
+    phase = "watch";
+    lit = pattern.length ? pattern[0] : null;
+    armHead();
+  }
+  function finishBeat(beat) {
+    if (!beat) return;
+    if (beat.kind === "again") {
+      misses += 1;
+      const spec = BANDS[level];
+      if (spec && misses >= 2 && pattern.length > spec.start) {
+        pattern = pattern.slice(0, pattern.length - 1);
+        misses = 0;
+      }
+      enqueueShow();
+      return;
+    }
+    if (beat.grow) {
+      addOne();
+      misses = 0;
+      enqueueShow();
+      return;
+    }
+    if (beat.kind === "rest") {
+      lit = null;
+      beats = [];
+      phase = "rest";
+      go("rest");
+    }
+  }
+  function advance(ms) {
+    if (screen !== "play") return;
+    let left = ms;
+    let guard = 0;
+    while (guard++ < 10000) {
+      if (!beats.length) return;
+      const beat = beats[0];
+      if (beat.kind === "turn") {
+        phase = "turn";
+        lit = null;
+        beats.shift();
+        return;
+      }
+      if (beat.kind === "rest") {
+        beats.shift();
+        finishBeat(beat);
+        return;
+      }
+      armHead();
+      if (left <= 0) return;
+      const slice = Math.min(left, beat.ms);
+      if (beat.kind === "again" && beat.litMs != null) {
+        beat.litMs -= slice;
+        if (beat.litMs <= 0) lit = null;
+      }
+      beat.ms -= slice;
+      left -= slice;
+      if (beat.ms > 0) return;
+      beats.shift();
+      finishBeat(beat);
+    }
+  }
+  function start(band) {
+    if (!knownBand(band)) return;
+    level = band;
+    const spec = BANDS[band];
+    rng = makeRng(takePageSeed());
+    pattern = [];
+    misses = 0;
+    matched = 0;
+    const repeatOk = band === "shop" || band === "rush";
+    for (let i = 0; i < spec.start; i++) {
+      const prev = pattern.length ? padIndex(pattern[pattern.length - 1]) : -1;
+      pattern.push(PADS[padSlot(spec.pads, prev, repeatOk)].id);
+    }
+    enqueueShow();
+    go("play");
+  }
+  function highlight(id) {
+    if (!knownBand(id) || screen !== "menu") return;
+    level = id;
+    render();
+  }
+  function pressPad(pid) {
+    if (screen !== "play" || phase !== "turn") {
+      render();
+      return;
+    }
+    const spec = BANDS[level];
+    const idx = padIndex(pid);
+    if (!spec || idx < 0 || idx >= spec.pads || matched < 0 || matched >= pattern.length) {
+      render();
+      return;
+    }
+    if (pattern[matched] !== pid) {
+      matched = 0;
+      beats = [{ kind: "again", ms: 800, lit: pid, litMs: 300 }];
+      phase = "again";
+      armHead();
+      render();
+      return;
+    }
+    matched += 1;
+    if (matched >= pattern.length && pattern.length >= spec.longest) {
+      beats = [{ kind: "lock", ms: 300, lit: pid, chime: "win" }, { kind: "rest", ms: 0 }];
+    } else if (matched >= pattern.length) {
+      beats = [{ kind: "lock", ms: 300, lit: pid }, { kind: "pause", ms: 700, grow: true, chime: "happy" }];
+    } else {
+      beats = [{ kind: "lock", ms: 300, lit: pid }, { kind: "turn", ms: 0 }];
+    }
+    phase = "flash";
+    armHead();
+    render();
+  }
+
+  function intersects(a, b) {
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  }
+  function eyesBox(w) {
+    const fullX = w - 8 - 72;
+    const muteX = fullX - 8 - 72;
+    return { x: muteX - 8 - 72, y: 8 + 18, w: 72, h: 36 };
+  }
+  function chromeBoxes(w) {
+    const y = 8;
+    const bh = 72;
+    const full = { id: "full", x: w - 8 - 72, y: y, w: 72, h: bh };
+    const mute = { id: "mute", x: full.x - 8 - 72, y: y, w: 72, h: bh };
+    const eye = eyesBox(w);
+    const backW = Math.min(176, Math.max(72, eye.x - 8 - 8));
+    const back = { id: "back", x: 8, y: y, w: backW, h: bh };
+    return { mute: mute, full: full, back: back };
+  }
+  function clearsEyes(boxes, w) {
+    const eye = eyesBox(w);
+    for (let i = 0; i < boxes.length; i++) if (intersects(boxes[i], eye)) return false;
+    return true;
+  }
+  function menuLayout(w, h) {
+    const btnH = 72;
+    const gap = 8;
+    const titleH = 64;
+    const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+    const columnH = titleH + gap + ids.length * btnH + (ids.length - 1) * gap;
+    let top = 128;
+    if (top + columnH > h - 8) top = 92;
+    if (top + columnH <= h - 8) {
+      const cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      const cardX = Math.floor((w - cardW) / 2);
+      const title = { x: cardX, y: top, w: cardW, h: titleH };
+      const buttons = [];
+      let y = top + titleH + gap;
+      for (let i = 0; i < ids.length; i++) {
+        buttons.push({ id: ids[i], x: cardX, y: y, w: cardW, h: btnH });
+        y += btnH + gap;
+      }
+      const card = { x: cardX, y: top, w: cardW, h: y - gap - top };
+      if (clearsEyes([card, title].concat(buttons), w)) return { title: title, buttons: buttons, card: card };
+    }
+    const gridTitle = 48;
+    const cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+    const cardX = Math.floor((w - cardW) / 2);
+    top = 92;
+    const colW = Math.floor((cardW - gap) / 2);
+    if (colW < 72) return null;
+    const title = { x: cardX, y: top, w: cardW, h: gridTitle };
+    const buttons = [];
+    for (let i = 0; i < 4; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      buttons.push({
+        id: BAND_IDS[i],
+        x: cardX + col * (colW + gap),
+        y: top + gridTitle + gap + row * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    const letsY = top + gridTitle + gap + 2 * (btnH + gap);
+    if (letsY + btnH > h - 8) return null;
+    buttons.push({ id: "lets-go", x: cardX, y: letsY, w: cardW, h: btnH });
+    const card = { x: cardX, y: top, w: cardW, h: letsY + btnH - top };
+    if (!clearsEyes([card, title].concat(buttons), w)) return null;
+    return { title: title, buttons: buttons, card: card };
+  }
+  function padFrame(w, h, count) {
+    if (!count) return null;
+    const portrait = h >= w;
+    let cols;
+    let rows;
+    let gap;
+    let top;
+    if (count === 4) {
+      cols = 2;
+      rows = 2;
+      gap = portrait ? 16 : 24;
+      top = 128;
+    } else if (portrait) {
+      cols = 1;
+      rows = count;
+      gap = 16;
+      top = count === 3 ? 112 : 128;
+    } else {
+      cols = count;
+      rows = 1;
+      gap = 24;
+      top = 128;
+    }
+    const inset = 16;
+    const bottom = h - 16;
+    const availW = w - inset * 2;
+    const availH = bottom - top;
+    let cellW;
+    let cellH;
+    if (portrait && count !== 4) {
+      cellW = availW;
+      cellH = Math.floor((availH - gap * (rows - 1)) / rows);
+    } else if (portrait) {
+      cellW = Math.floor((availW - gap) / cols);
+      cellH = Math.floor((availH - gap) / rows);
+    } else {
+      const byW = Math.floor((availW - gap * (cols - 1)) / cols);
+      const byH = Math.floor((availH - gap * (rows - 1)) / rows);
+      const cell = Math.min(280, byW, byH);
+      cellW = cell;
+      cellH = cell;
+    }
+    if (portrait && cellH > 280) cellH = 280;
+    if (!(cellW >= 72) || !(cellH >= 72)) return null;
+    const boardW = cols * cellW + (cols - 1) * gap;
+    const boardH = rows * cellH + (rows - 1) * gap;
+    if (top + boardH > bottom + 0.5 || boardW > availW + 0.5) return null;
+    const x0 = Math.floor((w - boardW) / 2);
+    const y0 = portrait ? top : top + Math.max(0, Math.floor((availH - boardH) / 2));
+    const boxes = [];
+    for (let i = 0; i < count; i++) {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      boxes.push({
+        id: "pad-" + PADS[i].id,
+        x: x0 + c * (cellW + gap),
+        y: y0 + r * (cellH + gap),
+        w: cellW,
+        h: cellH
+      });
+    }
+    return { boxes: boxes, top: y0, gap: gap };
+  }
+  function restLayout(w, h) {
+    const cardW = Math.min(460, Math.max(160, w - 32));
+    const cardH = 140;
+    const x = Math.floor((w - cardW) / 2);
+    let y = 140;
+    const aw = Math.min(280, Math.max(140, w - 32));
+    const ax = Math.floor((w - aw) / 2);
+    let ay = y + cardH + 16;
+    if (ay + 72 > h - 16) {
+      ay = h - 16 - 72;
+      y = Math.min(y, ay - 16 - cardH);
+      if (y < 96) y = 96;
+    }
+    return {
+      card: { x: x, y: y, w: cardW, h: cardH },
+      line: { x: x + 16, y: y + 36, w: cardW - 32, h: 72 },
+      another: { id: "another", x: ax, y: ay, w: aw, h: 72 }
+    };
+  }
+  function bannerBox(w, h) {
+    const width = Math.max(72, w - 32);
+    if (screen === "play" && BANDS[level]) {
+      const frame = padFrame(w, h, BANDS[level].pads);
+      const padTop = frame ? frame.top : 128;
+      const room = padTop - 80;
+      if (room >= 46) return { x: 16, y: 84, w: width, h: 28 };
+      return { x: 16, y: 82, w: width, h: Math.max(22, Math.min(28, room - 4)) };
+    }
+    return { x: 16, y: 84, w: width, h: 36 };
+  }
+  function dotsBox(w, h) {
+    const spec = BANDS[level];
+    const frame = spec ? padFrame(w, h, spec.pads) : null;
+    const padTop = frame ? frame.top : 128;
+    const room = padTop - 80;
+    if (room >= 46) return { x: 16, y: padTop - 16, w: Math.max(72, w - 32), h: 14 };
+    const ban = bannerBox(w, h);
+    const dw = Math.min(180, Math.floor(ban.w * 0.48));
+    return { x: ban.x + ban.w - dw, y: ban.y, w: dw, h: ban.h };
+  }
+  function inside(box, w, h) {
+    return box.x >= -0.5 && box.y >= -0.5 && box.x + box.w <= w + 0.5 && box.y + box.h <= h + 0.5;
+  }
+  function layoutTargets(w, h) {
+    if (!(w >= 320) || !(h >= 480)) return null;
+    const chrome = chromeBoxes(w);
+    const eye = eyesBox(w);
+    if (chrome.back.x + chrome.back.w > eye.x - 7) return null;
+    if (eye.x + eye.w > chrome.mute.x - 7) return null;
+    const targets = [chrome.mute, chrome.full];
+    if (screen !== "menu") targets.push(chrome.back);
+    if (screen === "menu") {
+      const menu = menuLayout(w, h);
+      if (!menu) return null;
+      for (let i = 0; i < menu.buttons.length; i++) targets.push(menu.buttons[i]);
+    }
+    if (screen === "play") {
+      const spec = BANDS[level];
+      if (!spec) return null;
+      const frame = padFrame(w, h, spec.pads);
+      if (!frame || frame.boxes.length !== spec.pads) return null;
+      for (let i = 0; i < frame.boxes.length; i++) targets.push(frame.boxes[i]);
+    }
+    if (screen === "rest") {
+      const rest = restLayout(w, h);
+      if (!rest) return null;
+      targets.push(rest.another);
+    }
+    for (let i = 0; i < targets.length; i++) {
+      const box = targets[i];
+      if (Math.min(box.w, box.h) < 72) return null;
+      if (!inside(box, w, h)) return null;
+      if (intersects(box, eye)) return null;
+    }
+    return targets;
+  }
+  function targetsAt(w, h) {
+    render();
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const boxes = layoutTargets(w, h);
+    if (!boxes) return { ok: false, targets: [] };
+    return {
+      ok: true,
+      targets: boxes.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+  function place(el, box) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+  function shapeNode(pad, on) {
+    const svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 100 100");
+    svg.setAttribute("aria-hidden", "true");
+    const fill = on ? "#fffdf6" : pad.color;
+    let node;
+    if (pad.shape === "circle") {
+      node = document.createElementNS(SVG_NS, "circle");
+      node.setAttribute("cx", "50");
+      node.setAttribute("cy", "50");
+      node.setAttribute("r", "34");
+    } else if (pad.shape === "square") {
+      node = document.createElementNS(SVG_NS, "rect");
+      node.setAttribute("x", "18");
+      node.setAttribute("y", "18");
+      node.setAttribute("width", "64");
+      node.setAttribute("height", "64");
+      node.setAttribute("rx", "8");
+    } else if (pad.shape === "triangle") {
+      node = document.createElementNS(SVG_NS, "polygon");
+      node.setAttribute("points", "50,14 88,82 12,82");
+    } else {
+      node = document.createElementNS(SVG_NS, "polygon");
+      node.setAttribute("points", STAR);
+    }
+    node.setAttribute("fill", fill);
+    svg.appendChild(node);
+    return svg;
+  }
+  function syncPads(boxes) {
+    const want = boxes ? boxes.length : 0;
+    while (playEl.firstChild) playEl.removeChild(playEl.firstChild);
+    for (let i = 0; i < want; i++) {
+      const pad = PADS[i];
+      const on = !!(lit && lit === pad.id && screen === "play");
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.id = "pad-" + pad.id;
+      btn.setAttribute("aria-label", pad.label);
+      btn.style.setProperty("--pad", pad.color);
+      if (screen === "play" && phase === "turn") btn.setAttribute("data-play", "true");
+      if (on) btn.className = "lit";
+      btn.style.transform = on && !reducedMotion() ? "scale(1.04)" : "none";
+      btn.appendChild(shapeNode(pad, on));
+      playEl.appendChild(btn);
+      place(btn, boxes[i]);
+    }
+  }
+  function syncDots() {
+    while (dotsEl.firstChild) dotsEl.removeChild(dotsEl.firstChild);
+    if (screen !== "play") {
+      dotsEl.hidden = true;
+      return;
+    }
+    dotsEl.hidden = false;
+    for (let i = 0; i < pattern.length; i++) {
+      const mark = document.createElement("i");
+      if (i < matched && phase !== "watch" && phase !== "again" && phase !== "menu") mark.className = "on";
+      dotsEl.appendChild(mark);
+    }
+  }
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const chrome = chromeBoxes(w);
+    place(muteBtn, chrome.mute);
+    place(fullBtn, chrome.full);
+    place(backBtn, chrome.back);
+    backBtn.hidden = screen === "menu";
+    menuEl.hidden = screen !== "menu";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "play";
+    bannerEl.textContent = bannerText();
+    place(bannerEl, bannerBox(w, h));
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    const menu = menuLayout(w, h);
+    if (menu) {
+      place(menuCard, menu.card);
+      place(menuCopy, menu.title);
+      for (let i = 0; i < menu.buttons.length; i++) {
+        place(document.getElementById(menu.buttons[i].id), menu.buttons[i]);
+      }
+    }
+    if (screen === "play") {
+      const spec = BANDS[level];
+      const frame = spec ? padFrame(w, h, spec.pads) : null;
+      syncPads(frame ? frame.boxes : []);
+      place(dotsEl, dotsBox(w, h));
+    } else {
+      syncPads([]);
+    }
+    syncDots();
+    const rest = restLayout(w, h);
+    place(restCard, rest.card);
+    place(restLine, rest.line);
+    place(anotherBtn, rest.another);
+    eyesEl.hidden = !eyesOn();
+    place(eyesEl, eyesBox(w));
+  }
+
+  function ensureAudio() {
+    if (checking || ac) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(ac.destination);
+      if (ac.resume) ac.resume();
+    } catch (err) {
+      ac = null;
+      master = null;
+    }
+  }
+  function toneFreq(freq, durMs, delayMs) {
+    if (checking || !ac || !master) return;
+    try {
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      osc.connect(g);
+      g.connect(master);
+      const t0 = ac.currentTime + (delayMs || 0) / 1000;
+      const dur = Math.max(0.04, durMs / 1000);
+      const fade = Math.min(0.02, dur / 2);
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.45, t0 + fade);
+      g.gain.setValueAtTime(0.45, t0 + Math.max(fade, dur - fade));
+      g.gain.linearRampToValueAtTime(0, t0 + dur);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    } catch (err) {}
+  }
+  function toneFor(id, durMs) {
+    const pad = padById(id);
+    if (!pad) return;
+    toneFreq(pad.tone, durMs, 0);
+  }
+  function playChime(freqs, eachMs) {
+    for (let i = 0; i < freqs.length; i++) toneFreq(freqs[i], eachMs, i * eachMs);
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function activate(btn) {
+    if (!btn || !buttonVisible(btn)) {
+      render();
+      return;
+    }
+    if (!checking) ensureAudio();
+    const id = btn.id;
+    if (id.indexOf("pad-") === 0) {
+      pressPad(id.slice(4));
+      return;
+    }
+    if (id === "lets-go") start(level);
+    else if (id === "back") go("menu");
+    else if (id === "another") start(level);
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (knownBand(id)) highlight(id);
+    else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+      trailOn = false;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+      trailOn = false;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        trailOn = false;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn)) activate(btn);
+      } else {
+        const p = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+        dwellProgress = p;
+        const btn = document.getElementById(dwellKey);
+        trailOn = p > 0 && !!(btn && btn.getAttribute("data-play") === "true") && !reducedMotion();
+      }
+    } else {
+      dwellProgress = 0;
+      trailOn = false;
+    }
+    if (LEAVE_MS < 0) trailOn = false;
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    const prev = clock;
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    const gap = prev ? now - prev : 0;
+    if (gap > 0 && gap < 120000) advance(gap);
+    stepGaze(now);
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn);
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || btn.id !== armedId) return;
+    armedId = null;
+    activate(btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn); e.preventDefault(); }
+    }
+  });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+  function reachTurn() {
+    const spec = BANDS[level];
+    let t = clock || 10000;
+    step(t);
+    if (state().phase === "watch" && spec) {
+      const need = state().pattern.length * (spec.on + spec.gap);
+      step(t + need);
+      t += need;
+    }
+    return t;
+  }
+  function pressCorrect(t) {
+    const pat = state().pattern.slice();
+    for (let i = 0; i < pat.length; i++) {
+      const box = targetById(centers().targets, "pad-" + pat[i]);
+      if (!box || !box.play) return null;
+      tap(box.nx, box.ny);
+      step(t + 300);
+      t += 300;
+    }
+    return t;
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+      if (state().pattern.length !== 0) fail("family-query-inert", "A junk flag dealt a pattern.");
+    });
+    run("family-plain-state", function () {
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snap.level !== "tiny" || snap.screen !== "menu" || snap.banner !== "Pick who is playing." || snap.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on One Light.");
+      }
+      const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank", "speech"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      let t = reachTurn();
+      if (state().phase !== "turn" || state().screen !== "play") fail("family-play-dwell", "The pattern did not reach Your turn.");
+      const padId = state().pattern[0];
+      const box = targetById(centers().targets, "pad-" + padId);
+      if (!box || !box.play) fail("family-play-dwell", "The first pad was not a play target.");
+      else {
+        const hit = buttonAt(box.nx * window.innerWidth, box.ny * window.innerHeight);
+        if (!hit || hit.id !== box.id) fail("family-play-dwell", "The pad center was not the button.");
+        enterLook(box, t + 1000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(t + 1200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(t + 1640);
+        if (state().matched !== 0 || state().phase !== "turn") fail("family-play-dwell", "640 ms committed the pad.");
+        step(t + 1660);
+        if (state().matched !== 1 || state().lit !== padId) fail("family-play-dwell", "660 ms did not light the pad.");
+      }
+      resetInput();
+      seed(1);
+      start("tiny");
+      t = reachTurn();
+      const againId = state().pattern[0];
+      const tapBox = targetById(centers().targets, "pad-" + againId);
+      tap(tapBox.nx, tapBox.ny);
+      if (state().matched !== 1 || state().lit !== againId || againId !== padId) fail("family-play-dwell", "A tap did not light the same pad.");
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "play") fail("family-menu-dwell", "1300 ms on Let's go did not start the band.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "play") fail("family-menu-dwell", "600 ms on Back left the game.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const t = reachTurn();
+      const padId = state().pattern[0];
+      const box = targetById(centers().targets, "pad-" + padId);
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(t + 1000);
+      step(t + 1660);
+      if (state().matched !== 0 || dwell() !== 0) fail("family-pointer-blocks", "A look during hold committed or filled the ring.");
+      release();
+      releaseLook();
+      enterLook(box, t + 3000);
+      step(t + 3660);
+      if (state().matched !== 1 || state().lit !== padId) fail("family-pointer-blocks", "A fresh look after release did not light the pad.");
+    });
+    run("family-stale", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const t = reachTurn();
+      const padId = state().pattern[0];
+      const box = targetById(centers().targets, "pad-" + padId);
+      try {
+        enterLook(box, t + 1000);
+        step(t + 1200);
+        if (!(dwell() > 0) || state().matched !== 0) fail("family-stale", "The ring did not fill before the sample went stale.");
+        refreshHold = false;
+        step(t + 1700);
+        if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+        if (state().matched !== 0) fail("family-stale", "A stale sample lit the pad.");
+      } finally {
+        refreshHold = true;
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [390, 700], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+            const box = list[i];
+            if (box.x < -0.5 || box.y < -0.5 || box.x + box.w > views[v][0] + 0.5 || box.y + box.h > views[v][1] + 0.5) {
+              fail("family-target-size", where + " target " + box.id + " was off the " + views[v][0] + " by " + views[v][1] + " screen.");
+            }
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        seed(1);
+        start(BAND_IDS[b]);
+        const liveBefore = targetById(centers().targets, "mute");
+        checkView(BAND_IDS[b]);
+        const liveAfter = targetById(centers().targets, "mute");
+        if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+          fail("family-target-size", "targetsAt shrank a live play button.");
+        }
+      }
+      go("rest");
+      checkView("rest");
+    });
+    run("family-eyes", function () {
+      resetInput();
+      step(40000);
+      look(0.5, 0.5);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("family-mute", function () {
+      resetInput();
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    run("eyes-gap", function () {
+      resetInput();
+      function check(where) {
+        const views = [[390, 700], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const boxes = layoutTargets(w, h);
+          if (!boxes) {
+            fail("eyes-gap", where + " at " + w + " by " + h + " had no button boxes.");
+            continue;
+          }
+          const eye = eyesBox(w);
+          if (eye.y > h - 80 && eye.x > w - 120) fail("eyes-gap", "Eyes sat on the bottom edge at " + w + " by " + h + ".");
+          const blocks = boxes.slice();
+          if (screen === "menu") {
+            const menu = menuLayout(w, h);
+            if (menu) blocks.push(menu.card, menu.title);
+          }
+          if (screen === "rest") {
+            const rest = restLayout(w, h);
+            if (rest) blocks.push(rest.card);
+          }
+          for (let i = 0; i < blocks.length; i++) {
+            if (intersects(eye, blocks[i])) fail("eyes-gap", "Eyes hit " + (blocks[i].id || "card") + " at " + w + " by " + h + " during " + where + ".");
+          }
+        }
+        look(0.5, 0.02);
+        step(clock || 10000);
+        const placed = eyesEl.getBoundingClientRect();
+        const live = eyesBox(window.innerWidth);
+        if (eyesEl.hidden) fail("eyes-gap", "Eyes was hidden while a look was held during " + where + ".");
+        if (Math.abs(placed.left - live.x) > 1 || Math.abs(placed.top - live.y) > 1 || Math.abs(placed.width - live.w) > 1 || Math.abs(placed.height - live.h) > 1) {
+          fail("eyes-gap", "The running layout did not place Eyes from eyesBox during " + where + ".");
+        }
+        const buttons = document.querySelectorAll("button");
+        for (let i = 0; i < buttons.length; i++) {
+          const btn = buttons[i];
+          if (!buttonVisible(btn)) continue;
+          const r = btn.getBoundingClientRect();
+          const box = { x: r.left, y: r.top, w: r.width, h: r.height };
+          if (intersects(box, { x: placed.left, y: placed.top, w: placed.width, h: placed.height })) {
+            fail("eyes-gap", "Eyes hit the " + btn.id + " button at " + window.innerWidth + " by " + window.innerHeight + ".");
+          }
+        }
+        releaseLook();
+      }
+      go("menu");
+      check("menu");
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        seed(1);
+        start(BAND_IDS[b]);
+        check(BAND_IDS[b]);
+      }
+      go("rest");
+      check("rest");
+    });
+    run("watch-inert", function () {
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        resetInput();
+        seed(1);
+        start(BAND_IDS[b]);
+        const spec = BANDS[BAND_IDS[b]];
+        const before = state().pattern.join(",");
+        let t = clock || 10000;
+        step(t);
+        if (state().phase !== "watch" || state().screen !== "play") fail("watch-inert", BAND_IDS[b] + " did not open on Watch.");
+        const pads = centers().targets.filter(function (item) { return item.id.indexOf("pad-") === 0; });
+        if (pads.length !== spec.pads) fail("watch-inert", BAND_IDS[b] + " did not show its pads during Watch.");
+        for (let i = 0; i < pads.length; i++) {
+          if (pads[i].play) fail("watch-inert", BAND_IDS[b] + " pad " + pads[i].id + " had data-play during Watch.");
+        }
+        const box = pads[0];
+        enterLook(box, t + 50);
+        step(t + 50 + 660);
+        if (state().pattern.join(",") !== before || state().phase !== "watch" || state().matched !== 0) {
+          fail("watch-inert", "A 660 ms look during Watch changed " + BAND_IDS[b] + ".");
+        }
+        tap(box.nx, box.ny);
+        if (state().pattern.join(",") !== before || state().phase !== "watch" || state().matched !== 0 || state().screen !== "play") {
+          fail("watch-inert", "A tap during Watch changed " + BAND_IDS[b] + ".");
+        }
+      }
+    });
+    run("repeat-grows", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const before = state().pattern.slice();
+      let t = reachTurn();
+      if (state().phase !== "turn" || before.length !== 1) fail("repeat-grows", "Tiny did not open Your turn at the start length.");
+      t = pressCorrect(t);
+      if (t == null) fail("repeat-grows", "A correct pad was not a play target.");
+      else {
+        if (state().pattern.length !== before.length || state().screen !== "play") fail("repeat-grows", "The pattern grew before the wait.");
+        step(t + 700);
+        const after = state();
+        if (after.phase !== "watch" || after.screen !== "play") fail("repeat-grows", "A finished pattern did not return to Watch.");
+        if (after.pattern.length !== before.length + 1) fail("repeat-grows", "The pattern did not grow by exactly one pad.");
+        if (after.pattern[0] !== before[0]) fail("repeat-grows", "The earlier pads changed.");
+        if (after.pattern.join(",").indexOf("wrong") >= 0) fail("repeat-grows", "The pattern stored a scold.");
+      }
+    });
+    run("miss-replays", function () {
+      resetInput();
+      seed(1);
+      start("little");
+      const t0 = reachTurn();
+      const snap = state();
+      const before = snap.pattern.join(",");
+      if (snap.phase !== "turn" || snap.pattern.length !== 2) fail("miss-replays", "Light Show did not open Your turn at length 2.");
+      const wrong = snap.pattern[0] === "sun" ? "sea" : "sun";
+      const box = targetById(centers().targets, "pad-" + wrong);
+      if (!box) fail("miss-replays", "The other pad was missing.");
+      else {
+        tap(box.nx, box.ny);
+        const mid = state();
+        if (mid.banner !== "Watch again.") fail("miss-replays", "The banner did not say Watch again.");
+        if (mid.pattern.join(",") !== before || mid.screen !== "play" || mid.level !== "little" || mid.muted !== false) {
+          fail("miss-replays", "A slip changed the pattern or the sitting.");
+        }
+        if (mid.banner.toLowerCase().indexOf("wrong") >= 0 || mid.banner.toLowerCase().indexOf("fail") >= 0) {
+          fail("miss-replays", "The banner scolded the slip.");
+        }
+        step(t0 + 800);
+        const done = state();
+        if (done.phase !== "watch" || done.pattern.join(",") !== before || done.matched !== 0 || done.screen !== "play") {
+          fail("miss-replays", "The same pattern did not play again.");
+        }
+      }
+    });
+    run("two-misses-shorten", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      let t = reachTurn();
+      const floor = state().pattern.length;
+      t = pressCorrect(t);
+      step(t + 700);
+      t = reachTurn();
+      const grown = state().pattern.slice();
+      if (grown.length !== floor + 1) fail("two-misses-shorten", "The pattern was not one longer before the slips.");
+      function missOnce(now) {
+        const cur = state();
+        const bad = cur.pattern[0] === "sun" ? "sea" : "sun";
+        const box = targetById(centers().targets, "pad-" + bad);
+        tap(box.nx, box.ny);
+        step(now + 800);
+        return now + 800;
+      }
+      if (state().phase !== "turn") fail("two-misses-shorten", "Your turn did not return after the chain grew.");
+      t = missOnce(t);
+      if (state().pattern.length !== grown.length || state().pattern.join(",") !== grown.join(",")) {
+        fail("two-misses-shorten", "The first replay changed the pattern.");
+      }
+      t = reachTurn();
+      t = missOnce(t);
+      if (state().pattern.length !== grown.length - 1) fail("two-misses-shorten", "Two replays did not shorten the pattern by one.");
+      if (state().pattern.length < floor) fail("two-misses-shorten", "The pattern fell below the start length.");
+      if (state().phase !== "watch") fail("two-misses-shorten", "The shorter pattern did not return to Watch.");
+      t = reachTurn();
+      const atFloor = state().pattern.length;
+      t = missOnce(t);
+      t = reachTurn();
+      t = missOnce(t);
+      if (state().pattern.length !== atFloor || state().pattern.length < 1) fail("two-misses-shorten", "More slips shortened past the start length.");
+    });
+    run("longest-rest", function () {
+      resetInput();
+      seed(2);
+      start("tiny");
+      const spec = BANDS.tiny;
+      let guard = 0;
+      let t = clock || 10000;
+      while (state().screen === "play" && guard++ < 12) {
+        if (state().phase !== "turn") t = reachTurn();
+        const len = state().pattern.length;
+        t = pressCorrect(t);
+        if (t == null) {
+          fail("longest-rest", "A pad in the chain was not a play target.");
+          break;
+        }
+        if (len >= spec.longest) break;
+        step(t + 700);
+        t += 700;
+      }
+      if (state().screen !== "rest") fail("longest-rest", "The longest pattern did not open rest.");
+      if (state().banner !== "You followed every light.") fail("longest-rest", "The rest sentence was not the calm line.");
+      const low = (state().banner || "").toLowerCase();
+      if (low.indexOf("wrong") >= 0 || low.indexOf("fail") >= 0 || low.indexOf("no") >= 0) fail("longest-rest", "The banner scolded.");
+      const ban = ["score", "wrongs", "lives", "rank", "msLeft"];
+      const snap = state();
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("longest-rest", "state included " + ban[i] + ".");
+      }
+      const restText = restEl.innerText || "";
+      if (/grade|wrong|score|rank/i.test(restText)) fail("longest-rest", "The rest card showed a grade.");
+      const another = document.getElementById("another");
+      if (!another || another.getAttribute("data-play") === "true") fail("longest-rest", "Another was missing or marked as play.");
+      const again = targetById(centers().targets, "another");
+      if (!again) fail("longest-rest", "Another was not a target.");
+      else {
+        tap(again.nx, again.ny);
+        if (state().screen !== "play" || state().level !== "tiny" || state().pattern.length !== spec.start) {
+          fail("longest-rest", "Another did not start the same band.");
+        }
+      }
+    });
+    run("pad-count", function () {
+      const expect = { tiny: 2, little: 3, shop: 4, rush: 4 };
+      const table = {
+        tiny: { pads: 2, start: 1, longest: 3, on: 900, gap: 450 },
+        little: { pads: 3, start: 2, longest: 5, on: 800, gap: 400 },
+        shop: { pads: 4, start: 2, longest: 7, on: 700, gap: 350 },
+        rush: { pads: 4, start: 3, longest: 9, on: 600, gap: 300 }
+      };
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        const id = BAND_IDS[b];
+        const spec = BANDS[id];
+        const row = table[id];
+        if (spec.pads !== row.pads || spec.start !== row.start || spec.longest !== row.longest || spec.on !== row.on || spec.gap !== row.gap) {
+          fail("pad-count", id + " did not keep the band lengths and timings.");
+        }
+        resetInput();
+        seed(1);
+        start(id);
+        const live = centers().targets.filter(function (item) { return item.id.indexOf("pad-") === 0; });
+        if (live.length !== expect[id]) fail("pad-count", id + " showed " + live.length + " pads.");
+        const phone = targetsAt(390, 700);
+        const desk = targetsAt(1024, 768);
+        if (!phone.ok || !desk.ok) fail("pad-count", id + " did not fit 390 by 700 or 1024 by 768.");
+        const phonePads = (phone.targets || []).filter(function (item) { return item.id.indexOf("pad-") === 0; });
+        const deskPads = (desk.targets || []).filter(function (item) { return item.id.indexOf("pad-") === 0; });
+        if (phonePads.length !== expect[id] || deskPads.length !== expect[id]) fail("pad-count", id + " dropped a pad in a checked window.");
+        for (let i = 0; i < phonePads.length; i++) {
+          const btn = document.getElementById(phonePads[i].id);
+          if (!btn || !btn.querySelector("polygon, circle, rect")) fail("pad-count", phonePads[i].id + " did not draw a shape.");
+        }
+      }
+      const four = targetsAt(390, 700);
+      const pads4 = (four.targets || []).filter(function (item) { return item.id.indexOf("pad-") === 0; });
+      if (state().level !== "rush" || pads4.length !== 4) fail("pad-count", "The 390 by 700 measure was not on four pads.");
+      else if (pads4[0].w !== 171 || pads4[0].h !== 270 || pads4[0].x !== 16 || pads4[0].y !== 128) {
+        fail("pad-count", "The 2 by 2 pads were not 171 by 270 at 390 by 700.");
+      }
+      start("little");
+      const three = targetsAt(390, 700);
+      const pads3 = (three.targets || []).filter(function (item) { return item.id.indexOf("pad-") === 0; });
+      if (pads3.length !== 3 || pads3[0].w !== 358 || pads3[0].h !== 180 || pads3[0].x !== 16 || pads3[0].y !== 112) {
+        fail("pad-count", "The three stacked pads were not 358 by 180 at 390 by 700.");
+      }
+      const wide = targetsAt(1024, 768);
+      const widePads = (wide.targets || []).filter(function (item) { return item.id.indexOf("pad-") === 0; });
+      if (widePads.length !== 3 || widePads[0].w !== 280 || widePads[0].h !== 280) {
+        fail("pad-count", "Landscape pads were not capped at 280 px square.");
+      }
+    });
+    run("reduced-motion", function () {
+      function sample() {
+        resetInput();
+        seed(1);
+        start("tiny");
+        const spec = BANDS.tiny;
+        let t = clock || 10000;
+        step(t);
+        const frames = [];
+        function snap(label) {
+          const id = state().pattern[0];
+          const btn = document.getElementById("pad-" + id);
+          frames.push({
+            label: label,
+            phase: state().phase,
+            lit: state().lit,
+            on: !!(btn && btn.classList.contains("lit")),
+            bg: btn ? getComputedStyle(btn).backgroundColor : "",
+            motion: btn ? btn.style.transform : ""
+          });
+        }
+        step(t + Math.floor(spec.on / 2));
+        snap("mid");
+        step(t + spec.on);
+        snap("gap");
+        step(t + spec.on + spec.gap);
+        snap("turn");
+        return frames;
+      }
+      const plain = sample();
+      const orig = window.matchMedia;
+      window.matchMedia = function (q) {
+        if (String(q).indexOf("prefers-reduced-motion") >= 0) {
+          return {
+            matches: true,
+            media: String(q),
+            addEventListener: function () {},
+            removeEventListener: function () {},
+            addListener: function () {},
+            removeListener: function () {}
+          };
+        }
+        return orig.call(window, q);
+      };
+      let reduced;
+      try { reduced = sample(); }
+      finally { window.matchMedia = orig; }
+      if (plain.length !== 3 || reduced.length !== 3) fail("reduced-motion", "The timeline did not record three beats.");
+      else {
+        for (let i = 0; i < plain.length; i++) {
+          if (plain[i].phase !== reduced[i].phase || plain[i].lit !== reduced[i].lit) {
+            fail("reduced-motion", "Reduced motion changed the sequence at " + plain[i].label + ".");
+          }
+        }
+        if (!reduced[0].on || reduced[0].lit == null) fail("reduced-motion", "The pad did not light with reduced motion on.");
+        if (reduced[0].bg === plain[0].bg && reduced[0].bg !== "rgb(255, 253, 246)" && reduced[0].bg !== "") {
+          if (reduced[0].motion !== "none") fail("reduced-motion", "Reduced motion still scaled the pad.");
+        } else if (!reduced[0].on) fail("reduced-motion", "The lit color class was missing.");
+        if (reduced[0].motion !== "none") fail("reduced-motion", "Reduced motion still scaled the pad.");
+        if (plain[2].phase !== "turn" || reduced[2].phase !== "turn") fail("reduced-motion", "The gap timing did not reach Your turn.");
+        const litBg = reduced[0].bg.replace(/\s/g, "");
+        if (litBg === "rgb(255,253,246)" || litBg === "rgba(255,253,246,1)") fail("reduced-motion", "The lit pad stayed cream.");
+      }
+    });
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+      const end = state();
+      if (!("level" in end) || !("screen" in end) || !("banner" in end) || !("muted" in end)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+    });
+    try {
+      assertJunk("at the end");
+    } catch (err) {
+      fail("family-query-inert", err && err.message ? err.message : "The junk check threw.");
+    }
+    try {
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.followTheLights = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) {
+      result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
