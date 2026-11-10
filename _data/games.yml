@@ -50,6 +50,9 @@ follow-the-lights:
 fish-tank:
   name: "Fish Tank"
   line: "A caretaking game for ages 2 and up."
+mini-golf:
+  name: "Gentle Mini Golf"
+  line: "A putting game for ages 2 and up."
 feelings-and-choices:
   name: "Feelings and Choices"
   line: "A gentle talking game for ages 2 and up."
