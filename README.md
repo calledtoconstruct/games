@@ -21,6 +21,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Memory Match](https://calledtoconstruct.github.io/games/memory-match/)
 - [Story Paths](https://calledtoconstruct.github.io/games/story-paths/)
 - [I Spy](https://calledtoconstruct.github.io/games/i-spy/)
+- [Music Maker](https://calledtoconstruct.github.io/games/music-maker/)
 
 ## Pop Pals
 
@@ -143,6 +144,14 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 A finding game for ages 2 and up. The banner shows what to find in the picture. Look at it until the ring fills. Look Look has a few big things. Spy Kids, Sharp Eyes, and Eagle Eye fill the room with more. If a find takes a while, the thing glows once. Nothing is timed.
 
 Open `i-spy/index.html` in a browser, or play [I Spy](https://calledtoconstruct.github.io/games/i-spy/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Music Maker
+
+A music game for ages 2 and up. Look at a bell or a drum to play it. Bells has four bells. Band adds more notes and a drum. Loop lets you put sounds on eight steps that play over and over. Studio adds a beats lane and a tempo. There are no wrong notes.
+
+Open `music-maker/index.html` in a browser, or play [Music Maker](https://calledtoconstruct.github.io/games/music-maker/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 

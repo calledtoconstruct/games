@@ -41,3 +41,6 @@ story-paths:
 i-spy:
   name: "I Spy"
   line: "A finding game for ages 2 and up."
+music-maker:
+  name: "Music Maker"
+  line: "A music game for ages 2 and up."

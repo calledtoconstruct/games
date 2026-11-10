@@ -1,0 +1,2339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Music Maker</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 28; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 8px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 25; pointer-events: none;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 6px 14px; font-size: 18px; font-weight: 800;
+    text-align: center;
+  }
+  #menu-card, #rest-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-rest, #play, #menu-copy, #rest-line, h1, p, b, small,
+  #lane-bells, #lane-beats {
+    pointer-events: none;
+  }
+  #menu-copy, #rest-line {
+    position: fixed; z-index: 24; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line { font-size: 28px; font-weight: 800; }
+  #lane-bells, #lane-beats {
+    position: fixed; z-index: 24; margin: 0; font-weight: 800; font-size: 16px;
+    line-height: 1; overflow: hidden;
+  }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush, #another, #play button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 15px; line-height: 1.1;
+    padding: 4px;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #another {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 26px;
+  }
+  #play button {
+    display: flex; align-items: center; justify-content: center;
+    border: 3px solid transparent; border-radius: 18px;
+    background: var(--card); color: var(--ink); text-align: center;
+    padding: 4px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+    font-weight: 800; font-size: 18px;
+  }
+  #play button .pop {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    width: 100%; height: 100%; gap: 2px; pointer-events: none;
+  }
+  #play button svg { width: 46%; height: 42%; display: block; pointer-events: none; }
+  #play button .lbl { font-size: 15px; font-weight: 800; line-height: 18px; color: var(--ink); pointer-events: none; }
+  #play button.picked { border-color: var(--sun); }
+  #play button.lit { border-color: #2f8a3e; }
+  #play button.slot-empty { border-style: dashed; border-color: var(--ink); }
+  #play button.dim { opacity: 0.4; }
+  #play button[aria-pressed="true"] { border-color: var(--ink); background: #fff6df; }
+  #play button#play-toggle {
+    border: none; background: var(--sun); color: var(--ink);
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 24px;
+  }
+  @keyframes pop {
+    0% { transform: translateY(0); }
+    35% { transform: translateY(-8px); }
+    100% { transform: translateY(0); }
+  }
+  #play button.bounce .pop { animation: pop 280ms ease; }
+  @media (prefers-reduced-motion: reduce) {
+    #play button.bounce .pop { animation: none; }
+    #play button.bounce { box-shadow: 0 0 0 5px #ffc857; }
+  }
+</style>
+</head>
+<body>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick who is playing.</p>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Music Maker</h1>
+    <p>Look at bells and drums to play them.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Bells</b><small>Ages 2 to 3. Four bells.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Band</b><small>Ages 4 to 5. Six sounds.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Loop</b><small>Ages 6 to 8. Make a loop.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Studio</b><small>Ages 9 and up. Two lanes and tempo.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <button id="tab-sounds" type="button">Sounds</button>
+  <button id="tab-loop" type="button">Loop</button>
+  <p id="lane-bells" hidden>Bells</p>
+  <p id="lane-beats" hidden>Beats</p>
+  <button id="page-prev" type="button">Previous</button>
+  <button id="page-next" type="button">Next</button>
+  <button id="tempo-slow" type="button">Slow</button>
+  <button id="tempo-medium" type="button">Medium</button>
+  <button id="tempo-fast" type="button">Fast</button>
+  <button id="play-toggle" type="button">Play</button>
+  <button id="clear" type="button">Clear all</button>
+  <button id="done" type="button">Done</button>
+</div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">That was lovely music.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const STEP_GAP_MS = 120000;
+  const LOG_CAP = 64;
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const SOUNDS = {
+    c:      { label: "C",      kind: "bell", freq: 262, shape: "circle",   color: "#E69F00" },
+    d:      { label: "D",      kind: "bell", freq: 294, shape: "square",   color: "#F0E442" },
+    e:      { label: "E",      kind: "bell", freq: 330, shape: "triangle", color: "#009E73" },
+    g:      { label: "G",      kind: "bell", freq: 392, shape: "diamond",  color: "#56B4E9" },
+    a:      { label: "A",      kind: "bell", freq: 440, shape: "star",     color: "#0072B2" },
+    hiC:    { label: "High C", kind: "bell", freq: 523, shape: "heart",    color: "#CC79A7" },
+    drum:   { label: "Drum",   kind: "drum",   shape: "drum",   color: "#D55E00" },
+    shaker: { label: "Shaker", kind: "shaker", shape: "shaker", color: "#BBBBBB" },
+    clap:   { label: "Clap",   kind: "clap",   shape: "hand",   color: "#C89B5B" }
+  };
+  const BANDS = {
+    tiny:   { sounds: ["c", "e", "g", "hiC"], loop: false },
+    little: { sounds: ["c", "d", "e", "g", "a", "drum"], loop: false },
+    shop:   { sounds: ["c", "d", "e", "g", "a", "drum", "shaker", "clap"], loop: "one" },
+    rush:   { sounds: ["c", "d", "e", "g", "a", "drum", "shaker", "clap"], loop: "two", tempos: { slow: 500, medium: 400, fast: 300 } }
+  };
+  const SOUND_IDS = ["c", "d", "e", "g", "a", "hiC", "drum", "shaker", "clap"];
+  const STAR = (function () {
+    const pts = [];
+    for (let i = 0; i < 10; i++) {
+      const r = i % 2 === 0 ? 36 : 15;
+      const a = -Math.PI / 2 + (i * Math.PI) / 5;
+      pts.push((50 + Math.cos(a) * r).toFixed(1) + "," + (48 + Math.sin(a) * r).toFixed(1));
+    }
+    return pts.join(" ");
+  })();
+
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const playEl = document.getElementById("play");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+  const letsBtn = document.getElementById("lets-go");
+  const anotherBtn = document.getElementById("another");
+  const playToggle = document.getElementById("play-toggle");
+  const MANAGED_IDS = [
+    "tab-sounds", "tab-loop", "lane-bells", "lane-beats", "page-prev", "page-next",
+    "tempo-slow", "tempo-medium", "tempo-fast", "play-toggle", "clear", "done"
+  ];
+
+  let screen = "menu";
+  let level = "tiny";
+  let muted = false;
+  let pin = null;
+  let checking = false;
+  let suppressReconnect = false;
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let trailOn = false;
+  let selected = null;
+  let loopOne = blankSteps();
+  let bells = blankSteps();
+  let beats = blankSteps();
+  let playing = false;
+  let playhead = null;
+  let playOrigin = 0;
+  let loopGen = 0;
+  let visits = [];
+  let heard = [];
+  let lastSound = null;
+  let slotPage = 0;
+  let playTab = "sounds";
+  let tempoName = "medium";
+  let bounce = null;
+  let layoutFault = "";
+  const managed = [];
+
+  function blankSteps() {
+    return [null, null, null, null, null, null, null, null];
+  }
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function knownBand(band) { return BAND_IDS.indexOf(band) >= 0; }
+  function svgEl(name, attrs) {
+    const el = document.createElementNS("http://www.w3.org/2000/svg", name);
+    if (attrs) {
+      for (const k in attrs) el.setAttribute(k, attrs[k]);
+    }
+    return el;
+  }
+  function clearNode(node) {
+    while (node.firstChild) node.removeChild(node.firstChild);
+  }
+  function drawShape(svg, shape, color) {
+    clearNode(svg);
+    const ink = "#2c2416";
+    function mark(name, attrs) {
+      if (!attrs.fill) attrs.fill = color;
+      if (!attrs.stroke) attrs.stroke = ink;
+      if (!attrs["stroke-width"]) attrs["stroke-width"] = "4";
+      attrs["stroke-linejoin"] = "round";
+      svg.appendChild(svgEl(name, attrs));
+    }
+    if (shape === "circle") mark("circle", { cx: "50", cy: "48", r: "30" });
+    else if (shape === "square") mark("rect", { x: "18", y: "16", width: "64", height: "64", rx: "8" });
+    else if (shape === "triangle") mark("polygon", { points: "50,12 90,84 10,84" });
+    else if (shape === "diamond") mark("polygon", { points: "50,8 92,48 50,90 8,48" });
+    else if (shape === "star") mark("polygon", { points: STAR });
+    else if (shape === "heart") {
+      mark("path", { d: "M50 84 C20 60 10 42 26 28 C38 18 48 26 50 36 C52 26 62 18 74 28 C90 42 80 60 50 84 Z" });
+    } else if (shape === "drum") {
+      mark("ellipse", { cx: "50", cy: "64", rx: "30", ry: "18" });
+      mark("rect", { x: "20", y: "42", width: "60", height: "16", rx: "6" });
+      mark("line", { x1: "28", y1: "28", x2: "48", y2: "46", fill: "none", stroke: ink, "stroke-width": "4", "stroke-linecap": "round" });
+      mark("line", { x1: "72", y1: "26", x2: "54", y2: "44", fill: "none", stroke: ink, "stroke-width": "4", "stroke-linecap": "round" });
+    } else if (shape === "shaker") {
+      mark("rect", { x: "34", y: "14", width: "32", height: "72", rx: "14" });
+      mark("circle", { cx: "46", cy: "36", r: "3", fill: ink, stroke: "none" });
+      mark("circle", { cx: "56", cy: "48", r: "3", fill: ink, stroke: "none" });
+      mark("circle", { cx: "44", cy: "58", r: "3", fill: ink, stroke: "none" });
+      mark("circle", { cx: "55", cy: "68", r: "3", fill: ink, stroke: "none" });
+    } else if (shape === "hand") {
+      mark("path", { d: "M32 78 L32 46 Q32 34 42 34 Q50 34 50 46 L50 56 L54 32 Q54 22 64 22 Q72 22 72 34 L72 56 L76 38 Q78 28 86 32 Q94 36 88 50 L82 78 Z" });
+    }
+  }
+  function makePop(btn) {
+    const pop = document.createElement("span");
+    pop.className = "pop";
+    const svg = svgEl("svg", { viewBox: "0 0 100 100", "aria-hidden": "true" });
+    const lbl = document.createElement("span");
+    lbl.className = "lbl";
+    pop.appendChild(svg);
+    pop.appendChild(lbl);
+    btn.appendChild(pop);
+    return btn;
+  }
+  function makeSound(id) {
+    const spec = SOUNDS[id];
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = "sound-" + id;
+    btn.setAttribute("data-play", "true");
+    btn.setAttribute("data-sound", id);
+    btn.setAttribute("aria-label", spec.label);
+    makePop(btn);
+    const svg = btn.querySelector("svg");
+    drawShape(svg, spec.shape, spec.color);
+    btn.querySelector(".lbl").textContent = spec.label;
+    btn.hidden = true;
+    playEl.appendChild(btn);
+    managed.push(btn);
+  }
+  function makeSlot(id, lane, index) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.id = id;
+    btn.setAttribute("data-play", "true");
+    btn.setAttribute("data-lane", lane);
+    btn.setAttribute("data-index", String(index));
+    makePop(btn);
+    btn.hidden = true;
+    playEl.appendChild(btn);
+    managed.push(btn);
+  }
+  for (let i = 0; i < SOUND_IDS.length; i++) makeSound(SOUND_IDS[i]);
+  for (let i = 0; i < 8; i++) {
+    makeSlot("slot-" + i, "one", i);
+    makeSlot("bell-" + i, "bells", i);
+    makeSlot("beat-" + i, "beats", i);
+  }
+  for (let i = 0; i < MANAGED_IDS.length; i++) {
+    const el = document.getElementById(MANAGED_IDS[i]);
+    if (el) managed.push(el);
+  }
+
+  function resetSitting() {
+    selected = null;
+    loopOne = blankSteps();
+    bells = blankSteps();
+    beats = blankSteps();
+    playing = false;
+    playhead = null;
+    playOrigin = 0;
+    loopGen = 0;
+    visits = [];
+    heard = [];
+    lastSound = null;
+    slotPage = 0;
+    playTab = "sounds";
+    tempoName = "medium";
+    bounce = null;
+  }
+  function bannerText() {
+    if (screen === "play") return "Look at a bell.";
+    if (screen === "rest") return "That was lovely music.";
+    return "Pick who is playing.";
+  }
+  function go(id) {
+    if (id !== "menu" && id !== "play" && id !== "rest") {
+      render();
+      return;
+    }
+    if (id !== "play") playing = false;
+    screen = id;
+    render();
+  }
+  function highlight(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    render();
+  }
+  function start(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    resetSitting();
+    go("play");
+  }
+  function currentTempo() {
+    if (level === "rush") return BANDS.rush.tempos[tempoName] || 400;
+    return 400;
+  }
+  function state() {
+    const loop = BANDS[level] ? BANDS[level].loop : false;
+    const snap = {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      lastSound: lastSound,
+      selected: selected,
+      playing: playing,
+      playhead: playhead,
+      tempo: loop ? currentTempo() : null,
+      tempoName: level === "rush" ? tempoName : null,
+      page: slotPage,
+      tab: playTab,
+      steps: loop === "one" ? loopOne.slice() : null,
+      bells: loop === "two" ? bells.slice() : null,
+      beats: loop === "two" ? beats.slice() : null,
+      heard: heard.slice(),
+      visits: visits.slice()
+    };
+    render();
+    return snap;
+  }
+
+  function remember(list, value) {
+    list.push(value);
+    if (list.length > LOG_CAP) list.splice(0, list.length - LOG_CAP);
+  }
+  function playSound(soundId, bounceId) {
+    if (!SOUNDS[soundId]) return;
+    lastSound = soundId;
+    remember(heard, soundId);
+    bounce = { id: bounceId || ("sound-" + soundId), t: clock };
+    voice(soundId);
+  }
+  function chooseSound(soundId) {
+    const band = BANDS[level];
+    if (!band || band.sounds.indexOf(soundId) < 0) {
+      render();
+      return;
+    }
+    if (band.loop) selected = soundId;
+    else selected = null;
+    playSound(soundId, "sound-" + soundId);
+    render();
+  }
+  function laneArray(lane) {
+    if (level === "shop" && lane === "one") return loopOne;
+    if (level === "rush" && lane === "bells") return bells;
+    if (level === "rush" && lane === "beats") return beats;
+    return null;
+  }
+  function laneWrong(lane) {
+    if (level !== "rush" || !selected || !SOUNDS[selected]) return false;
+    const bell = SOUNDS[selected].kind === "bell";
+    if (bell && lane === "beats") return true;
+    if (!bell && lane === "bells") return true;
+    return false;
+  }
+  function placeAt(lane, index) {
+    const arr = laneArray(lane);
+    if (!arr || index < 0 || index > 7 || !selected) {
+      render();
+      return;
+    }
+    if (laneWrong(lane)) {
+      render();
+      return;
+    }
+    const prefix = lane === "one" ? "slot-" : lane === "bells" ? "bell-" : "beat-";
+    if (arr[index] === selected) arr[index] = null;
+    else {
+      arr[index] = selected;
+      playSound(selected, prefix + index);
+    }
+    render();
+  }
+  function clearAll() {
+    loopOne = blankSteps();
+    bells = blankSteps();
+    beats = blankSteps();
+    render();
+  }
+  function togglePlay() {
+    const loop = BANDS[level] && BANDS[level].loop;
+    if (!loop) {
+      render();
+      return;
+    }
+    if (playing) playing = false;
+    else {
+      playing = true;
+      playOrigin = clock;
+      loopGen = 0;
+      playhead = null;
+      visits = [];
+    }
+    render();
+  }
+  function setTempo(name) {
+    if (!BANDS.rush.tempos[name]) {
+      render();
+      return;
+    }
+    if (name === tempoName) {
+      render();
+      return;
+    }
+    const prev = currentTempo();
+    if (playing && prev > 0) pumpLoop(clock);
+    tempoName = name;
+    const next = currentTempo();
+    if (playing && prev > 0 && next > 0 && prev !== next) {
+      playOrigin = clock - loopGen * next;
+    }
+    render();
+  }
+  function chooseTab(tab) {
+    if (tab !== "sounds" && tab !== "loop") {
+      render();
+      return;
+    }
+    playTab = tab;
+    render();
+  }
+  function flipPage(dir) {
+    if (!(level === "rush" && window.innerWidth < 700)) {
+      render();
+      return;
+    }
+    const next = slotPage + dir;
+    if (next < 0 || next > 1) {
+      render();
+      return;
+    }
+    slotPage = next;
+    render();
+  }
+  function fireStep(idx) {
+    if (level === "shop") {
+      if (loopOne[idx]) playSound(loopOne[idx], "slot-" + idx);
+    } else if (level === "rush") {
+      if (bells[idx]) playSound(bells[idx], "bell-" + idx);
+      if (beats[idx]) playSound(beats[idx], "beat-" + idx);
+    }
+  }
+  function pumpLoop(now) {
+    if (!playing || screen !== "play") return;
+    if (level !== "shop" && level !== "rush") return;
+    const ms = currentTempo();
+    if (!(ms > 0)) return;
+    const elapsed = now - playOrigin;
+    const prevAt = playOrigin + loopGen * ms;
+    if (now - prevAt >= STEP_GAP_MS) {
+      const skipped = Math.floor(elapsed / ms);
+      if (skipped > loopGen) loopGen = skipped;
+      return;
+    }
+    if (!(elapsed >= ms)) return;
+    let n = Math.floor(elapsed / ms);
+    if (n <= loopGen) return;
+    if (n > loopGen + 64) n = loopGen + 64;
+    for (let ev = loopGen + 1; ev <= n; ev++) {
+      const idx = (ev - 1) % 8;
+      playhead = idx;
+      remember(visits, idx);
+      fireStep(idx);
+    }
+    loopGen = n;
+  }
+
+  function intersects(a, b) {
+    return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+  }
+  function eyesBox(w, h) {
+    return { x: w - 8 - 72, y: h - 8 - 36, w: 72, h: 36 };
+  }
+  function chromeBoxes(w) {
+    const y = 8;
+    const bh = 72;
+    const mute = { id: "mute", x: 8, y: y, w: 72, h: bh };
+    const full = { id: "full", x: 88, y: y, w: 72, h: bh };
+    const room = w - 176 - 8;
+    const backW = Math.max(72, Math.min(176, room));
+    const back = { id: "back", x: w - 8 - backW, y: y, w: backW, h: bh };
+    return { mute: mute, full: full, back: back };
+  }
+  function anotherTop(w) {
+    const chrome = chromeBoxes(w);
+    const aw = 160;
+    const x = chrome.back.x - 8 - aw;
+    const left = chrome.full.x + chrome.full.w + 8;
+    if (aw >= 72 && x >= left + 140 + 8) return { id: "another", x: x, y: 8, w: aw, h: 72 };
+    return null;
+  }
+  function bannerBox(w, h) {
+    const chrome = chromeBoxes(w);
+    const left = chrome.full.x + chrome.full.w + 8;
+    let right = w - 8;
+    if (screen !== "menu") right = chrome.back.x - 8;
+    if (screen === "rest") {
+      const top = anotherTop(w);
+      if (top) right = Math.min(right, top.x - 8);
+    }
+    if (right - left >= 140) return { x: left, y: 16, w: right - left, h: 52 };
+    const eye = eyesBox(w, h);
+    return { x: 16, y: h - 16 - 48, w: Math.max(72, eye.x - 8 - 16), h: 48 };
+  }
+  function anotherBox(w, h) {
+    const top = anotherTop(w);
+    if (top) return top;
+    const ban = bannerBox(w, h);
+    const bw = Math.min(280, Math.max(140, w - 32));
+    const x = Math.floor((w - bw) / 2);
+    const y = ban.y - 8 - 72;
+    return { id: "another", x: x, y: y, w: bw, h: 72 };
+  }
+  function contentBounds(w, h) {
+    const top = 88;
+    const ban = bannerBox(w, h);
+    const eye = eyesBox(w, h);
+    let bottom = Math.min(h - 16, eye.y - 8);
+    if (ban.y >= top) bottom = Math.min(bottom, ban.y - 8);
+    return { top: top, bottom: bottom, left: 16, right: w - 16, width: w - 32, height: bottom - top };
+  }
+  function clearsEyes(boxes, w, h) {
+    const eye = eyesBox(w, h);
+    const pad = { x: eye.x - 8, y: eye.y - 8, w: eye.w + 16, h: eye.h + 16 };
+    for (let i = 0; i < boxes.length; i++) if (intersects(boxes[i], pad)) return false;
+    return true;
+  }
+  function columnMenu(w, h) {
+    const btnH = 72;
+    const gap = 8;
+    const titleH = 64;
+    const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+    const columnH = titleH + gap + ids.length * btnH + (ids.length - 1) * gap;
+    const belowTop = 92;
+    let cardW;
+    let cardX;
+    let top;
+    if (belowTop + columnH <= h - 8) {
+      cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      cardX = Math.floor((w - cardW) / 2);
+      top = belowTop;
+    } else if (8 + columnH <= h - 8) {
+      const leftLimit = 168;
+      const rightLimit = w - 8;
+      cardW = Math.min(460, Math.max(160, rightLimit - leftLimit));
+      cardX = Math.floor(leftLimit + Math.max(0, (rightLimit - leftLimit - cardW) / 2));
+      top = 8;
+    } else return null;
+    const buttons = [];
+    const title = { x: cardX, y: top, w: cardW, h: titleH };
+    let y = top + titleH + gap;
+    for (let i = 0; i < ids.length; i++) {
+      buttons.push({ id: ids[i], x: cardX, y: y, w: cardW, h: btnH });
+      y += btnH + gap;
+    }
+    const card = { x: cardX, y: top, w: cardW, h: y - gap - top };
+    const all = buttons.concat([card, title]);
+    if (!clearsEyes(all, w, h)) return null;
+    return { title: title, buttons: buttons, card: card };
+  }
+  function gridMenu(w, h) {
+    const btnH = 72;
+    const gap = 8;
+    const narrow = w < 700;
+    const leftLimit = narrow ? 8 : 168;
+    const rightLimit = w - 8;
+    let cardW = Math.min(460, Math.max(160, rightLimit - leftLimit));
+    if (narrow) cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+    const cardX = narrow ? Math.floor((w - cardW) / 2) : Math.floor(leftLimit + Math.max(0, (rightLimit - leftLimit - cardW) / 2));
+    const top = narrow ? 92 : 8;
+    const gridTitle = 48;
+    const title = { x: cardX, y: top, w: cardW, h: gridTitle };
+    const colW = Math.floor((cardW - gap) / 2);
+    if (colW < 72) return null;
+    const gridW = colW * 2 + gap;
+    const gridX = cardX + Math.floor((cardW - gridW) / 2);
+    let y = top + gridTitle + gap;
+    const buttons = [];
+    for (let i = 0; i < 4; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      buttons.push({
+        id: BAND_IDS[i],
+        x: gridX + col * (colW + gap),
+        y: y + row * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    y += 2 * (btnH + gap);
+    buttons.push({ id: "lets-go", x: cardX, y: y, w: cardW, h: btnH });
+    const card = { x: cardX, y: top, w: cardW, h: y + btnH - top };
+    return { title: title, buttons: buttons, card: card };
+  }
+  function menuLayout(w, h) {
+    const column = columnMenu(w, h);
+    if (column) return column;
+    const grid = gridMenu(w, h);
+    if (!grid) return null;
+    const all = grid.buttons.concat([grid.card, grid.title]);
+    if (!clearsEyes(all, w, h)) return null;
+    return grid;
+  }
+  function restLayout(w, h) {
+    const again = anotherBox(w, h);
+    const cardW = Math.min(460, Math.max(160, w - 32));
+    const cardH = 150;
+    const x = Math.floor((w - cardW) / 2);
+    let y = 104;
+    if (again && again.y > 90) {
+      const maxBottom = again.y - 12;
+      if (y + cardH > maxBottom) y = Math.max(96, maxBottom - cardH);
+    }
+    return {
+      card: { x: x, y: y, w: cardW, h: cardH },
+      line: { x: x + 16, y: y + 36, w: cardW - 32, h: 78 },
+      another: again
+    };
+  }
+
+  function soundSpec(count, wide, loopKind) {
+    if (wide) return { cols: count, w: 112, h: 112 };
+    if (count <= 4) return { cols: 2, w: 171, h: 200 };
+    if (count <= 6) return { cols: 2, w: 171, h: 150 };
+    if (loopKind === "two") return { cols: 4, w: 83, h: 76 };
+    return { cols: 4, w: 83, h: 90 };
+  }
+  function cellWidth(count, bounds, want) {
+    if (count < 1) return null;
+    const maxW = Math.floor((bounds.width - 8 * (count - 1)) / count);
+    if (maxW < 72) return null;
+    return Math.min(want, maxW);
+  }
+  function chunkIds(ids, cols) {
+    const rows = [];
+    for (let i = 0; i < ids.length; i += cols) rows.push(ids.slice(i, i + cols));
+    return rows;
+  }
+  function cloneParts(parts) {
+    const out = [];
+    for (let i = 0; i < parts.length; i++) {
+      const p = parts[i];
+      out.push({
+        kind: p.kind, ids: p.ids, cols: p.cols, cellW: p.cellW,
+        h: p.h, min: p.min, id: p.id, text: p.text
+      });
+    }
+    return out;
+  }
+  function totalH(parts) {
+    let t = parts.length > 1 ? 8 * (parts.length - 1) : 0;
+    for (let i = 0; i < parts.length; i++) t += parts[i].h;
+    return t;
+  }
+  function compress(parts, budget) {
+    let guard = 0;
+    while (totalH(parts) > budget && guard < 8000) {
+      guard += 1;
+      let pick = -1;
+      for (let i = 0; i < parts.length; i++) {
+        if (parts[i].h <= parts[i].min) continue;
+        if (pick < 0 || parts[i].h > parts[pick].h) pick = i;
+      }
+      if (pick < 0) return false;
+      parts[pick].h -= 1;
+    }
+    return totalH(parts) <= budget;
+  }
+  function placeParts(parts, bounds, w, h) {
+    let y = bounds.top;
+    const targets = [];
+    const decor = [];
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i];
+      if (part.kind === "caption") {
+        if (part.h >= 16) {
+          decor.push({ id: part.id, x: bounds.left, y: y, w: bounds.width, h: part.h });
+        }
+      } else {
+        if (part.h < 72 || part.cellW < 72) {
+          layoutFault = part.ids ? part.ids[0] + " shrank under 72." : "A control shrank under 72.";
+          return null;
+        }
+        const cols = part.cols || part.ids.length;
+        const gridW = cols * part.cellW + 8 * (cols - 1);
+        const x0 = bounds.left + Math.floor((bounds.width - gridW) / 2);
+        for (let n = 0; n < part.ids.length; n++) {
+          const c = n % cols;
+          const r = Math.floor(n / cols);
+          targets.push({
+            id: part.ids[n],
+            x: x0 + c * (part.cellW + 8),
+            y: y + r * (part.h + 8),
+            w: part.cellW,
+            h: part.h
+          });
+        }
+      }
+      y += part.h + 8;
+    }
+    if (y - 8 > bounds.bottom + 0.5) {
+      layoutFault = "The play rows ran past the banner.";
+      return null;
+    }
+    const chrome = chromeBoxes(w);
+    const ban = bannerBox(w, h);
+    const eye = eyesBox(w, h);
+    const blockers = [chrome.mute, chrome.full, chrome.back, ban, eye];
+    for (let i = 0; i < targets.length; i++) {
+      const box = targets[i];
+      if (box.x < 16 || box.y < 16 || box.x + box.w > w - 16 || box.y + box.h > h - 16) {
+        layoutFault = box.id + " crossed the 16 px margin.";
+        return null;
+      }
+      for (let b = 0; b < blockers.length; b++) {
+        if (intersects(box, blockers[b])) {
+          layoutFault = box.id + " hit " + (blockers[b].id || "chrome") + ".";
+          return null;
+        }
+      }
+      for (let j = i + 1; j < targets.length; j++) {
+        if (intersects(box, targets[j])) {
+          layoutFault = box.id + " hit " + targets[j].id + ".";
+          return null;
+        }
+      }
+    }
+    return { targets: targets, decor: decor };
+  }
+  function rowPart(ids, cols, cellW, wantH) {
+    return { kind: "grid", ids: ids, cols: cols, cellW: cellW, h: wantH, min: 72 };
+  }
+  function playLayout(w, h) {
+    layoutFault = "";
+    const band = BANDS[level];
+    if (!band) {
+      layoutFault = "The band was missing.";
+      return null;
+    }
+    if (!(w >= 320) || !(h >= 480)) {
+      layoutFault = "The viewport is under the supported size.";
+      return null;
+    }
+    const bounds = contentBounds(w, h);
+    if (bounds.height < 72 || bounds.width < 72) {
+      layoutFault = "The play area was too short.";
+      return null;
+    }
+    const wide = w >= 700;
+    const loop = band.loop;
+    const sounds = band.sounds.map(function (id) { return "sound-" + id; });
+    const spec = soundSpec(sounds.length, wide, loop);
+    const soundW = cellWidth(spec.cols, bounds, spec.w);
+    if (!soundW) {
+      layoutFault = "The sound buttons could not stay at 72 px.";
+      return null;
+    }
+    const soundRows = chunkIds(sounds, spec.cols);
+    let slotW = null;
+    let slotWant = 80;
+    let pageStart = 0;
+    let pageCount = 8;
+    const slotCols = wide ? 8 : 4;
+    const paging = loop === "two" && !wide;
+    if (loop) {
+      slotWant = wide ? 100 : 80;
+      slotW = cellWidth(slotCols, bounds, wide ? 100 : 83);
+      if (!slotW) {
+        layoutFault = "The step slots could not stay at 72 px.";
+        return null;
+      }
+      if (paging) {
+        pageStart = Math.max(0, Math.min(slotPage, 1)) * 4;
+        pageCount = 4;
+      }
+    }
+    function soundParts() {
+      const parts = [];
+      for (let i = 0; i < soundRows.length; i++) parts.push(rowPart(soundRows[i], spec.cols, soundW, spec.h));
+      return parts;
+    }
+    function controlParts(idsList) {
+      const parts = [];
+      for (let i = 0; i < idsList.length; i++) {
+        const ids = idsList[i];
+        const cw = cellWidth(ids.length, bounds, 200);
+        if (!cw) return null;
+        parts.push(rowPart(ids, ids.length, cw, 72));
+      }
+      return parts;
+    }
+    function slotParts(withCaptions) {
+      const parts = [];
+      function addLane(prefix, captionId) {
+        if (withCaptions && loop === "two") {
+          parts.push({ kind: "caption", id: captionId, h: 24, min: 0 });
+        }
+        const ids = [];
+        for (let i = 0; i < pageCount; i++) ids.push(prefix + (pageStart + i));
+        parts.push(rowPart(ids, ids.length, slotW, slotWant));
+      }
+      if (loop === "one") {
+        const ids = [];
+        for (let i = 0; i < 8; i++) ids.push("slot-" + i);
+        const rows = chunkIds(ids, slotCols);
+        for (let r = 0; r < rows.length; r++) parts.push(rowPart(rows[r], slotCols, slotW, slotWant));
+      }
+      if (loop === "two") {
+        addLane("bell-", "lane-bells");
+        addLane("beat-", "lane-beats");
+      }
+      return parts;
+    }
+    function tryList(parts) {
+      if (!parts) return null;
+      const copy = cloneParts(parts);
+      if (!compress(copy, bounds.height)) return null;
+      return placeParts(copy, bounds, w, h);
+    }
+    if (loop === "two" && !wide) {
+      const stacked = [];
+      const soundsP = soundParts();
+      for (let i = 0; i < soundsP.length; i++) stacked.push(soundsP[i]);
+      const slotsP = slotParts(true);
+      for (let i = 0; i < slotsP.length; i++) stacked.push(slotsP[i]);
+      const extra = controlParts([
+        ["page-prev", "page-next"],
+        ["tempo-slow", "tempo-medium", "tempo-fast"],
+        ["play-toggle", "clear", "done"]
+      ]);
+      if (extra) for (let i = 0; i < extra.length; i++) stacked.push(extra[i]);
+      const fit = extra ? tryList(stacked) : null;
+      if (fit) return fit;
+      const tabW = cellWidth(2, bounds, 200);
+      if (!tabW) {
+        layoutFault = "The Sounds and Loop tabs could not stay at 72 px.";
+        return null;
+      }
+      const tabs = [rowPart(["tab-sounds", "tab-loop"], 2, tabW, 72)];
+      let body;
+      if (playTab === "loop") {
+        body = slotParts(true);
+        const rows = controlParts([
+          ["page-prev", "page-next"],
+          ["tempo-slow", "tempo-medium", "tempo-fast"],
+          ["play-toggle", "clear", "done"]
+        ]);
+        if (!rows) return null;
+        body = body.concat(rows);
+      } else {
+        body = soundParts();
+        const done = controlParts([["done"]]);
+        if (!done) return null;
+        body = body.concat(done);
+      }
+      const tabbed = tryList(tabs.concat(body));
+      if (!tabbed) layoutFault = layoutFault || "Studio did not fit at this size.";
+      return tabbed;
+    }
+    let parts = soundParts();
+    if (loop) {
+      const slotsP = slotParts(true);
+      parts = parts.concat(slotsP);
+      if (paging) {
+        const page = controlParts([["page-prev", "page-next"]]);
+        if (!page) return null;
+        parts = parts.concat(page);
+      }
+    }
+    const controls = loop === "two"
+      ? [["tempo-slow", "tempo-medium", "tempo-fast"], ["play-toggle", "clear", "done"]]
+      : loop === "one"
+        ? [["play-toggle", "clear", "done"]]
+        : [["done"]];
+    let placed = null;
+    const split = controlParts(controls);
+    if (split) placed = tryList(parts.concat(split));
+    if (!placed && loop === "two") {
+      const bare = soundParts().concat(slotParts(false));
+      const merged = controlParts([[
+        "tempo-slow", "tempo-medium", "tempo-fast", "play-toggle", "clear", "done"
+      ]]);
+      if (merged) placed = tryList(bare.concat(merged));
+    }
+    if (!placed && loop !== "two") {
+      const bare = soundParts();
+      if (loop) bare.push.apply(bare, slotParts(false));
+      const one = controlParts(controls);
+      if (one) placed = tryList(bare.concat(one));
+    }
+    if (!placed) layoutFault = layoutFault || "The sounds did not fit at this size.";
+    return placed;
+  }
+
+  function layoutTargets(w, h) {
+    if (!(w >= 320) || !(h >= 480)) return null;
+    const chrome = chromeBoxes(w);
+    if (chrome.back.x < chrome.full.x + chrome.full.w + 4) return null;
+    const targets = [chrome.mute, chrome.full];
+    if (screen !== "menu") targets.push(chrome.back);
+    if (screen === "menu") {
+      const menu = menuLayout(w, h);
+      if (!menu) return null;
+      for (let i = 0; i < menu.buttons.length; i++) targets.push(menu.buttons[i]);
+    }
+    if (screen === "play") {
+      const play = playLayout(w, h);
+      if (!play) return null;
+      for (let i = 0; i < play.targets.length; i++) targets.push(play.targets[i]);
+    }
+    if (screen === "rest") {
+      const again = anotherBox(w, h);
+      if (!again) return null;
+      targets.push(again);
+    }
+    for (let i = 0; i < targets.length; i++) {
+      const box = targets[i];
+      if (Math.min(box.w, box.h) < 72) return null;
+      if (box.x < -0.5 || box.y < -0.5 || box.x + box.w > w + 0.5 || box.y + box.h > h + 0.5) return null;
+    }
+    return targets;
+  }
+  function targetsAt(w, h) {
+    render();
+    layoutFault = "";
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const boxes = layoutTargets(w, h);
+    if (!boxes) return { ok: false, targets: [], fault: layoutFault };
+    return {
+      ok: true,
+      targets: boxes.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+  function place(el, box) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+  function hideManaged() {
+    for (let i = 0; i < managed.length; i++) managed[i].hidden = true;
+  }
+  function heldSound(btn) {
+    const lane = btn.getAttribute("data-lane");
+    const index = +btn.getAttribute("data-index");
+    const arr = laneArray(lane);
+    if (!arr || !(index >= 0 && index < 8)) return null;
+    return arr[index];
+  }
+  function syncSlot(btn) {
+    const soundId = heldSound(btn);
+    const index = +btn.getAttribute("data-index");
+    const svg = btn.querySelector("svg");
+    const lbl = btn.querySelector(".lbl");
+    if (lbl) lbl.textContent = String(index + 1);
+    if (soundId && SOUNDS[soundId]) {
+      if (svg.getAttribute("data-sound") !== soundId) {
+        drawShape(svg, SOUNDS[soundId].shape, SOUNDS[soundId].color);
+        svg.setAttribute("data-sound", soundId);
+      }
+      svg.hidden = false;
+      const laneName = btn.getAttribute("data-lane") === "bells" ? "Bells " : btn.getAttribute("data-lane") === "beats" ? "Beats " : "";
+      btn.setAttribute("aria-label", laneName + "step " + (index + 1) + " " + SOUNDS[soundId].label);
+    } else {
+      svg.hidden = true;
+      svg.setAttribute("data-sound", "");
+      const laneName = btn.getAttribute("data-lane") === "bells" ? "Bells " : btn.getAttribute("data-lane") === "beats" ? "Beats " : "";
+      btn.setAttribute("aria-label", laneName + "step " + (index + 1) + " empty");
+    }
+    btn.classList.toggle("slot-empty", !soundId);
+    btn.classList.toggle("dim", laneWrong(btn.getAttribute("data-lane")));
+    btn.classList.toggle("lit", playing && playhead === index);
+  }
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const chrome = chromeBoxes(w);
+    place(muteBtn, chrome.mute);
+    place(fullBtn, chrome.full);
+    place(backBtn, chrome.back);
+    backBtn.hidden = screen === "menu";
+    menuEl.hidden = screen !== "menu";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "play";
+    bannerEl.textContent = bannerText();
+    place(bannerEl, bannerBox(w, h));
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    const menu = menuLayout(w, h);
+    if (menu) {
+      place(menuCard, menu.card);
+      place(menuCopy, menu.title);
+      for (let i = 0; i < menu.buttons.length; i++) {
+        place(document.getElementById(menu.buttons[i].id), menu.buttons[i]);
+      }
+    }
+    const rest = restLayout(w, h);
+    place(restCard, rest.card);
+    place(restLine, rest.line);
+    if (screen === "rest") place(anotherBtn, rest.another);
+    if (bounce && clock - bounce.t > 320) bounce = null;
+    hideManaged();
+    if (screen === "play") {
+      const layout = playLayout(w, h);
+      if (layout) {
+        const shown = {};
+        for (let i = 0; i < layout.targets.length; i++) shown[layout.targets[i].id] = layout.targets[i];
+        for (let i = 0; i < layout.decor.length; i++) shown[layout.decor[i].id] = layout.decor[i];
+        for (let i = 0; i < managed.length; i++) {
+          const el = managed[i];
+          const box = shown[el.id];
+          if (!box) el.hidden = true;
+          else {
+            el.hidden = false;
+            place(el, box);
+          }
+        }
+      }
+    }
+    playToggle.textContent = playing ? "Stop" : "Play";
+    const tempoIds = ["slow", "medium", "fast"];
+    for (let i = 0; i < tempoIds.length; i++) {
+      const btn = document.getElementById("tempo-" + tempoIds[i]);
+      if (btn) btn.setAttribute("aria-pressed", tempoName === tempoIds[i] ? "true" : "false");
+    }
+    const tabSounds = document.getElementById("tab-sounds");
+    const tabLoop = document.getElementById("tab-loop");
+    if (tabSounds) tabSounds.setAttribute("aria-pressed", playTab === "sounds" ? "true" : "false");
+    if (tabLoop) tabLoop.setAttribute("aria-pressed", playTab === "loop" ? "true" : "false");
+    for (let i = 0; i < managed.length; i++) {
+      const el = managed[i];
+      if (el.tagName !== "BUTTON") continue;
+      const sound = el.getAttribute("data-sound");
+      if (sound) {
+        el.classList.toggle("picked", !!(BANDS[level] && BANDS[level].loop && selected === sound));
+      }
+      if (el.getAttribute("data-lane")) syncSlot(el);
+      el.classList.toggle("bounce", !!(bounce && bounce.id === el.id));
+    }
+    eyesEl.hidden = !eyesOn();
+    place(eyesEl, eyesBox(w, h));
+  }
+
+  function ensureAudio() {
+    if (checking || ac) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(ac.destination);
+      if (ac.state === "suspended" && ac.resume) ac.resume();
+    } catch (err) {
+      ac = null;
+      master = null;
+    }
+  }
+  function envGain(peak, attack, release) {
+    const g = ac.createGain();
+    const t0 = ac.currentTime;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(peak, t0 + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + release);
+    return g;
+  }
+  function tone(freq, peak, release, delay) {
+    const osc = ac.createOscillator();
+    const g = envGain(peak, 0.005, release);
+    osc.type = "sine";
+    osc.frequency.value = freq;
+    osc.connect(g);
+    g.connect(master);
+    const t0 = ac.currentTime + (delay || 0);
+    if (delay) {
+      g.gain.cancelScheduledValues(ac.currentTime);
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.exponentialRampToValueAtTime(peak, t0 + 0.005);
+      g.gain.exponentialRampToValueAtTime(0.0001, t0 + release);
+    }
+    osc.start(t0);
+    osc.stop(t0 + release + 0.02);
+  }
+  function noiseBurst(seconds, type, freq, from, dur) {
+    const frames = Math.max(1, Math.ceil(ac.sampleRate * seconds));
+    const buf = ac.createBuffer(1, frames, ac.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < frames; i++) data[i] = Math.random() * 2 - 1;
+    const src = ac.createBufferSource();
+    src.buffer = buf;
+    const filter = ac.createBiquadFilter();
+    filter.type = type;
+    filter.frequency.value = freq;
+    const g = ac.createGain();
+    const t0 = ac.currentTime + from;
+    g.gain.setValueAtTime(0.45, t0);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    src.start(t0);
+    src.stop(t0 + dur);
+  }
+  function voice(soundId) {
+    if (checking || !ac || !master) return;
+    try {
+      if (ac.state === "suspended" && ac.resume) ac.resume();
+      const spec = SOUNDS[soundId];
+      if (!spec) return;
+      if (spec.kind === "bell") {
+        tone(spec.freq, 0.34, 0.9, 0);
+        tone(spec.freq * 2, 0.1, 0.9, 0);
+      } else if (spec.kind === "drum") {
+        const osc = ac.createOscillator();
+        const g = ac.createGain();
+        const t0 = ac.currentTime;
+        osc.type = "sine";
+        osc.frequency.setValueAtTime(150, t0);
+        osc.frequency.exponentialRampToValueAtTime(50, t0 + 0.2);
+        g.gain.setValueAtTime(0.7, t0);
+        g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
+        osc.connect(g);
+        g.connect(master);
+        osc.start(t0);
+        osc.stop(t0 + 0.27);
+      } else if (spec.kind === "shaker") {
+        noiseBurst(0.08, "highpass", 6000, 0, 0.08);
+      } else if (spec.kind === "clap") {
+        noiseBurst(0.12, "bandpass", 1500, 0, 0.12);
+        noiseBurst(0.11, "bandpass", 1500, 0.01, 0.11);
+        noiseBurst(0.1, "bandpass", 1500, 0.02, 0.1);
+      }
+    } catch (err) {}
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function activate(btn) {
+    if (!btn || !buttonVisible(btn)) {
+      render();
+      return;
+    }
+    if (!checking) ensureAudio();
+    if (btn.getAttribute("data-play") === "true") {
+      const sound = btn.getAttribute("data-sound");
+      if (sound) {
+        chooseSound(sound);
+        return;
+      }
+      const lane = btn.getAttribute("data-lane");
+      const index = btn.getAttribute("data-index");
+      if (lane !== null && index !== null) {
+        placeAt(lane, +index);
+        return;
+      }
+    }
+    const id = btn.id;
+    if (id === "lets-go") start(level);
+    else if (id === "back") go("menu");
+    else if (id === "done") go("rest");
+    else if (id === "another") start(level);
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (knownBand(id)) highlight(id);
+    else if (id === "play-toggle") togglePlay();
+    else if (id === "clear") clearAll();
+    else if (id === "page-prev") flipPage(-1);
+    else if (id === "page-next") flipPage(1);
+    else if (id === "tab-sounds") chooseTab("sounds");
+    else if (id === "tab-loop") chooseTab("loop");
+    else if (id.indexOf("tempo-") === 0) setTempo(id.slice(6));
+    else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+      trailOn = false;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+      trailOn = false;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        trailOn = false;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn)) activate(btn);
+      } else {
+        const p = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+        dwellProgress = p;
+        const btn = document.getElementById(dwellKey);
+        trailOn = p > 0 && !!(btn && btn.getAttribute("data-play") === "true") && !reducedMotion();
+      }
+    } else {
+      dwellProgress = 0;
+      trailOn = false;
+    }
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    pumpLoop(now);
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn);
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || btn.id !== armedId) return;
+    armedId = null;
+    activate(btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn); e.preventDefault(); }
+    }
+  });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    let origSpeak = null;
+    let speakCalls = 0;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.speak) {
+        origSpeak = window.speechSynthesis.speak;
+        window.speechSynthesis.speak = function () {
+          speakCalls += 1;
+          return origSpeak.apply(window.speechSynthesis, arguments);
+        };
+      }
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    function tapId(id) {
+      const box = targetById(centers().targets, id);
+      if (!box) throw new Error(id + " was not on screen.");
+      const hit = buttonAt(box.nx * window.innerWidth, box.ny * window.innerHeight);
+      if (!hit || hit.id !== id) throw new Error("The " + id + " center was not that button.");
+      tap(box.nx, box.ny);
+    }
+    function openTab(id) {
+      const tab = targetById(centers().targets, id);
+      if (tab) tap(tab.nx, tab.ny);
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+      if (state().lastSound !== null || state().heard.length !== 0) fail("family-query-inert", "A junk flag started the music.");
+    });
+    run("family-plain-state", function () {
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snap.level !== "tiny" || snap.screen !== "menu" || snap.banner !== "Pick who is playing." || snap.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on Bells.");
+      }
+      const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank", "speech", "x", "y", "nx", "ny", "gaze", "socket", "search"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const box = targetById(centers().targets, "sound-c");
+      if (!box || !box.play) fail("family-play-dwell", "The bell was not a play target.");
+      else {
+        const hit = buttonAt(box.nx * window.innerWidth, box.ny * window.innerHeight);
+        if (!hit || hit.id !== "sound-c") fail("family-play-dwell", "The bell center was not the button.");
+        step(10000);
+        look(box.nx, box.ny);
+        step(10000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(10200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(10640);
+        if (state().lastSound !== null) fail("family-play-dwell", "640 ms played the bell.");
+        step(10660);
+        if (state().lastSound !== "c") fail("family-play-dwell", "660 ms did not play the bell.");
+      }
+      resetInput();
+      start("tiny");
+      const tapBox = targetById(centers().targets, "sound-c");
+      tap(tapBox.nx, tapBox.ny);
+      if (state().lastSound !== "c") fail("family-play-dwell", "A tap did not play the same bell.");
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      if (state().screen !== "menu") go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "play") fail("family-menu-dwell", "1300 ms on Let's go did not open play.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "play") fail("family-menu-dwell", "600 ms on Back left the music.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      resetInput();
+      start("tiny");
+      const box = targetById(centers().targets, "sound-c");
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(30000);
+      step(30660);
+      if (state().lastSound !== null || dwell() !== 0) fail("family-pointer-blocks", "A look during hold played or filled the ring.");
+      release();
+      releaseLook();
+      enterLook(box, 32000);
+      step(32660);
+      if (state().lastSound !== "c") fail("family-pointer-blocks", "A fresh look after release did not play.");
+    });
+    run("family-stale", function () {
+      resetInput();
+      start("tiny");
+      const box = targetById(centers().targets, "sound-c");
+      try {
+        enterLook(box, 36000);
+        step(36200);
+        if (!(dwell() > 0) || state().lastSound !== null) fail("family-stale", "The ring did not fill before the sample went stale.");
+        refreshHold = false;
+        step(36700);
+        if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+        if (state().lastSound !== null) fail("family-stale", "A stale sample played the bell.");
+      } finally {
+        refreshHold = true;
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok. " + (lay.fault || ""));
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        start(BAND_IDS[b]);
+        checkView(BAND_IDS[b]);
+      }
+      const liveBefore = targetById(centers().targets, "mute");
+      const liveAfter = targetById(centers().targets, "mute");
+      if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+        fail("family-target-size", "targetsAt shrank a live play button.");
+      }
+      go("rest");
+      checkView("rest");
+      go("menu");
+    });
+    run("family-eyes", function () {
+      resetInput();
+      go("menu");
+      step(40000);
+      look(0.5, 0.5);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("family-mute", function () {
+      resetInput();
+      go("menu");
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    run("free-play", function () {
+      resetInput();
+      start("tiny");
+      const box = targetById(centers().targets, "sound-e");
+      if (!box || !box.play) fail("free-play", "The E bell was not a play target.");
+      else {
+        step(50000);
+        look(box.nx, box.ny);
+        step(50000);
+        step(50640);
+        if (state().lastSound !== null) fail("free-play", "A 640 ms look played a bell.");
+        step(50660);
+        if (state().lastSound !== "e") fail("free-play", "A 660 ms look did not record the bell.");
+      }
+    });
+    run("select-then-place", function () {
+      resetInput();
+      start("shop");
+      step(60000);
+      const sound = targetById(centers().targets, "sound-c");
+      enterLook(sound, 60000);
+      step(60640);
+      if (state().selected !== null || state().steps[0] !== null) fail("select-then-place", "640 ms selected or placed a sound.");
+      step(60660);
+      if (state().selected !== "c" || state().lastSound !== "c") fail("select-then-place", "660 ms did not select the sound.");
+      const slot = targetById(centers().targets, "slot-0");
+      enterLook(slot, 62000);
+      step(62640);
+      if (state().steps[0] !== null) fail("select-then-place", "640 ms on the slot placed the sound.");
+      step(62660);
+      if (state().steps[0] !== "c") fail("select-then-place", "The slot did not hold the selected sound.");
+      enterLook(slot, 64000);
+      step(64660);
+      if (state().steps[0] !== null) fail("select-then-place", "The same sound on that slot did not clear it.");
+      if (state().selected !== "c") fail("select-then-place", "Clearing the slot dropped the selected sound.");
+    });
+    run("rush-lanes", function () {
+      resetInput();
+      start("rush");
+      openTab("tab-sounds");
+      tapId("sound-c");
+      openTab("tab-loop");
+      tapId("beat-0");
+      if (state().beats[0] !== null) fail("rush-lanes", "A bell was placed in the Beats lane.");
+      openTab("tab-sounds");
+      tapId("sound-drum");
+      openTab("tab-loop");
+      tapId("bell-0");
+      if (state().bells[0] !== null) fail("rush-lanes", "A drum was placed in the Bells lane.");
+      openTab("tab-sounds");
+      tapId("sound-c");
+      openTab("tab-loop");
+      tapId("bell-0");
+      if (state().bells[0] !== "c") fail("rush-lanes", "A bell did not place in the Bells lane.");
+      openTab("tab-sounds");
+      tapId("sound-drum");
+      openTab("tab-loop");
+      tapId("beat-0");
+      if (state().beats[0] !== "drum") fail("rush-lanes", "A drum did not place in the Beats lane.");
+    });
+    run("loop-steps", function () {
+      resetInput();
+      start("shop");
+      const ids = ["c", "d", "e", "g", "a", "drum", "shaker", "clap"];
+      for (let i = 0; i < ids.length; i++) {
+        tapId("sound-" + ids[i]);
+        tapId("slot-" + i);
+      }
+      if (state().tempo !== 400) fail("loop-steps", "The loop was not 400 ms per step.");
+      step(80000);
+      const before = state().heard.length;
+      tapId("play-toggle");
+      if (!state().playing) fail("loop-steps", "Play did not start.");
+      step(80000);
+      if (state().visits.length !== 0) fail("loop-steps", "The playhead moved before the first step.");
+      step(83200);
+      const snap = state();
+      if (snap.visits.join(",") !== "0,1,2,3,4,5,6,7") fail("loop-steps", "3200 ms did not advance through all 8 slots once.");
+      if (snap.playhead !== 7) fail("loop-steps", "The playhead did not finish on the last slot.");
+      if (snap.heard.slice(before).join(",") !== ids.join(",")) fail("loop-steps", "The eight steps did not play in order.");
+      if (!snap.playing) fail("loop-steps", "The loop stopped before it finished the row.");
+    });
+    run("stop", function () {
+      resetInput();
+      start("shop");
+      tapId("sound-c");
+      tapId("slot-0");
+      step(90000);
+      tapId("play-toggle");
+      step(90400);
+      const mid = state();
+      if (mid.playhead !== 0) fail("stop", "The playhead did not reach the first step.");
+      const n = mid.heard.length;
+      const head = mid.playhead;
+      tapId("play-toggle");
+      if (state().playing) fail("stop", "Stop did not halt playback.");
+      step(98000);
+      const end = state();
+      if (end.heard.length !== n) fail("stop", "Stop did not halt recorded sounds.");
+      if (end.playhead !== head) fail("stop", "Stop did not halt the playhead.");
+      if (end.playing) fail("stop", "The loop started again on its own.");
+    });
+    run("rush-tempo", function () {
+      resetInput();
+      start("rush");
+      openTab("tab-sounds");
+      tapId("sound-c");
+      openTab("tab-loop");
+      tapId("bell-0");
+      tapId("tempo-slow");
+      if (state().tempo !== 500) fail("rush-tempo", "Slow was not 500 ms per step.");
+      const t0 = 200000;
+      step(t0);
+      tapId("play-toggle");
+      if (!state().playing) fail("rush-tempo", "Play did not start.");
+      step(t0 + 4000);
+      const slow = state();
+      if (slow.visits.join(",") !== "0,1,2,3,4,5,6,7") fail("rush-tempo", "4000 ms at Slow did not advance through all 8 slots once.");
+      if (slow.playhead !== 7) fail("rush-tempo", "The playhead did not finish on the last slot.");
+      const visitsSlow = slow.visits.length;
+      const heardSlow = slow.heard.length;
+      tapId("tempo-fast");
+      if (state().tempo !== 300) fail("rush-tempo", "Fast was not 300 ms per step.");
+      if (state().visits.length !== visitsSlow || state().heard.length !== heardSlow) fail("rush-tempo", "Changing tempo scheduled notes.");
+      step(t0 + 4000 + 299);
+      if (state().visits.length !== visitsSlow || state().heard.length !== heardSlow) fail("rush-tempo", "Speeding up scheduled a backlog of notes.");
+      step(t0 + 4000 + 300);
+      const sped = state();
+      if (sped.visits.length !== visitsSlow + 1 || sped.visits[sped.visits.length - 1] !== 0) fail("rush-tempo", "The next step did not wait one fast interval.");
+      if (sped.heard.length !== heardSlow + 1) fail("rush-tempo", "The next step did not play its sound.");
+      const fastMark = t0 + 4000 + 300;
+      tapId("tempo-slow");
+      if (state().tempo !== 500) fail("rush-tempo", "Slow did not return to 500 ms per step.");
+      if (state().visits.length !== sped.visits.length) fail("rush-tempo", "Slowing down scheduled notes.");
+      step(fastMark + 499);
+      if (state().visits.length !== sped.visits.length) fail("rush-tempo", "Slowing down moved the playhead early.");
+      step(fastMark + 500);
+      const slowed = state();
+      if (slowed.visits.length !== sped.visits.length + 1 || slowed.visits[slowed.visits.length - 1] !== 1) fail("rush-tempo", "Slowing down stalled the playhead past one slow interval.");
+      const gapFrom = fastMark + 500;
+      step(gapFrom + 120000);
+      const skipped = state();
+      if (skipped.visits.length !== slowed.visits.length) fail("rush-tempo", "A 120s gap did not skip the missed steps.");
+      if (skipped.heard.length !== slowed.heard.length) fail("rush-tempo", "A 120s gap played the missed steps.");
+      step(gapFrom + 120000 + 500);
+      const resumed = state();
+      if (resumed.visits.length !== slowed.visits.length + 1) fail("rush-tempo", "The loop did not resume one step after a 120s gap.");
+      if (resumed.heard.length !== slowed.heard.length) fail("rush-tempo", "The empty step after a 120s gap played a sound.");
+    });
+    run("sizes", function () {
+      resetInput();
+      const views = [[390, 700], [1024, 768]];
+      function checkBoxes(list, w, h, where) {
+        for (let i = 0; i < list.length; i++) {
+          const box = list[i];
+          const id = String(box.id);
+          const tracked = id.indexOf("sound-") === 0 || id.indexOf("slot-") === 0 || id.indexOf("bell-") === 0 || id.indexOf("beat-") === 0 || id === "page-prev" || id === "page-next";
+          if (!tracked) continue;
+          if (Math.min(box.w, box.h) < 72) fail("sizes", where + " " + id + " was under 72 at " + w + " by " + h + ".");
+          if (box.x < 16 || box.y < 16 || box.x + box.w > w - 16 || box.y + box.h > h - 16) {
+            fail("sizes", where + " " + id + " was not fully inside the 16 px margin at " + w + " by " + h + ".");
+          }
+        }
+        for (let i = 0; i < list.length; i++) {
+          for (let j = i + 1; j < list.length; j++) {
+            if (intersects(list[i], list[j])) fail("sizes", where + " " + list[i].id + " hit " + list[j].id + " at " + w + " by " + h + ".");
+          }
+        }
+      }
+      function expectIds(list, ids, where) {
+        for (let i = 0; i < ids.length; i++) {
+          if (!targetById(list, ids[i])) fail("sizes", where + " was missing " + ids[i] + ".");
+        }
+      }
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        const band = BAND_IDS[b];
+        start(band);
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          if (band === "rush" && w < 700) {
+            playTab = "sounds";
+            slotPage = 0;
+            const soundsLay = targetsAt(w, h);
+            if (!soundsLay.ok) fail("sizes", band + " sounds at " + w + " by " + h + " was not ok. " + (soundsLay.fault || ""));
+            else {
+              checkBoxes(soundsLay.targets, w, h, band + " sounds");
+              expectIds(soundsLay.targets, BANDS.rush.sounds.map(function (id) { return "sound-" + id; }), band + " sounds");
+            }
+            playTab = "loop";
+            slotPage = 0;
+            const page0 = targetsAt(w, h);
+            if (!page0.ok) fail("sizes", band + " loop page 0 at " + w + " by " + h + " was not ok. " + (page0.fault || ""));
+            else {
+              checkBoxes(page0.targets, w, h, band + " page 0");
+              expectIds(page0.targets, ["bell-0", "bell-1", "bell-2", "bell-3", "beat-0", "beat-1", "beat-2", "beat-3", "page-prev", "page-next"], band + " page 0");
+            }
+            slotPage = 1;
+            const page1 = targetsAt(w, h);
+            if (!page1.ok) fail("sizes", band + " loop page 1 at " + w + " by " + h + " was not ok. " + (page1.fault || ""));
+            else {
+              checkBoxes(page1.targets, w, h, band + " page 1");
+              expectIds(page1.targets, ["bell-4", "bell-5", "bell-6", "bell-7", "beat-4", "beat-5", "beat-6", "beat-7", "page-prev", "page-next"], band + " page 1");
+            }
+            playTab = "sounds";
+            slotPage = 0;
+          } else {
+            const lay = targetsAt(w, h);
+            if (!lay.ok) fail("sizes", band + " at " + w + " by " + h + " was not ok. " + (lay.fault || ""));
+            else {
+              checkBoxes(lay.targets, w, h, band);
+              expectIds(lay.targets, BANDS[band].sounds.map(function (id) { return "sound-" + id; }), band);
+              if (band === "shop") {
+                const slots = [];
+                for (let s = 0; s < 8; s++) slots.push("slot-" + s);
+                expectIds(lay.targets, slots, band);
+              }
+              if (band === "rush") {
+                const slots = [];
+                for (let s = 0; s < 8; s++) {
+                  slots.push("bell-" + s);
+                  slots.push("beat-" + s);
+                }
+                expectIds(lay.targets, slots, band);
+              }
+            }
+          }
+        }
+      }
+    });
+    run("eyes-gap", function () {
+      resetInput();
+      function check(where) {
+        const views = [[390, 700], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const boxes = layoutTargets(w, h);
+          if (!boxes) {
+            fail("eyes-gap", where + " at " + w + " by " + h + " had no button boxes. " + layoutFault);
+            continue;
+          }
+          const eye = eyesBox(w, h);
+          if (intersects(eye, bannerBox(w, h))) fail("eyes-gap", "Eyes covered the banner at " + w + " by " + h + " during " + where + ".");
+          for (let i = 0; i < boxes.length; i++) {
+            if (intersects(eye, boxes[i])) fail("eyes-gap", "Eyes hit " + boxes[i].id + " at " + w + " by " + h + " during " + where + ".");
+          }
+          if (screen === "menu") {
+            const menu = menuLayout(w, h);
+            if (menu && (intersects(eye, menu.card) || intersects(eye, menu.title))) {
+              fail("eyes-gap", "Eyes hit the menu card at " + w + " by " + h + ".");
+            }
+          }
+          if (screen === "rest") {
+            const rest = restLayout(w, h);
+            if (rest && intersects(eye, rest.card)) fail("eyes-gap", "Eyes hit the rest card at " + w + " by " + h + ".");
+          }
+        }
+        look(0.5, 0.02);
+        step(clock || 10000);
+        const placed = eyesEl.getBoundingClientRect();
+        const live = eyesBox(window.innerWidth, window.innerHeight);
+        if (eyesEl.hidden) fail("eyes-gap", "Eyes was hidden while a look was held during " + where + ".");
+        if (Math.abs(placed.left - live.x) > 1 || Math.abs(placed.top - live.y) > 1 || Math.abs(placed.width - live.w) > 1 || Math.abs(placed.height - live.h) > 1) {
+          fail("eyes-gap", "The running layout did not place Eyes from eyesBox during " + where + ".");
+        }
+        const buttons = document.querySelectorAll("button");
+        for (let i = 0; i < buttons.length; i++) {
+          const btn = buttons[i];
+          if (!buttonVisible(btn)) continue;
+          const r = btn.getBoundingClientRect();
+          const box = { x: r.left, y: r.top, w: r.width, h: r.height };
+          if (intersects(box, { x: placed.left, y: placed.top, w: placed.width, h: placed.height })) {
+            fail("eyes-gap", "Eyes hit the " + btn.id + " button at " + window.innerWidth + " by " + window.innerHeight + ".");
+          }
+        }
+        releaseLook();
+      }
+      go("menu");
+      check("menu");
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        start(BAND_IDS[b]);
+        if (BAND_IDS[b] === "rush") {
+          playTab = "sounds";
+          slotPage = 0;
+          check("rush-sounds");
+          playTab = "loop";
+          slotPage = 0;
+          check("rush-loop");
+          slotPage = 1;
+          check("rush-page");
+          playTab = "sounds";
+          slotPage = 0;
+        } else check(BAND_IDS[b]);
+      }
+      go("rest");
+      check("rest");
+    });
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+      const end = state();
+      if (!("level" in end) || !("screen" in end) || !("banner" in end) || !("muted" in end)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+    });
+    run("no-speech", function () {
+      if (speakCalls !== 0) fail("no-speech", "speechSynthesis.speak was called.");
+      if (Object.prototype.hasOwnProperty.call(state(), "speech")) fail("no-speech", "state kept a speech field.");
+    });
+    try {
+      assertJunk("at the end");
+    } catch (err) {
+      fail("family-query-inert", err && err.message ? err.message : "The junk check threw.");
+    }
+    try {
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+      if (origSpeak && window.speechSynthesis) window.speechSynthesis.speak = origSpeak;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.musicMaker = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) {
+      result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
