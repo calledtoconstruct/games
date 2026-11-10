@@ -42,7 +42,7 @@
     font-weight: 800; font-size: 16px;
   }
   #banner {
-    position: fixed; z-index: 25; pointer-events: none;
+    position: fixed; z-index: 25; pointer-events: none; margin: 0;
     background: var(--paper); color: var(--ink);
     border: 3px solid var(--ink); border-radius: 999px;
     padding: 4px 12px; font-size: 18px; font-weight: 800;
@@ -223,6 +223,7 @@
   let master = null;
   let pointerDown = false;
   let armedId = null;
+  let padKey = null;
   let gazeSock = null;
   let gazeTimer = 0;
   let gazeBuf = new Uint8Array(0);
@@ -365,11 +366,6 @@
     if (!beat) return;
     if (beat.kind === "again") {
       misses += 1;
-      const spec = BANDS[level];
-      if (spec && misses >= 2 && pattern.length > spec.start) {
-        pattern = pattern.slice(0, pattern.length - 1);
-        misses = 0;
-      }
       enqueueShow();
       return;
     }
@@ -394,9 +390,16 @@
       if (!beats.length) return;
       const beat = beats[0];
       if (beat.kind === "turn") {
+        beats.shift();
+        const spec = BANDS[level];
+        if (misses >= 2 && spec && pattern.length > spec.start) {
+          pattern = pattern.slice(0, pattern.length - 1);
+          misses = 0;
+          enqueueShow();
+          return;
+        }
         phase = "turn";
         lit = null;
-        beats.shift();
         return;
       }
       if (beat.kind === "rest") {
@@ -729,22 +732,36 @@
     return svg;
   }
   function syncPads(boxes) {
-    const want = boxes ? boxes.length : 0;
-    while (playEl.firstChild) playEl.removeChild(playEl.firstChild);
-    for (let i = 0; i < want; i++) {
+    const list = boxes || [];
+    const key = list.map(function (b) { return b.id; }).join("|");
+    if (key !== padKey) {
+      while (playEl.firstChild) playEl.removeChild(playEl.firstChild);
+      for (let i = 0; i < list.length; i++) {
+        const pad = PADS[i];
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.id = "pad-" + pad.id;
+        btn.setAttribute("aria-label", pad.label);
+        btn.style.setProperty("--pad", pad.color);
+        btn.appendChild(shapeNode(pad, false));
+        playEl.appendChild(btn);
+      }
+      padKey = key;
+    }
+    for (let i = 0; i < list.length; i++) {
       const pad = PADS[i];
+      const btn = document.getElementById("pad-" + pad.id);
+      if (!btn) continue;
       const on = !!(lit && lit === pad.id && screen === "play");
-      const btn = document.createElement("button");
-      btn.type = "button";
-      btn.id = "pad-" + pad.id;
       btn.setAttribute("aria-label", pad.label);
-      btn.style.setProperty("--pad", pad.color);
       if (screen === "play" && phase === "turn") btn.setAttribute("data-play", "true");
-      if (on) btn.className = "lit";
-      btn.style.transform = on && !reducedMotion() ? "scale(1.04)" : "none";
-      btn.appendChild(shapeNode(pad, on));
-      playEl.appendChild(btn);
-      place(btn, boxes[i]);
+      else btn.removeAttribute("data-play");
+      btn.className = on ? "lit" : "";
+      btn.style.transform = "none";
+      const shape = btn.querySelector("svg");
+      const mark = shape && shape.firstChild;
+      if (mark) mark.setAttribute("fill", on ? "#fffdf6" : pad.color);
+      place(btn, list[i]);
     }
   }
   function syncDots() {
@@ -1389,6 +1406,34 @@
       tap(tapBox.nx, tapBox.ny);
       if (state().matched !== 1 || state().lit !== againId || againId !== padId) fail("family-play-dwell", "A tap did not light the same pad.");
     });
+    run("pad-click", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      const t = reachTurn();
+      if (state().phase !== "turn") fail("pad-click", "Your turn did not open.");
+      const padId = state().pattern[0];
+      const btn = document.getElementById("pad-" + padId);
+      if (!btn || btn.getAttribute("data-play") !== "true") fail("pad-click", "The correct pad was not a play button.");
+      else {
+        const rect = btn.getBoundingClientRect();
+        const x = rect.left + rect.width / 2;
+        const y = rect.top + rect.height / 2;
+        const point = { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, view: window };
+        btn.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, view: window, pointerId: 1, pointerType: "mouse", isPrimary: true }));
+        btn.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, cancelable: true, clientX: x, clientY: y, button: 0, view: window, pointerId: 1, pointerType: "mouse", isPrimary: true }));
+        btn.dispatchEvent(new MouseEvent("click", point));
+        step(t);
+        if (!btn.isConnected || document.getElementById("pad-" + padId) !== btn) fail("pad-click", "The click replaced the pad.");
+        if (state().matched !== 1 || state().lit !== padId) fail("pad-click", "A click on the correct pad did not count.");
+        const litBox = btn.getBoundingClientRect();
+        const w = window.innerWidth;
+        const h = window.innerHeight;
+        if (litBox.left < 15.5 || litBox.top < 15.5 || litBox.right > w - 15.5 || litBox.bottom > h - 15.5) {
+          fail("pad-click", "The lit pad crossed the inset.");
+        }
+      }
+    });
     run("family-menu-dwell", function () {
       resetInput();
       go("menu");
@@ -1675,17 +1720,36 @@
       if (state().pattern.length !== grown.length || state().pattern.join(",") !== grown.join(",")) {
         fail("two-misses-shorten", "The first replay changed the pattern.");
       }
+      if (state().phase !== "watch") fail("two-misses-shorten", "The first slip did not replay.");
       t = reachTurn();
+      if (state().phase !== "turn" || state().pattern.length !== grown.length) {
+        fail("two-misses-shorten", "The first replay did not return Your turn at the same length.");
+      }
       t = missOnce(t);
+      if (state().pattern.length !== grown.length || state().pattern.join(",") !== grown.join(",")) {
+        fail("two-misses-shorten", "The second slip shortened before the replay.");
+      }
+      if (state().phase !== "watch") fail("two-misses-shorten", "The second slip did not replay the same pattern.");
+      t = reachTurn();
       if (state().pattern.length !== grown.length - 1) fail("two-misses-shorten", "Two replays did not shorten the pattern by one.");
       if (state().pattern.length < floor) fail("two-misses-shorten", "The pattern fell below the start length.");
       if (state().phase !== "watch") fail("two-misses-shorten", "The shorter pattern did not return to Watch.");
       t = reachTurn();
       const atFloor = state().pattern.length;
+      if (atFloor < floor || state().phase !== "turn") fail("two-misses-shorten", "The shorter pattern did not reach Your turn.");
       t = missOnce(t);
       t = reachTurn();
+      if (state().pattern.length !== atFloor || state().phase !== "turn") {
+        fail("two-misses-shorten", "One replay at the start length changed the pattern.");
+      }
       t = missOnce(t);
-      if (state().pattern.length !== atFloor || state().pattern.length < 1) fail("two-misses-shorten", "More slips shortened past the start length.");
+      if (state().pattern.length !== atFloor || state().phase !== "watch") {
+        fail("two-misses-shorten", "The second slip at the start length shortened before the replay.");
+      }
+      t = reachTurn();
+      if (state().pattern.length !== atFloor || state().pattern.length < 1 || state().phase !== "turn") {
+        fail("two-misses-shorten", "More slips shortened past the start length.");
+      }
     });
     run("longest-rest", function () {
       resetInput();
