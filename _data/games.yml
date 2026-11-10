@@ -62,3 +62,6 @@ shy-creatures:
 painter-of-light:
   name: "Painter of Light"
   line: "A looking game for ages 2 and up."
+echo-garden:
+  name: "Echo Garden"
+  line: "A music garden for ages 2 and up."
