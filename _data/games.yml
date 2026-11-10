@@ -29,3 +29,6 @@ maze:
 coloring-book:
   name: "Coloring Book"
   line: "A coloring book for ages 2 and up."
+four-in-a-row:
+  name: "Four in a Row"
+  line: "A drop-the-disc game for ages 2 and up."

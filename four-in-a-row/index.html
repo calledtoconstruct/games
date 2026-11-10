@@ -1,0 +1,2278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Four in a Row</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #view {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    display: block; pointer-events: none; z-index: 1;
+  }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 28; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 8px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 25; pointer-events: none;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 4px 10px; font-size: 16px; font-weight: 800;
+    text-align: center; line-height: 1.15;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #menu-card, #rest-card, #who-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-rest, #play, #menu-copy, #rest-line, #who-copy, h1, p, b, small {
+    pointer-events: none;
+  }
+  #menu-copy, #rest-line, #who-copy {
+    position: fixed; z-index: 24; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1, #who-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p, #who-copy p { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line { font-size: 28px; font-weight: 800; }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush, #another,
+  #vs-cpu, #vs-two, #play button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 15px; line-height: 1.1;
+    padding: 4px;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #another, #vs-cpu, #vs-two {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 26px;
+  }
+  #vs-two { background: var(--card); box-shadow: 0 5px 0 #d5c4a1; }
+  #play button.slot {
+    border: 3px solid transparent; border-radius: 18px;
+    background: transparent; color: var(--ink); font-weight: 800;
+    font-size: 28px; line-height: 1; padding: 12px 0 0;
+    display: flex; align-items: flex-start; justify-content: center;
+  }
+  #play button.slot.picker {
+    background: var(--card); border-color: var(--ink);
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 32px; padding: 0;
+    align-items: center;
+  }
+  #play button.slot.dim { opacity: 0.35; }
+  @media (prefers-reduced-motion: reduce) {
+    * { scroll-behavior: auto !important; }
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick a game.</p>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Four in a Row</h1>
+    <p>Drop a disc. Make a line.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Three Up</b><small>Ages 2 to 3. A small board. Three in a row.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Four Fun</b><small>Ages 4 to 5. Four in a row.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Classic</b><small>Ages 6 to 8. The full board.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Clever</b><small>Ages 9 and up. A stronger computer.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <div id="who-card" hidden></div>
+  <div id="who-copy" hidden>
+    <h1>Who plays?</h1>
+    <p>One screen. Take turns.</p>
+  </div>
+  <button id="vs-cpu" type="button" hidden>Play the computer</button>
+  <button id="vs-two" type="button" hidden>Two players</button>
+</div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">Good game.</p>
+  <button id="another" type="button" hidden>Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const BANDS = {
+    tiny: { cols: 5, rows: 4, need: 3 },
+    little: { cols: 6, rows: 5, need: 4 },
+    shop: { cols: 7, rows: 6, need: 4 },
+    rush: { cols: 7, rows: 6, need: 4 }
+  };
+  const STAR = "#E69F00";
+  const RING = "#56B4E9";
+  const BOARD = "#0072B2";
+
+  function makeRng(seed) {
+    let state = seed >>> 0;
+    return {
+      uint() {
+        state = (state + 0x6D2B79F5) >>> 0;
+        let t = Math.imul(state ^ (state >>> 15), state | 1);
+        t = t ^ (t + Math.imul(t ^ (t >>> 7), t | 61));
+        return (t ^ (t >>> 14)) >>> 0;
+      }
+    };
+  }
+  function rngUint(rng) { return rng.uint(); }
+  function rngInt(rng, lo, hi) {
+    return lo + (rngUint(rng) % (hi - lo + 1));
+  }
+  function playSeed(clockMs, counter) {
+    return (Math.imul(((clockMs >>> 0) ^ Math.imul(counter >>> 0, 0x9E3779B9)), 0x85EBCA6B)) >>> 0;
+  }
+
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d");
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const playEl = document.getElementById("play");
+  const whoCard = document.getElementById("who-card");
+  const whoCopy = document.getElementById("who-copy");
+  const vsCpu = document.getElementById("vs-cpu");
+  const vsTwo = document.getElementById("vs-two");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const anotherBtn = document.getElementById("another");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+  const letsBtn = document.getElementById("lets-go");
+
+  let screen = "menu";
+  let level = "tiny";
+  let muted = false;
+  let mode = null;
+  let cols = 0;
+  let rows = 0;
+  let need = 0;
+  let cells = [];
+  let heights = [];
+  let turn = null;
+  let starter = null;
+  let waiting = false;
+  let cpuAt = 0;
+  let result = null;
+  let resultAt = 0;
+  let line = [];
+  let sitting = 0;
+  let sittingSeed = 1;
+  let falls = [];
+  let pin = null;
+  let counter = 1;
+  let rng = makeRng(1);
+  let checking = false;
+  let suppressReconnect = false;
+  let colKey = "";
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function knownBand(band) { return BAND_IDS.indexOf(band) >= 0; }
+  function takePageSeed() {
+    let s;
+    if (pin !== null) s = pin;
+    else if (checking) s = 1;
+    else s = playSeed(Date.now(), counter);
+    pin = null;
+    counter += 1;
+    return s >>> 0;
+  }
+
+  function hasLine(player) {
+    const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        if (cells[r * cols + c] !== player) continue;
+        for (let d = 0; d < dirs.length; d++) {
+          const dc = dirs[d][0];
+          const dr = dirs[d][1];
+          let k = 1;
+          for (; k < need; k++) {
+            const cc = c + dc * k;
+            const rr = r + dr * k;
+            if (cc < 0 || rr < 0 || cc >= cols || rr >= rows || cells[rr * cols + cc] !== player) break;
+          }
+          if (k === need) return true;
+        }
+      }
+    }
+    return false;
+  }
+  function collectLine(player) {
+    const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+    const seen = {};
+    const out = [];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        for (let d = 0; d < dirs.length; d++) {
+          const dc = dirs[d][0];
+          const dr = dirs[d][1];
+          const got = [];
+          let ok = true;
+          for (let k = 0; k < need; k++) {
+            const cc = c + dc * k;
+            const rr = r + dr * k;
+            if (cc < 0 || rr < 0 || cc >= cols || rr >= rows || cells[rr * cols + cc] !== player) {
+              ok = false;
+              break;
+            }
+            got.push({ c: cc, r: rr });
+          }
+          if (!ok) continue;
+          for (let k = 0; k < got.length; k++) {
+            const key = got[k].c + "," + got[k].r;
+            if (!seen[key]) {
+              seen[key] = true;
+              out.push(got[k]);
+            }
+          }
+        }
+      }
+    }
+    return out.length ? out : null;
+  }
+  function windowScore() {
+    let s = 0;
+    const dirs = [[1, 0], [0, 1], [1, 1], [1, -1]];
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        for (let d = 0; d < dirs.length; d++) {
+          const dc = dirs[d][0];
+          const dr = dirs[d][1];
+          let own = 0;
+          let opp = 0;
+          let empty = 0;
+          let ok = true;
+          for (let k = 0; k < need; k++) {
+            const cc = c + dc * k;
+            const rr = r + dr * k;
+            if (cc < 0 || rr < 0 || cc >= cols || rr >= rows) { ok = false; break; }
+            const v = cells[rr * cols + cc];
+            if (v === 2) own += 1;
+            else if (v === 1) opp += 1;
+            else empty += 1;
+          }
+          if (!ok) continue;
+          if (own === need) s += 100;
+          else if (opp === need) s -= 100;
+          else if (own === 3 && empty === 1) s += 5;
+          else if (own === 2 && empty === 2) s += 2;
+          else if (opp === 3 && empty === 1) s -= 4;
+        }
+      }
+    }
+    const mids = cols % 2 === 1 ? [(cols - 1) >> 1] : [cols / 2 - 1, cols / 2];
+    for (let i = 0; i < mids.length; i++) {
+      const c = mids[i];
+      for (let r = 0; r < heights[c]; r++) if (cells[r * cols + c] === 2) s += 3;
+    }
+    return s;
+  }
+  function openCols() {
+    const out = [];
+    for (let c = 0; c < cols; c++) if (heights[c] < rows) out.push(c);
+    return out;
+  }
+  function orderedOpen() {
+    const mid = (cols - 1) / 2;
+    return openCols().sort(function (a, b) {
+      return Math.abs(a - mid) - Math.abs(b - mid) || a - b;
+    });
+  }
+  function winningCols(player) {
+    const out = [];
+    for (let c = 0; c < cols; c++) {
+      if (heights[c] >= rows) continue;
+      const r = heights[c];
+      cells[r * cols + c] = player;
+      heights[c] = r + 1;
+      const won = hasLine(player);
+      heights[c] = r;
+      cells[r * cols + c] = 0;
+      if (won) out.push(c);
+    }
+    return out;
+  }
+  function handsImmediate(col) {
+    const r = heights[col];
+    cells[r * cols + col] = 2;
+    heights[col] = r + 1;
+    if (hasLine(2)) {
+      heights[col] = r;
+      cells[r * cols + col] = 0;
+      return false;
+    }
+    const danger = winningCols(1).length > 0;
+    heights[col] = r;
+    cells[r * cols + col] = 0;
+    return danger;
+  }
+  function minimax(depth, alpha, beta, maximizing) {
+    if (hasLine(2)) return 100000 + depth;
+    if (hasLine(1)) return -100000 - depth;
+    const ops = orderedOpen();
+    if (!ops.length || depth === 0) return windowScore();
+    if (maximizing) {
+      let best = -Infinity;
+      for (let i = 0; i < ops.length; i++) {
+        const c = ops[i];
+        const r = heights[c];
+        cells[r * cols + c] = 2;
+        heights[c] = r + 1;
+        const s = minimax(depth - 1, alpha, beta, false);
+        heights[c] = r;
+        cells[r * cols + c] = 0;
+        if (s > best) best = s;
+        if (s > alpha) alpha = s;
+        if (alpha >= beta) break;
+      }
+      return best;
+    }
+    let best = Infinity;
+    for (let i = 0; i < ops.length; i++) {
+      const c = ops[i];
+      const r = heights[c];
+      cells[r * cols + c] = 1;
+      heights[c] = r + 1;
+      const s = minimax(depth - 1, alpha, beta, true);
+      heights[c] = r;
+      cells[r * cols + c] = 0;
+      if (s < best) best = s;
+      if (s < beta) beta = s;
+      if (alpha >= beta) break;
+    }
+    return best;
+  }
+  function rushChoice() {
+    const ops = orderedOpen();
+    if (!ops.length) return -1;
+    let best = -Infinity;
+    let choice = ops[0];
+    let alpha = -Infinity;
+    for (let i = 0; i < ops.length; i++) {
+      const c = ops[i];
+      const r = heights[c];
+      cells[r * cols + c] = 2;
+      heights[c] = r + 1;
+      const s = minimax(3, alpha, Infinity, false);
+      heights[c] = r;
+      cells[r * cols + c] = 0;
+      if (s > best) { best = s; choice = c; }
+      if (s > alpha) alpha = s;
+    }
+    return choice;
+  }
+  function pickMove() {
+    const ops = openCols();
+    if (!ops.length) return -1;
+    if (level === "tiny") {
+      const wins = winningCols(2);
+      if (wins.length && (rngUint(rng) % 2 === 0)) return wins[rngInt(rng, 0, wins.length - 1)];
+      return ops[rngInt(rng, 0, ops.length - 1)];
+    }
+    if (level === "little") {
+      const wins = winningCols(2);
+      if (wins.length) return wins.length === 1 ? wins[0] : wins[rngInt(rng, 0, wins.length - 1)];
+      const weights = [1, 2, 3, 3, 2, 1];
+      const bag = [];
+      for (let i = 0; i < ops.length; i++) {
+        const w = weights[ops[i]] || 1;
+        for (let k = 0; k < w; k++) bag.push(ops[i]);
+      }
+      return bag[rngInt(rng, 0, bag.length - 1)];
+    }
+    if (level === "shop") {
+      const wins = winningCols(2);
+      if (wins.length) return wins.length === 1 ? wins[0] : wins[rngInt(rng, 0, wins.length - 1)];
+      const blocks = winningCols(1);
+      if (blocks.length) return blocks.length === 1 ? blocks[0] : blocks[rngInt(rng, 0, blocks.length - 1)];
+      let best = -Infinity;
+      const tied = [];
+      for (let i = 0; i < ops.length; i++) {
+        const c = ops[i];
+        const r = heights[c];
+        cells[r * cols + c] = 2;
+        heights[c] = r + 1;
+        const s = windowScore();
+        heights[c] = r;
+        cells[r * cols + c] = 0;
+        if (s > best) { best = s; tied.length = 0; tied.push(c); }
+        else if (s === best) tied.push(c);
+      }
+      return tied.length === 1 ? tied[0] : tied[rngInt(rng, 0, tied.length - 1)];
+    }
+    if ((rngUint(rng) / 4294967296) < 0.15) {
+      const safe = [];
+      for (let i = 0; i < ops.length; i++) if (!handsImmediate(ops[i])) safe.push(ops[i]);
+      const pool = safe.length ? safe : ops;
+      return pool[rngInt(rng, 0, pool.length - 1)];
+    }
+    return rushChoice();
+  }
+
+  function bannerText() {
+    if (screen === "menu") return "Pick a game.";
+    if (screen === "who") return "Who is playing?";
+    if (screen === "rest") return "Good game.";
+    if (result === "star") return "Star made a line!";
+    if (result === "ring") return "Ring made a line!";
+    if (result === "tie") return "The board is full. A tie!";
+    if (waiting) return "My turn.";
+    if (turn === 2) return "Ring's turn";
+    return "Star's turn";
+  }
+  function chipText() {
+    if (result === "ring") return "Ring's turn";
+    if (result === "star") return "Star's turn";
+    if (turn === 2) return "Ring's turn";
+    return "Star's turn";
+  }
+  function chipPlayer() {
+    if (result === "ring" || (result !== "star" && turn === 2)) return 2;
+    return 1;
+  }
+
+  function go(id) {
+    if (id !== "menu" && id !== "who" && id !== "play" && id !== "rest") {
+      render();
+      return;
+    }
+    screen = id;
+    if (id !== "play") waiting = false;
+    render();
+  }
+  function highlight(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    render();
+  }
+  function resetBoard() {
+    const spec = BANDS[level];
+    cols = spec.cols;
+    rows = spec.rows;
+    need = spec.need;
+    cells = new Array(cols * rows).fill(0);
+    heights = new Array(cols).fill(0);
+    result = null;
+    resultAt = 0;
+    line = [];
+    falls = [];
+    waiting = false;
+    if (mode === "two") starter = sitting % 2 === 0 ? 1 : 2;
+    else starter = 1;
+    turn = starter;
+    rng = makeRng(sittingSeed >>> 0);
+  }
+  function beginGame(nextMode) {
+    if (nextMode !== "computer" && nextMode !== "two") {
+      render();
+      return;
+    }
+    mode = nextMode;
+    resetBoard();
+    go("play");
+  }
+  function start(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    mode = null;
+    sitting = 0;
+    cols = 0;
+    rows = 0;
+    need = 0;
+    cells = [];
+    heights = [];
+    turn = null;
+    starter = null;
+    result = null;
+    line = [];
+    falls = [];
+    waiting = false;
+    sittingSeed = takePageSeed();
+    go("who");
+  }
+  function another() {
+    if (!mode) {
+      render();
+      return;
+    }
+    sitting += 1;
+    sittingSeed = takePageSeed();
+    beginGame(mode);
+  }
+  function loadDiscs(entries) {
+    for (let i = 0; i < cells.length; i++) cells[i] = 0;
+    for (let c = 0; c < cols; c++) heights[c] = 0;
+    for (let i = 0; i < entries.length; i++) {
+      const c = entries[i][0];
+      const r = entries[i][1];
+      const p = entries[i][2];
+      cells[r * cols + c] = p;
+      if (r + 1 > heights[c]) heights[c] = r + 1;
+    }
+    result = null;
+    line = [];
+    falls = [];
+    waiting = false;
+  }
+  function isFull() {
+    if (!rows) return false;
+    for (let c = 0; c < cols; c++) if (heights[c] < rows) return false;
+    return true;
+  }
+  function drop(col) {
+    if (screen !== "play" || result || waiting) {
+      render();
+      return false;
+    }
+    if (col !== (col | 0) || col < 0 || col >= cols || heights[col] >= rows) {
+      render();
+      return false;
+    }
+    const player = turn;
+    const row = heights[col];
+    cells[row * cols + col] = player;
+    heights[col] = row + 1;
+    falls.push({ col: col, row: row, player: player, t0: clock });
+    dropSound();
+    const won = collectLine(player);
+    if (won) {
+      result = player === 1 ? "star" : "ring";
+      line = won;
+      resultAt = clock;
+      waiting = false;
+      winSound();
+      render();
+      return true;
+    }
+    if (isFull()) {
+      result = "tie";
+      line = [];
+      resultAt = clock;
+      waiting = false;
+      tieSound();
+      render();
+      return true;
+    }
+    if (mode === "computer" && player === 1) {
+      turn = 2;
+      waiting = true;
+      cpuAt = clock;
+      render();
+      return true;
+    }
+    turn = player === 1 ? 2 : 1;
+    waiting = false;
+    render();
+    return true;
+  }
+
+  function state() {
+    const snap = {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      cols: cols,
+      rows: rows,
+      need: need,
+      cells: cells.slice(),
+      turn: turn,
+      mode: mode,
+      waiting: waiting,
+      result: result,
+      line: line.map(function (p) { return { c: p.c, r: p.r }; }),
+      starter: starter
+    };
+    render();
+    return snap;
+  }
+
+  function chromeBoxes(w) {
+    const y = 8;
+    const h = 72;
+    const mute = { id: "mute", x: 8, y: y, w: 72, h: h };
+    const full = { id: "full", x: 88, y: y, w: 72, h: h };
+    const gap = 8;
+    const right = w - 8;
+    const space = right - (full.x + full.w + gap);
+    const bannerMin = 120;
+    let backW = Math.min(176, Math.max(72, space - gap - bannerMin));
+    if (backW + gap + 64 > space) backW = Math.max(72, Math.min(backW, space - gap - 64));
+    if (backW < 72) backW = 72;
+    if (backW > space - gap) backW = Math.max(72, space - gap);
+    const back = { id: "back", x: right - backW, y: y, w: backW, h: h };
+    return { mute: mute, full: full, back: back };
+  }
+  function menuLayout(w, h) {
+    const btnH = 72;
+    const gap = 8;
+    const titleH = 64;
+    const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+    const columnH = titleH + gap + ids.length * btnH + (ids.length - 1) * gap;
+    const belowTop = 92;
+    const fitsBelow = belowTop + columnH <= h - 8;
+    let cardW;
+    let cardX;
+    let top;
+    if (fitsBelow) {
+      cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      cardX = (w - cardW) / 2;
+      top = belowTop;
+    } else if (8 + columnH <= h - 8) {
+      const leftLimit = 168;
+      const rightLimit = w - 8;
+      cardW = Math.min(460, Math.max(72, rightLimit - leftLimit));
+      cardX = leftLimit + Math.max(0, (rightLimit - leftLimit - cardW) / 2);
+      top = 8;
+    } else {
+      cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      cardX = (w - cardW) / 2;
+      top = 8;
+    }
+    const buttons = [];
+    const useGrid = top + columnH > h - 8;
+    let title;
+    if (!useGrid) {
+      title = { x: cardX, y: top, w: cardW, h: titleH };
+      let y = top + titleH + gap;
+      for (let i = 0; i < ids.length; i++) {
+        buttons.push({ id: ids[i], x: cardX, y: y, w: Math.max(72, cardW), h: btnH });
+        y += btnH + gap;
+      }
+      return { title: title, buttons: buttons, card: { x: cardX, y: top, w: cardW, h: y - gap - top } };
+    }
+    const gridTitle = 48;
+    title = { x: cardX, y: top, w: cardW, h: gridTitle };
+    const colW = Math.max(72, Math.floor((cardW - gap) / 2));
+    const gridW = colW * 2 + gap;
+    const gridX = cardX + Math.max(0, (cardW - gridW) / 2);
+    let y = top + gridTitle + gap;
+    for (let i = 0; i < 4; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      buttons.push({
+        id: BAND_IDS[i],
+        x: gridX + col * (colW + gap),
+        y: y + row * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    y += 2 * (btnH + gap);
+    buttons.push({ id: "lets-go", x: cardX, y: y, w: Math.max(72, cardW), h: btnH });
+    return { title: title, buttons: buttons, card: { x: cardX, y: top, w: cardW, h: y + btnH - top } };
+  }
+  function whoLayout(w, h) {
+    const btnH = 112;
+    const gap = 16;
+    const titleH = 64;
+    const cardW = w < 480 ? Math.max(72, w - 16) : Math.min(460, w - 24);
+    const cardX = (w - cardW) / 2;
+    const top = 92;
+    const buttons = [
+      { id: "vs-cpu", x: cardX, y: top + titleH + gap, w: cardW, h: btnH },
+      { id: "vs-two", x: cardX, y: top + titleH + gap + btnH + gap, w: cardW, h: btnH }
+    ];
+    const card = { x: cardX, y: top, w: cardW, h: titleH + gap + btnH + gap + btnH };
+    return {
+      title: { x: cardX, y: top, w: cardW, h: titleH },
+      buttons: buttons,
+      card: card
+    };
+  }
+  function anotherBox(w, h) {
+    const chrome = chromeBoxes(w);
+    const gap = 8;
+    const aw = 160;
+    const x = chrome.back.x - gap - aw;
+    const bannerLeft = chrome.full.x + chrome.full.w + gap;
+    if (aw >= 72 && x >= bannerLeft + 100 + gap) {
+      return { id: "another", x: x, y: 8, w: aw, h: 72 };
+    }
+    const bw = Math.min(280, Math.max(160, w - 32));
+    return { id: "another", x: (w - bw) / 2, y: Math.max(96, h - 8 - 72), w: bw, h: 72, floor: true };
+  }
+  function bannerBox(w, h) {
+    const chrome = chromeBoxes(w);
+    const gap = 8;
+    const left = chrome.full.x + chrome.full.w + gap;
+    let right = screen === "menu" ? w - gap : chrome.back.x - gap;
+    if (screen === "rest") {
+      const extra = anotherBox(w, h || 700);
+      if (extra && !extra.floor) right = extra.x - gap;
+    }
+    const bw = Math.max(64, right - left);
+    return { x: left, y: 12, w: bw, h: 56 };
+  }
+  function pickerPlan(colsN) {
+    if (colsN === 7) return [4, 3];
+    if (colsN === 6) return [3, 3];
+    if (colsN === 5) return [3, 2];
+    return [colsN];
+  }
+  function boardMetrics(w, h) {
+    const spec = BANDS[level] || BANDS.tiny;
+    const colsN = cols || spec.cols;
+    const rowsN = rows || spec.rows;
+    const top = 152;
+    const bottomPad = 8;
+    const gap = 8;
+    const cap = 72;
+    const inset = 16;
+    const availW = Math.max(0, w - inset * 2);
+    const colBudget = h - bottomPad - (top + cap);
+    const cellIfCol = Math.min(availW / colsN, colBudget / rowsN);
+    const useColumn = cellIfCol >= 72;
+    const labelH = useColumn ? 0 : 28;
+    const rowCounts = pickerPlan(colsN);
+    const pickerRows = rowCounts.length;
+    const pickH = 72;
+    const pickerBlock = pickH * pickerRows + gap * (pickerRows - 1);
+    let cell;
+    let boardW;
+    let boardH;
+    let boardX;
+    let boardY;
+    if (useColumn) {
+      const preferred = colsN >= 7 ? 600 / 7 : colsN === 6 ? 100 : 112;
+      cell = Math.min(cellIfCol, preferred);
+      if (cell < 72) cell = cellIfCol;
+      boardW = cell * colsN;
+      boardH = cell * rowsN;
+      boardX = (w - boardW) / 2;
+      boardY = top + cap;
+    } else {
+      const boardBudget = h - bottomPad - top - labelH - gap - pickerBlock;
+      cell = Math.min(availW / colsN, Math.max(1, boardBudget) / rowsN);
+      boardW = cell * colsN;
+      boardH = cell * rowsN;
+      boardX = inset + (availW - boardW) / 2;
+      boardY = top + labelH;
+    }
+    return {
+      mode: useColumn ? "column" : "picker",
+      cell: cell,
+      boardW: boardW,
+      boardH: boardH,
+      boardX: boardX,
+      boardY: boardY,
+      cols: colsN,
+      rows: rowsN,
+      cap: cap,
+      labelH: labelH,
+      gap: gap,
+      top: top
+    };
+  }
+  function columnBoxes(w, h) {
+    if (!(w >= 320)) return null;
+    const m = boardMetrics(w, h);
+    const buttons = [];
+    if (m.mode === "column") {
+      for (let c = 0; c < m.cols; c++) {
+        const inert = heights.length === m.cols && heights[c] >= m.rows;
+        buttons.push({
+          id: "col-" + c,
+          col: c,
+          x: m.boardX + c * m.cell,
+          y: m.boardY - m.cap,
+          w: m.cell,
+          h: m.cap + m.boardH,
+          inert: inert,
+          kind: "column"
+        });
+      }
+      return buttons;
+    }
+    const rowCounts = pickerPlan(m.cols);
+    const maxIn = Math.max.apply(null, rowCounts);
+    const gap = 8;
+    let btnW = Math.floor((w - 32 - gap * (maxIn - 1)) / maxIn);
+    if (btnW < 87) btnW = Math.floor((w - 16 - gap * (maxIn - 1)) / maxIn);
+    const btnH = 72;
+    if (btnW < 72) return null;
+    let y = m.boardY + m.boardH + gap;
+    let n = 0;
+    for (let r = 0; r < rowCounts.length; r++) {
+      const count = rowCounts[r];
+      const rowW = count * btnW + (count - 1) * gap;
+      let x = (w - rowW) / 2;
+      for (let i = 0; i < count; i++) {
+        const inert = heights.length === m.cols && heights[n] >= m.rows;
+        buttons.push({
+          id: "col-" + n,
+          col: n,
+          x: x,
+          y: y,
+          w: btnW,
+          h: btnH,
+          inert: inert,
+          kind: "picker"
+        });
+        x += btnW + gap;
+        n += 1;
+      }
+      y += btnH + gap;
+    }
+    return buttons;
+  }
+  function layoutTargets(w, h) {
+    if (!(w >= 320)) return null;
+    const chrome = chromeBoxes(w);
+    const targets = [chrome.mute, chrome.full];
+    if (screen !== "menu") targets.push(chrome.back);
+    if (screen === "menu") {
+      const menu = menuLayout(w, h);
+      for (let i = 0; i < menu.buttons.length; i++) targets.push(menu.buttons[i]);
+    }
+    if (screen === "who") {
+      const who = whoLayout(w, h);
+      for (let i = 0; i < who.buttons.length; i++) targets.push(who.buttons[i]);
+    }
+    if (screen === "play") {
+      const boxes = columnBoxes(w, h);
+      if (!boxes) return null;
+      for (let i = 0; i < boxes.length; i++) if (!boxes[i].inert) targets.push(boxes[i]);
+    }
+    if (screen === "rest") {
+      const again = anotherBox(w, h);
+      if (again) targets.push(again);
+    }
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      if (Math.min(t.w, t.h) < 72) return null;
+      if (t.x < -1 || t.y < -1 || t.x + t.w > w + 1 || t.y + t.h > h + 1) return null;
+    }
+    return targets;
+  }
+  function targetsAt(w, h) {
+    render();
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const boxes = layoutTargets(w, h);
+    if (!boxes) return { ok: false, targets: [] };
+    return {
+      ok: true,
+      targets: boxes.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+  function place(el, box) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+  function clearColumns() {
+    const nodes = playEl.querySelectorAll("button.slot");
+    for (let i = nodes.length - 1; i >= 0; i--) nodes[i].remove();
+    colKey = "";
+  }
+  function syncColumns(boxes) {
+    const key = boxes.map(function (b) { return b.id + (b.inert ? ":0" : ":1") + ":" + b.kind; }).join("|");
+    if (key !== colKey) {
+      clearColumns();
+      for (let i = 0; i < boxes.length; i++) {
+        const b = boxes[i];
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "slot";
+        btn.id = b.id;
+        btn.setAttribute("data-col", String(b.col));
+        playEl.appendChild(btn);
+      }
+      colKey = key;
+    }
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      const btn = document.getElementById(b.id);
+      if (!btn) continue;
+      place(btn, b);
+      btn.className = "slot " + b.kind + (b.inert ? " dim" : "");
+      btn.setAttribute("aria-label", "Column " + (b.col + 1));
+      if (b.inert) {
+        btn.removeAttribute("data-play");
+        btn.setAttribute("aria-disabled", "true");
+      } else {
+        btn.setAttribute("data-play", "true");
+        btn.removeAttribute("aria-disabled");
+      }
+      btn.textContent = b.kind === "picker" ? String(b.col + 1) : "▼";
+    }
+  }
+
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const chrome = chromeBoxes(w);
+    place(muteBtn, chrome.mute);
+    place(fullBtn, chrome.full);
+    place(backBtn, chrome.back);
+    backBtn.hidden = screen === "menu";
+    menuEl.hidden = screen !== "menu";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "who" && screen !== "play";
+    whoCard.hidden = screen !== "who";
+    whoCopy.hidden = screen !== "who";
+    vsCpu.hidden = screen !== "who";
+    vsTwo.hidden = screen !== "who";
+    anotherBtn.hidden = screen !== "rest";
+    bannerEl.textContent = bannerText();
+    place(bannerEl, bannerBox(w, h));
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    const menu = menuLayout(w, h);
+    place(menuCard, menu.card);
+    place(menuCopy, menu.title);
+    for (let i = 0; i < menu.buttons.length; i++) {
+      place(document.getElementById(menu.buttons[i].id), menu.buttons[i]);
+    }
+    const who = whoLayout(w, h);
+    place(whoCard, who.card);
+    place(whoCopy, who.title);
+    place(vsCpu, who.buttons[0]);
+    place(vsTwo, who.buttons[1]);
+    const rest = restLayout(w, h);
+    place(restCard, rest.card);
+    place(restLine, rest.line);
+    if (screen === "rest") place(anotherBtn, rest.another);
+    if (screen === "play" && cols) {
+      const boxes = columnBoxes(w, h) || [];
+      syncColumns(boxes);
+    } else if (colKey) {
+      clearColumns();
+    }
+    eyesEl.hidden = !eyesOn();
+    place(eyesEl, { x: Math.max(8, w - 84), y: Math.max(8, h - 48), w: 72, h: 36 });
+    paint();
+  }
+  function restLayout(w, h) {
+    const cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+    const cardX = (w - cardW) / 2;
+    const y = Math.max(96, Math.min(h * 0.28, h - 220));
+    return {
+      card: { x: cardX, y: y, w: cardW, h: 180 },
+      line: { x: cardX, y: y + 28, w: cardW, h: 48 },
+      another: anotherBox(w, h)
+    };
+  }
+
+  function resizeCanvas() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const bw = Math.max(1, Math.round(w * dpr));
+    const bh = Math.max(1, Math.round(h * dpr));
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw;
+      canvas.height = bh;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  function roundRect(x, y, w, h, r) {
+    const rr = Math.max(0, Math.min(r, w / 2, h / 2));
+    ctx.beginPath();
+    ctx.moveTo(x + rr, y);
+    ctx.arcTo(x + w, y, x + w, y + h, rr);
+    ctx.arcTo(x + w, y + h, x, y + h, rr);
+    ctx.arcTo(x, y + h, x, y, rr);
+    ctx.arcTo(x, y, x + w, y, rr);
+    ctx.closePath();
+  }
+  function cellCenter(c, r, m) {
+    return {
+      x: m.boardX + (c + 0.5) * m.cell,
+      y: m.boardY + (m.rows - 1 - r + 0.5) * m.cell
+    };
+  }
+  function drawStar(x, y, rad) {
+    ctx.beginPath();
+    for (let i = 0; i < 5; i++) {
+      const outer = -Math.PI / 2 + i * Math.PI * 2 / 5;
+      const inner = outer + Math.PI / 5;
+      ctx.lineTo(x + Math.cos(outer) * rad, y + Math.sin(outer) * rad);
+      ctx.lineTo(x + Math.cos(inner) * rad * 0.42, y + Math.sin(inner) * rad * 0.42);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+  function drawDisc(x, y, rad, player, marked, thick) {
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fillStyle = player === 1 ? STAR : RING;
+    ctx.fill();
+    ctx.lineWidth = Math.max(2, rad * 0.08);
+    ctx.strokeStyle = "#fffdf6";
+    ctx.stroke();
+    ctx.fillStyle = "#fffdf6";
+    if (player === 1) drawStar(x, y, rad * 0.55);
+    else {
+      ctx.beginPath();
+      ctx.arc(x, y, rad * 0.38, 0, Math.PI * 2);
+      ctx.lineWidth = Math.max(2, rad * 0.12);
+      ctx.strokeStyle = "#fffdf6";
+      ctx.stroke();
+    }
+    if (marked) {
+      ctx.beginPath();
+      ctx.arc(x, y, rad + (thick ? rad * 0.18 : rad * 0.06), 0, Math.PI * 2);
+      ctx.lineWidth = thick ? Math.max(6, rad * 0.22) : Math.max(3, rad * 0.1);
+      ctx.strokeStyle = "#fffdf6";
+      ctx.stroke();
+    }
+  }
+  function dwellColumn() {
+    if (!dwellKey || dwellFired || !(dwellProgress > 0)) return -1;
+    const btn = document.getElementById(dwellKey);
+    if (!btn || btn.getAttribute("data-play") !== "true") return -1;
+    const n = +btn.getAttribute("data-col");
+    return n === (n | 0) ? n : -1;
+  }
+  function paint() {
+    resizeCanvas();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#f4f0d8";
+    ctx.fillRect(0, 0, w, h);
+    if ((screen !== "play" && screen !== "rest") || !cols) return;
+    const m = boardMetrics(w, h);
+    const showBoard = screen === "play" || screen === "rest";
+    if (!showBoard) return;
+    roundRect(m.boardX - 8, m.boardY - 8, m.boardW + 16, m.boardH + 16, 22);
+    ctx.fillStyle = BOARD;
+    ctx.fill();
+    const hi = screen === "play" ? dwellColumn() : -1;
+    if (hi >= 0) {
+      ctx.fillStyle = "rgba(255, 200, 87, 0.45)";
+      ctx.fillRect(m.boardX + hi * m.cell, m.boardY, m.cell, m.boardH);
+    }
+    const reduced = reducedMotion();
+    const marked = {};
+    for (let i = 0; i < line.length; i++) marked[line[i].c + "," + line[i].r] = true;
+    let pulse = 1;
+    if (result && line.length && !reduced && !checking) {
+      const age = Math.max(0, clock - resultAt);
+      const phase = (age % 400) / 400;
+      pulse = 0.72 + 0.28 * Math.abs(Math.sin(phase * Math.PI));
+    }
+    const hole = m.cell * 0.4;
+    for (let r = 0; r < m.rows; r++) {
+      for (let c = 0; c < m.cols; c++) {
+        const p = cellCenter(c, r, m);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, hole, 0, Math.PI * 2);
+        ctx.fillStyle = "#f4f0d8";
+        ctx.fill();
+      }
+    }
+    if (m.mode === "picker") {
+      ctx.fillStyle = "#2c2416";
+      ctx.font = "800 18px Trebuchet MS, Segoe UI, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      for (let c = 0; c < m.cols; c++) {
+        ctx.fillText(String(c + 1), m.boardX + (c + 0.5) * m.cell, m.boardY - m.labelH / 2);
+      }
+    }
+    for (let r = 0; r < m.rows; r++) {
+      for (let c = 0; c < m.cols; c++) {
+        const v = cells[r * cols + c];
+        if (!v) continue;
+        const p = cellCenter(c, r, m);
+        let y = p.y;
+        if (!checking && !reduced) {
+          for (let i = 0; i < falls.length; i++) {
+            const f = falls[i];
+            if (f.col === c && f.row === r) {
+              const t = Math.max(0, Math.min(1, (clock - f.t0) / 300));
+              const startY = m.boardY - m.cell;
+              y = startY + (p.y - startY) * t;
+            }
+          }
+        }
+        const mark = !!marked[c + "," + r];
+        const rad = hole * 0.92 * (mark && !reduced ? pulse : 1);
+        drawDisc(p.x, y, rad, v, mark, !!(mark && reduced));
+      }
+    }
+    if (screen === "play") {
+      const chipW = Math.min(280, w - 32);
+      const chipH = 56;
+      const chipX = (w - chipW) / 2;
+      const chipY = 88;
+      roundRect(chipX, chipY, chipW, chipH, 28);
+      ctx.fillStyle = "#fffdf6";
+      ctx.fill();
+      ctx.lineWidth = 3;
+      ctx.strokeStyle = "#2c2416";
+      ctx.stroke();
+      drawDisc(chipX + 36, chipY + chipH / 2, 16, chipPlayer(), false, false);
+      ctx.fillStyle = "#2c2416";
+      ctx.font = "800 22px Trebuchet MS, Segoe UI, sans-serif";
+      ctx.textAlign = "left";
+      ctx.textBaseline = "middle";
+      ctx.fillText(chipText(), chipX + 62, chipY + chipH / 2);
+    }
+  }
+
+  function ensureAudio() {
+    if (checking || ac) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(ac.destination);
+    } catch (err) {
+      ac = null;
+      master = null;
+    }
+  }
+  function tone(freq, t0, dur, gain) {
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(freq, t0);
+    osc.connect(g);
+    g.connect(master);
+    g.gain.setValueAtTime(gain, t0);
+    g.gain.linearRampToValueAtTime(0, t0 + dur);
+    osc.start(t0);
+    osc.stop(t0 + dur + 0.02);
+  }
+  function dropSound() {
+    if (checking || !ac || !master) return;
+    try {
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = "sine";
+      osc.connect(g);
+      g.connect(master);
+      const t0 = ac.currentTime;
+      osc.frequency.setValueAtTime(600, t0);
+      osc.frequency.linearRampToValueAtTime(300, t0 + 0.12);
+      g.gain.setValueAtTime(0.45, t0);
+      g.gain.linearRampToValueAtTime(0, t0 + 0.12);
+      osc.start(t0);
+      osc.stop(t0 + 0.13);
+    } catch (err) {}
+  }
+  function winSound() {
+    if (checking || !ac || !master) return;
+    try {
+      const notes = [523, 659, 784, 1047];
+      const t0 = ac.currentTime;
+      for (let i = 0; i < notes.length; i++) tone(notes[i], t0 + i * 0.11, 0.11, 0.4);
+    } catch (err) {}
+  }
+  function tieSound() {
+    if (checking || !ac || !master) return;
+    try {
+      const t0 = ac.currentTime;
+      tone(440, t0, 0.14, 0.22);
+      tone(440, t0 + 0.18, 0.14, 0.22);
+    } catch (err) {}
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    if (btn.getAttribute("aria-disabled") === "true") return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function activate(btn) {
+    if (!btn || !buttonVisible(btn)) {
+      render();
+      return;
+    }
+    if (btn.getAttribute("aria-disabled") === "true") {
+      render();
+      return;
+    }
+    if (!checking) ensureAudio();
+    if (waiting && btn.getAttribute("data-play") === "true") {
+      render();
+      return;
+    }
+    if (btn.getAttribute("data-play") === "true") {
+      drop(+btn.getAttribute("data-col"));
+      return;
+    }
+    const id = btn.id;
+    if (id === "lets-go") start(level);
+    else if (id === "back") go("menu");
+    else if (id === "another") another();
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (id === "vs-cpu") beginGame("computer");
+    else if (id === "vs-two") beginGame("two");
+    else if (knownBand(id)) highlight(id);
+    else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn)) activate(btn);
+      } else {
+        dwellProgress = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+      }
+    } else {
+      dwellProgress = 0;
+    }
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    clock = now;
+    if (screen === "play" && waiting && mode === "computer" && now - cpuAt >= 700) {
+      clearDwell();
+      waiting = false;
+      const col = pickMove();
+      if (col >= 0) drop(col);
+    }
+    if (screen === "play" && result && now - resultAt >= 1500) go("rest");
+    if (falls.length) {
+      const keep = [];
+      for (let i = 0; i < falls.length; i++) if (now - falls[i].t0 < 320) keep.push(falls[i]);
+      falls = keep;
+    }
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn);
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || btn.id !== armedId) return;
+    armedId = null;
+    activate(btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn); e.preventDefault(); }
+      return;
+    }
+    if (screen !== "play") return;
+    const dir = e.key === "ArrowLeft" ? -1 : e.key === "ArrowRight" ? 1 : 0;
+    if (!dir) return;
+    const slots = [];
+    const nodes = playEl.querySelectorAll("button.slot");
+    for (let i = 0; i < nodes.length; i++) {
+      if (nodes[i].getAttribute("aria-disabled") === "true") continue;
+      slots.push(nodes[i]);
+    }
+    if (!slots.length) return;
+    let idx = 0;
+    const active = document.activeElement;
+    for (let i = 0; i < slots.length; i++) if (slots[i] === active) idx = i;
+    const next = slots[(idx + dir + slots.length) % slots.length];
+    if (next && next.focus) next.focus();
+    e.preventDefault();
+  });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+  function lineSet(list) {
+    const s = {};
+    for (let i = 0; i < list.length; i++) s[list[i].c + "," + list[i].r] = true;
+    return s;
+  }
+  function hasCells(list, expect) {
+    const s = lineSet(list);
+    for (let i = 0; i < expect.length; i++) {
+      if (!s[expect[i][0] + "," + expect[i][1]]) return false;
+    }
+    return list.length === expect.length;
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    let origSpeak = null;
+    let speakCalls = 0;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.speak) {
+        origSpeak = window.speechSynthesis.speak;
+        window.speechSynthesis.speak = function () {
+          speakCalls += 1;
+          return origSpeak.apply(window.speechSynthesis, arguments);
+        };
+      }
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    function chooseTwo() {
+      const who = targetById(centers().targets, "vs-two");
+      if (!who) throw new Error("Two players was not a target.");
+      tap(who.nx, who.ny);
+    }
+    function chooseCpu() {
+      const who = targetById(centers().targets, "vs-cpu");
+      if (!who) throw new Error("Play the computer was not a target.");
+      tap(who.nx, who.ny);
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+      if (state().cols !== 0 || state().mode !== null) fail("family-query-inert", "A junk flag dealt a board.");
+    });
+    run("family-plain-state", function () {
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snap.level !== "tiny" || snap.screen !== "menu" || snap.banner !== "Pick a game." || snap.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on Three Up.");
+      }
+      const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank", "speech"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      chooseTwo();
+      const box = targetById(centers().targets, "col-0");
+      if (!box || !box.play) fail("family-play-dwell", "The column was not a play target.");
+      else {
+        step(10000);
+        look(box.nx, box.ny);
+        step(10000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(10200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(10640);
+        if (state().cells[0] !== 0) fail("family-play-dwell", "640 ms dropped a disc.");
+        step(10660);
+        if (state().cells[0] !== 1 || state().turn !== 2) fail("family-play-dwell", "660 ms did not drop Star into the lowest hole.");
+      }
+      resetInput();
+      seed(1);
+      start("tiny");
+      chooseTwo();
+      const tapBox = targetById(centers().targets, "col-0");
+      tap(tapBox.nx, tapBox.ny);
+      if (state().cells[0] !== 1 || state().turn !== 2) fail("family-play-dwell", "A tap did not drop the same disc.");
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      if (state().screen !== "menu") go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "who") fail("family-menu-dwell", "1300 ms on Let's go did not open who plays.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "who") fail("family-menu-dwell", "600 ms on Back left who plays.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      chooseTwo();
+      const box = targetById(centers().targets, "col-0");
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(30000);
+      step(30660);
+      if (state().cells[0] !== 0 || dwell() !== 0) fail("family-pointer-blocks", "A look during hold dropped a disc or filled the ring.");
+      release();
+      releaseLook();
+      enterLook(box, 32000);
+      step(32660);
+      if (state().cells[0] !== 1) fail("family-pointer-blocks", "A fresh look after release did not drop.");
+    });
+    run("family-stale", function () {
+      resetInput();
+      seed(1);
+      start("tiny");
+      chooseTwo();
+      const box = targetById(centers().targets, "col-1");
+      try {
+        enterLook(box, 36000);
+        step(36200);
+        if (!(dwell() > 0) || state().cells[1] !== 0) fail("family-stale", "The ring did not fill before the sample went stale.");
+        refreshHold = false;
+        step(36700);
+        if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+        if (state().cells[1] !== 0) fail("family-stale", "A stale sample dropped a disc.");
+      } finally {
+        refreshHold = true;
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      seed(1);
+      start("tiny");
+      const liveBefore = targetById(centers().targets, "mute");
+      checkView("who");
+      const liveAfter = targetById(centers().targets, "mute");
+      if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+        fail("family-target-size", "targetsAt shrank a live button.");
+      }
+      chooseTwo();
+      checkView("play");
+    });
+    run("family-eyes", function () {
+      resetInput();
+      step(40000);
+      look(0.5, 0.5);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("family-mute", function () {
+      resetInput();
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    function playCols(band, seq) {
+      resetInput();
+      seed(1);
+      start(band);
+      chooseTwo();
+      for (let i = 0; i < seq.length; i++) {
+        const before = state();
+        if (before.result) throw new Error("A line landed before the last disc.");
+        const box = targetById(centers().targets, "col-" + seq[i]);
+        if (!box || !box.play) throw new Error("Column " + seq[i] + " was not a play target.");
+        tap(box.nx, box.ny);
+      }
+      return state();
+    }
+    run("drop-lowest", function () {
+      resetInput();
+      seed(1);
+      start("shop");
+      chooseTwo();
+      const first = targetById(centers().targets, "col-2");
+      tap(first.nx, first.ny);
+      let snap = state();
+      if (snap.cells[2] !== 1 || snap.turn !== 2) fail("drop-lowest", "The first disc was not in the lowest hole, or the turn did not switch.");
+      const second = targetById(centers().targets, "col-2");
+      tap(second.nx, second.ny);
+      snap = state();
+      if (snap.cells[2] !== 1 || snap.cells[2 + snap.cols] !== 2 || snap.turn !== 1) {
+        fail("drop-lowest", "The second disc did not stack, or the turn did not switch back.");
+      }
+    });
+    run("column-dwell", function () {
+      resetInput();
+      seed(1);
+      start("little");
+      chooseTwo();
+      const box = targetById(centers().targets, "col-3");
+      enterLook(box, 50000);
+      step(50640);
+      if (state().cells[3] !== 0) fail("column-dwell", "640 ms dropped a disc.");
+      step(50660);
+      if (state().cells[3] !== 1 || state().turn !== 2) fail("column-dwell", "660 ms did not drop a disc.");
+    });
+    run("full-column-inert", function () {
+      resetInput();
+      seed(1);
+      start("shop");
+      chooseTwo();
+      for (let i = 0; i < 6; i++) {
+        const box = targetById(centers().targets, "col-0");
+        if (!box) throw new Error("Column 0 left the board early.");
+        tap(box.nx, box.ny);
+      }
+      const snap = state();
+      if (snap.heights && snap.cells[0] === 0) fail("full-column-inert", "The column did not fill.");
+      let filled = 0;
+      for (let r = 0; r < snap.rows; r++) if (snap.cells[r * snap.cols] !== 0) filled += 1;
+      if (filled !== 6 || snap.result) fail("full-column-inert", "The column was not full, or a line was declared.");
+      const btn = document.getElementById("col-0");
+      if (!btn || btn.getAttribute("data-play") === "true" || btn.getAttribute("aria-disabled") !== "true") {
+        fail("full-column-inert", "The full column still accepted a look.");
+      }
+      const held = snap.cells.slice();
+      const box = targetById(centers().targets, "col-0");
+      if (box && box.play) fail("full-column-inert", "The full column stayed a play target.");
+      const rect = btn.getBoundingClientRect();
+      const nx = (rect.left + rect.width / 2) / window.innerWidth;
+      const ny = (rect.top + rect.height / 2) / window.innerHeight;
+      tap(nx, ny);
+      enterLook({ nx: nx, ny: ny }, 54000);
+      step(54660);
+      const after = state().cells;
+      for (let i = 0; i < held.length; i++) if (after[i] !== held[i]) {
+        fail("full-column-inert", "A look or a tap changed a full column.");
+        break;
+      }
+    });
+    function expectLine(band, seq, player, expect, label) {
+      const snap = playCols(band, seq);
+      if (snap.result !== player) fail("win-lines", label + " did not name the winner.");
+      if (snap.screen !== "play") fail("win-lines", label + " left the board before the rest.");
+      if (!hasCells(snap.line, expect)) fail("win-lines", label + " marked the wrong discs.");
+      const word = player === "star" ? "Star made a line!" : "Ring made a line!";
+      if (snap.banner !== word) fail("win-lines", label + " banner was not the line sentence.");
+    }
+    run("win-lines", function () {
+      expectLine("tiny", [0, 0, 1, 1, 2], "star", [[0, 0], [1, 0], [2, 0]], "Tiny across");
+      expectLine("tiny", [0, 1, 0, 1, 0], "star", [[0, 0], [0, 1], [0, 2]], "Tiny down");
+      expectLine("tiny", [0, 1, 1, 2, 2, 4, 2], "star", [[0, 0], [1, 1], [2, 2]], "Tiny up diagonal");
+      expectLine("tiny", [2, 1, 1, 0, 0, 4, 0], "star", [[2, 0], [1, 1], [0, 2]], "Tiny down diagonal");
+      const across = playCols("shop", [0, 0, 1, 1, 2, 2, 3]);
+      if (across.result !== "star" || !hasCells(across.line, [[0, 0], [1, 0], [2, 0], [3, 0]])) {
+        fail("win-lines", "Classic across was not four Star discs.");
+      }
+      const heldClock = clock;
+      step(heldClock + 1499);
+      if (state().screen !== "play") fail("win-lines", "The line left the board before 1500 ms.");
+      step(heldClock + 1500);
+      if (state().screen !== "rest" || state().banner !== "Good game.") fail("win-lines", "1500 ms did not open rest.");
+      expectLine("shop", [0, 1, 0, 1, 0, 1, 0], "star", [[0, 0], [0, 1], [0, 2], [0, 3]], "Classic down");
+      expectLine("shop", [0, 2, 1, 2, 1, 3, 2, 3, 4, 3, 3], "star", [[0, 0], [1, 1], [2, 2], [3, 3]], "Classic up diagonal");
+      expectLine("shop", [0, 0, 3, 0, 0, 1, 4, 1, 1, 2, 2], "star", [[0, 3], [1, 2], [2, 1], [3, 0]], "Classic down diagonal");
+      if (speakCalls !== 0) fail("win-lines", "A line called speech.");
+    });
+    run("tie", function () {
+      const seq = [5, 3, 6, 5, 1, 6, 1, 0, 1, 0, 3, 4, 6, 4, 2, 4, 5, 6, 0, 1, 3, 6, 3, 2, 4, 3, 4, 6, 3, 1, 0, 0, 1, 4, 0, 5, 5, 2, 2, 5, 2, 2];
+      const snap = playCols("shop", seq);
+      if (snap.result !== "tie" || snap.screen !== "play" || snap.banner !== "The board is full. A tie!") {
+        fail("tie", "A full board did not announce a tie.");
+      }
+      const T = clock;
+      step(T + 1499);
+      if (state().screen !== "play") fail("tie", "The tie left the board early.");
+      step(T + 1500);
+      const done = state();
+      if (done.screen !== "rest" || done.result !== "tie" || done.banner !== "Good game.") {
+        fail("tie", "The tie did not reach rest.");
+      }
+      if ((restLine.textContent || "") !== "Good game.") fail("tie", "The rest sentence changed.");
+    });
+    run("computer-wins-and-blocks", function () {
+      resetInput();
+      seed(1);
+      step(80000);
+      start("shop");
+      chooseCpu();
+      loadDiscs([[0, 0, 2], [1, 0, 2], [2, 0, 2], [0, 1, 1], [4, 0, 1], [5, 0, 1], [6, 0, 1]]);
+      turn = 2;
+      waiting = true;
+      cpuAt = 80000;
+      step(80699);
+      if (state().cells[3] !== 0 || state().result) fail("computer-wins-and-blocks", "The computer moved before 700 ms on a win.");
+      step(80700);
+      let snap = state();
+      if (snap.cells[3] !== 2 || snap.result !== "ring") fail("computer-wins-and-blocks", "The computer did not take the winning column.");
+      if (!hasCells(snap.line, [[0, 0], [1, 0], [2, 0], [3, 0]])) fail("computer-wins-and-blocks", "The winning discs were not the offered line.");
+      resetInput();
+      step(82000);
+      start("shop");
+      chooseCpu();
+      loadDiscs([[0, 0, 1], [1, 0, 1], [2, 0, 1], [6, 0, 1], [4, 0, 2], [5, 0, 2], [6, 1, 2]]);
+      turn = 2;
+      waiting = true;
+      cpuAt = 82000;
+      step(82700);
+      snap = state();
+      if (snap.cells[3] !== 2 || snap.result) fail("computer-wins-and-blocks", "The computer did not block the open line.");
+      if (snap.cells[0] !== 1 || snap.cells[1] !== 1 || snap.cells[2] !== 1) {
+        fail("computer-wins-and-blocks", "The block moved a Star disc.");
+      }
+    });
+    run("computer-waits", function () {
+      resetInput();
+      seed(3);
+      step(90000);
+      start("shop");
+      chooseCpu();
+      const first = targetById(centers().targets, "col-0");
+      tap(first.nx, first.ny);
+      let snap = state();
+      if (!snap.waiting || snap.banner !== "My turn." || snap.cells[0] !== 1) {
+        fail("computer-waits", "The computer wait did not start after Star.");
+      }
+      const other = targetById(centers().targets, "col-1");
+      tap(other.nx, other.ny);
+      if (state().cells[1] !== 0) fail("computer-waits", "A tap landed during the wait.");
+      enterLook(other, 90000);
+      step(90660);
+      snap = state();
+      if (snap.cells[1] !== 0 || snap.cells[0] !== 1) fail("computer-waits", "A 660 ms look landed during the wait.");
+      let rings = 0;
+      for (let i = 0; i < snap.cells.length; i++) if (snap.cells[i] === 2) rings += 1;
+      if (rings !== 0) fail("computer-waits", "The computer moved before 700 ms.");
+      releaseLook();
+      step(90699);
+      rings = 0;
+      const mid = state();
+      for (let i = 0; i < mid.cells.length; i++) if (mid.cells[i] === 2) rings += 1;
+      if (rings !== 0 || mid.cells[0] !== 1) fail("computer-waits", "The board changed at 699 ms.");
+      step(90700);
+      snap = state();
+      rings = 0;
+      let stars = 0;
+      for (let i = 0; i < snap.cells.length; i++) {
+        if (snap.cells[i] === 2) rings += 1;
+        if (snap.cells[i] === 1) stars += 1;
+      }
+      if (rings !== 1 || stars !== 1 || snap.waiting) fail("computer-waits", "The wait did not end with one computer disc.");
+    });
+    run("picker-at-390", function () {
+      resetInput();
+      seed(1);
+      start("shop");
+      chooseTwo();
+      const phone = targetsAt(390, 700);
+      const colsPhone = (phone.targets || []).filter(function (t) { return t.id.indexOf("col-") === 0; });
+      if (!phone.ok || colsPhone.length !== 7) fail("picker-at-390", "390 by 700 did not offer seven column targets.");
+      for (let i = 0; i < colsPhone.length; i++) {
+        if (Math.min(colsPhone[i].w, colsPhone[i].h) < 72) fail("picker-at-390", "A picker button was under 72.");
+        if (colsPhone[i].h > 160) fail("picker-at-390", "390 by 700 used a full-column target.");
+      }
+      const desk = targetsAt(1024, 768);
+      const colsDesk = (desk.targets || []).filter(function (t) { return t.id.indexOf("col-") === 0; });
+      if (!desk.ok || colsDesk.length !== 7) fail("picker-at-390", "1024 by 768 did not offer seven column targets.");
+      for (let i = 0; i < colsDesk.length; i++) {
+        if (Math.min(colsDesk[i].w, colsDesk[i].h) < 72) fail("picker-at-390", "A wide column target was under 72.");
+        if (colsDesk[i].h < 200) fail("picker-at-390", "1024 by 768 used the picker.");
+      }
+    });
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+      const end = state();
+      if (!("level" in end) || !("screen" in end) || !("banner" in end) || !("muted" in end)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+    });
+    try {
+      assertJunk("at the end");
+    } catch (err) {
+      fail("family-query-inert", err && err.message ? err.message : "The junk check threw.");
+    }
+    try {
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+      if (origSpeak && window.speechSynthesis) window.speechSynthesis.speak = origSpeak;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.fourInARow = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let resultCheck;
+    try { resultCheck = selfCheck(); }
+    catch (err) {
+      resultCheck = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(resultCheck);
+    document.body.appendChild(pre);
+    document.title = resultCheck.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>

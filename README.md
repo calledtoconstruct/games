@@ -17,6 +17,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Maze](https://calledtoconstruct.github.io/games/maze/)
 - [Coloring Book](https://calledtoconstruct.github.io/games/coloring-book/)
 - [Star Pictures](https://calledtoconstruct.github.io/games/star-pictures/)
+- [Four in a Row](https://calledtoconstruct.github.io/games/four-in-a-row/)
 
 ## Pop Pals
 
@@ -107,6 +108,14 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 A dot-to-dot in the night sky for ages 2 and up. Look at the big star and a line joins it. When the last star joins, the picture fills in and its name shows. Twinkle has a few big stars. Starry and Night Sky number the stars. Star Map uses letters and bigger pictures. Nothing is timed.
 
 Open `star-pictures/index.html` in a browser, or play [Star Pictures](https://calledtoconstruct.github.io/games/star-pictures/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Four in a Row
+
+A drop-the-disc game for ages 2 and up. Play a friend at the same screen, or play the computer. Three Up is a small board and three in a row. Four Fun and Classic are four in a row. Clever has a stronger computer. Star discs and ring discs show who is who.
+
+Open `four-in-a-row/index.html` in a browser, or play [Four in a Row](https://calledtoconstruct.github.io/games/four-in-a-row/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
