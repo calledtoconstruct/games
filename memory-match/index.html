@@ -623,7 +623,7 @@
           locked = true;
         }
       } else {
-        bannerKey = "look";
+        bannerKey = "find";
         locked = true;
         pauseUntil = clock + BANDS[level].pause;
         playTone(330, 0.08, 0.4, 0);
@@ -874,7 +874,14 @@
       if (again && again.y < 88) right = Math.min(right, again.x - 8);
     }
     if (right - left >= 140) return { x: left, y: 18, w: right - left, h: 52 };
-    return { x: 16, y: h - 16 - 48, w: Math.max(72, w - 32), h: 48 };
+    const eye = eyesBox(w, h);
+    const bannerRight = eye.x - 8;
+    return { x: 16, y: h - 16 - 48, w: Math.max(72, bannerRight - 16), h: 48 };
+  }
+  function eyesBox(w, h) {
+    const ew = 72;
+    const eh = 36;
+    return { x: Math.max(8, w - 8 - ew), y: Math.max(8, h - 8 - eh), w: ew, h: eh };
   }
   function restLayout(w, h) {
     const cardW = Math.min(460, Math.max(160, w - 32));
@@ -1016,8 +1023,7 @@
     const again = document.getElementById("another");
     if (screen === "rest") place(again, anotherBox(w, h));
     eyesEl.hidden = !eyesOn();
-    const eyesY = narrowPlay(w) && screen !== "menu" ? Math.max(8, h - 108) : Math.max(8, h - 48);
-    place(eyesEl, { x: Math.max(8, w - 84), y: eyesY, w: 72, h: 36 });
+    place(eyesEl, eyesBox(w, h));
   }
 
   function ensureAudio() {
@@ -1694,6 +1700,62 @@
       releaseLook();
       if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
     });
+    run("eyes-gap", function () {
+      resetInput();
+      function overlaps(a, b) {
+        return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+      }
+      function check(where) {
+        const views = [[390, 700], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const boxes = layoutTargets(w, h);
+          if (!boxes) {
+            fail("eyes-gap", where + " at " + w + " by " + h + " had no button boxes.");
+            continue;
+          }
+          const eye = eyesBox(w, h);
+          if (overlaps(eye, bannerBox(w, h))) fail("eyes-gap", "Eyes covered the banner at " + w + " by " + h + " during " + where + ".");
+          for (let i = 0; i < boxes.length; i++) {
+            if (overlaps(eye, boxes[i])) fail("eyes-gap", "Eyes hit " + boxes[i].id + " at " + w + " by " + h + " during " + where + ".");
+          }
+          if (window.innerWidth === w && window.innerHeight === h) {
+            look(0.12, 0.12);
+            const placed = eyesEl.getBoundingClientRect();
+            const buttons = document.querySelectorAll("button");
+            for (let i = 0; i < buttons.length; i++) {
+              const btn = buttons[i];
+              if (!buttonVisible(btn)) continue;
+              const r = btn.getBoundingClientRect();
+              const box = { x: r.left, y: r.top, w: r.width, h: r.height };
+              if (overlaps(box, { x: placed.left, y: placed.top, w: placed.width, h: placed.height })) {
+                fail("eyes-gap", "Eyes hit the " + btn.id + " button at " + w + " by " + h + ".");
+              }
+            }
+            releaseLook();
+          }
+        }
+      }
+      go("menu");
+      check("menu");
+      start("little");
+      check("deck");
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        openPlay(BAND_IDS[b], "shapes", 1);
+        check(BAND_IDS[b]);
+      }
+      go("rest");
+      check("rest");
+      look(0.5, 0.5);
+      const placed = eyesEl.getBoundingClientRect();
+      const live = eyesBox(window.innerWidth, window.innerHeight);
+      if (eyesEl.hidden) fail("eyes-gap", "Eyes was hidden while a look was held.");
+      if (Math.abs(placed.left - live.x) > 1 || Math.abs(placed.top - live.y) > 1 || Math.abs(placed.width - live.w) > 1 || Math.abs(placed.height - live.h) > 1) {
+        fail("eyes-gap", "The running layout did not place Eyes from eyesBox.");
+      }
+      releaseLook();
+    });
     run("family-mute", function () {
       resetInput();
       go("menu");
@@ -1817,19 +1879,24 @@
         }
         tap(cardTarget(first).nx, cardTarget(first).ny);
         tap(cardTarget(second).nx, cardTarget(second).ny);
-        if (!state().cards[first].up || !state().cards[second].up) fail("mismatch-returns", band + " did not leave the two cards up.");
+        const opened = state();
+        if (!opened.cards[first].up || !opened.cards[second].up) fail("mismatch-returns", band + " did not leave the two cards up.");
+        if (opened.banner !== "Find a pair.") fail("mismatch-returns", band + " asked for a look while every card refused one.");
         const other = cardTarget(third);
         look(other.nx, other.ny);
         step(t0);
         step(t0 + 660);
         if (dwell() !== 0) fail("mismatch-returns", band + " filled the ring during the pause.");
         if (state().cards[third].up) fail("mismatch-returns", band + " accepted a look during the pause.");
+        if (state().banner !== "Find a pair.") fail("mismatch-returns", band + " changed the banner before the cards turned down.");
         step(t0 + pause - 1);
         if (!state().cards[first].up || !state().cards[second].up) fail("mismatch-returns", band + " turned back before the pause.");
+        if (state().banner !== "Find a pair.") fail("mismatch-returns", band + " left the pause asking for another card.");
         step(t0 + pause);
         const done = state();
         if (done.cards[first].up || done.cards[second].up) fail("mismatch-returns", band + " did not turn the cards back after " + pause + " ms.");
         if (done.cards[third].up) fail("mismatch-returns", band + " turned a third card.");
+        if (done.banner !== "Find a pair.") fail("mismatch-returns", band + " did not keep Find a pair. after the cards turned down.");
         if (done.banner.indexOf("wrong") >= 0 || done.banner === "No") fail("mismatch-returns", "The banner scolded.");
         const live = document.getElementById("card-" + third);
         if (live.getAttribute("data-play") !== "true") fail("mismatch-returns", band + " left a face-down card inert after the pause.");
