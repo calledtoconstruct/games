@@ -215,6 +215,9 @@
   const MAX_SMUDGES = 3;
   const BAND_IDS = ["tiny", "little", "shop", "rush"];
   const FOOD_AT = [0.5, 0.1];
+  const FLAKE_XS = [460, 520, 490];
+  const FLAKE_Y0 = [180, 140, 200];
+  const FLAKE_DY = [620, 640, 600];
   const SPOT_AT = [[0.15, 0.88], [0.38, 0.88], [0.62, 0.88], [0.85, 0.88], [0.27, 0.7], [0.73, 0.7]];
   const SMUDGE_AT = [[0.15, 0.3], [0.5, 0.3], [0.85, 0.3], [0.15, 0.52], [0.5, 0.52], [0.85, 0.52]];
   const FISH = [
@@ -273,6 +276,7 @@
   let chooser = null;
   let pending = -1;
   let flakeAt = -100000;
+  let tankScene = "";
   let pin = null;
   let counter = 1;
   let checking = false;
@@ -552,6 +556,7 @@
     tankFish.push(id);
     fedAt[id] = careMs;
     playPop();
+    if (fishHappy(fishById(id))) playWish();
     const left = [];
     for (let i = 0; i < FISH.length; i++) {
       if (tankFish.indexOf(FISH[i].id) < 0) left.push(FISH[i].id);
@@ -1008,30 +1013,67 @@
     }
     return node;
   }
-  function fishPose(id) {
+  function flakeFall() {
+    return clock - flakeAt;
+  }
+  function flakesShowing() {
+    const fall = flakeFall();
+    return fall >= 0 && fall < 2000;
+  }
+  function flakeProgress() {
+    if (!flakesShowing()) return 0;
+    if (reducedMotion()) return 1;
+    return flakeFall() / 2000;
+  }
+  function flakeCentroid(p) {
+    let sx = 0;
+    let sy = 0;
+    for (let i = 0; i < FLAKE_XS.length; i++) {
+      sx += FLAKE_XS[i];
+      sy += FLAKE_Y0[i] + FLAKE_DY[i] * p;
+    }
+    return { x: sx / FLAKE_XS.length, y: sy / FLAKE_XS.length };
+  }
+  function cruisePose(id, ms) {
     const index = fishIndex(id);
     const period = 2000 + index * 800;
-    const hungry = fishHungry(id);
-    const y = hungry ? 0.2 : 0.36 + (index % 3) * 0.12;
     let x;
     let face;
     if (reducedMotion()) {
       x = 0.18 + (index % 4) * 0.16;
-      face = Math.floor(careMs / 6000) % 2 === 0 ? 1 : -1;
+      face = Math.floor(ms / 6000) % 2 === 0 ? 1 : -1;
     } else {
-      const t = (careMs + index * 400) % (period * 2);
-      const p = t / period;
-      if (p < 1) {
-        x = 0.12 + 0.76 * p;
+      const t = (ms + index * 400) % (period * 2);
+      const along = t / period;
+      if (along < 1) {
+        x = 0.12 + 0.76 * along;
         face = 1;
       } else {
-        x = 0.12 + 0.76 * (2 - p);
+        x = 0.12 + 0.76 * (2 - along);
         face = -1;
       }
     }
+    return { x: x, y: 0.36 + (index % 3) * 0.12, face: face };
+  }
+  function fishPose(id) {
+    const hungry = fishHungry(id);
     const spec = fishById(id);
     const showHeart = fishHappy(spec) && (reducedMotion() || (Math.floor(careMs / 400) % 8) < 3);
-    return { x: x, y: y, face: face, hungry: hungry, heart: showHeart };
+    let pose = cruisePose(id, careMs);
+    if (hungry) pose = { x: pose.x, y: 0.2, face: pose.face };
+    if (flakesShowing()) {
+      const start = cruisePose(id, fedAt[id] || 0);
+      const aim = flakeCentroid(1);
+      const p = flakeProgress();
+      const ax = aim.x / 1000;
+      const ay = aim.y / 1000;
+      pose = {
+        x: start.x + (ax - start.x) * p,
+        y: start.y + (ay - start.y) * p,
+        face: ax >= start.x ? 1 : -1
+      };
+    }
+    return { x: pose.x, y: pose.y, face: pose.face, hungry: hungry, heart: showHeart };
   }
   function drawFish(svg, spec, pose) {
     const g = svgEl("g", {
@@ -1088,17 +1130,20 @@
     }
     g.appendChild(svgEl("circle", { cx: 22, cy: -8, r: 8, fill: "#fffdf6", stroke: ink, "stroke-width": 3 }));
     g.appendChild(svgEl("circle", { cx: 24, cy: -8, r: 3, fill: ink }));
-    if (pose.hungry) {
-      g.appendChild(svgEl("ellipse", { cx: 38, cy: 12, rx: 8, ry: 7, fill: "#1a1a1a", stroke: ink, "stroke-width": 2 }));
-    } else {
-      g.appendChild(svgEl("path", { d: "M 30 12 Q 38 18 46 12", fill: "none", stroke: ink, "stroke-width": 3 }));
-    }
-    if (pose.heart) {
-      g.appendChild(svgEl("path", {
-        d: "M 0 -62 C -18 -84 -36 -70 -10 -48 L 0 -36 L 10 -48 C 36 -70 18 -84 0 -62 Z",
-        fill: "#CC79A7", stroke: ink, "stroke-width": 3
-      }));
-    }
+    g.appendChild(svgEl("ellipse", {
+      "data-mouth": "open", cx: 38, cy: 12, rx: 8, ry: 7, fill: "#1a1a1a", stroke: ink, "stroke-width": 2,
+      display: pose.hungry ? "inline" : "none"
+    }));
+    g.appendChild(svgEl("path", {
+      "data-mouth": "shut", d: "M 30 12 Q 38 18 46 12", fill: "none", stroke: ink, "stroke-width": 3,
+      display: pose.hungry ? "none" : "inline"
+    }));
+    g.appendChild(svgEl("path", {
+      "data-heart": "1",
+      d: "M 0 -62 C -18 -84 -36 -70 -10 -48 L 0 -36 L 10 -48 C 36 -70 18 -84 0 -62 Z",
+      fill: "#CC79A7", stroke: ink, "stroke-width": 3,
+      display: pose.heart ? "inline" : "none"
+    }));
     svg.appendChild(g);
   }
   function drawDecor(svg, id, at) {
@@ -1130,10 +1175,12 @@
     }
     svg.appendChild(g);
   }
-  function drawSmudge(svg, at) {
+  function drawSmudge(svg, index) {
+    const at = SMUDGE_AT[index];
     const x = at[0] * 1000;
     const y = at[1] * 1000;
     svg.appendChild(svgEl("path", {
+      "data-smudge": String(index),
       d: "M " + (x - 46) + " " + y +
         " C " + (x - 40) + " " + (y - 50) + " " + (x - 8) + " " + (y - 58) + " " + x + " " + (y - 36) +
         " C " + (x + 20) + " " + (y - 62) + " " + (x + 58) + " " + (y - 30) + " " + (x + 40) + " " + y +
@@ -1142,38 +1189,81 @@
       fill: "#8faf78", stroke: "#2f4a28", "stroke-width": 6
     }));
   }
-  function drawTank(tank) {
-    while (tankEl.firstChild) tankEl.removeChild(tankEl.firstChild);
-    if (!tank || screen !== "play") return;
-    place(tankEl, tank);
-    const svg = svgEl("svg", { viewBox: "0 0 1000 1000", preserveAspectRatio: "none", "aria-hidden": "true" });
-    svg.appendChild(svgEl("rect", { x: 0, y: 780, width: 1000, height: 220, fill: "#f0d9a0" }));
-    for (let i = 0; i < placed.length; i++) {
-      if (placed[i]) drawDecor(svg, placed[i], SPOT_AT[i]);
-    }
-    for (let i = 0; i < smudges.length; i++) drawSmudge(svg, SMUDGE_AT[smudges[i]]);
+  function sceneKey() {
+    const parts = [];
+    for (let i = 0; i < placed.length; i++) parts.push(placed[i] || "");
     const showFoodBtn = tool === "feed" && !bandSpec().oneStep && !chooser;
-    if (!showFoodBtn) {
-      svg.appendChild(svgEl("circle", {
-        cx: 500, cy: 100, r: 78, fill: "none", stroke: "#2c2416", "stroke-width": 6, "stroke-dasharray": "16 12"
-      }));
+    parts.push(showFoodBtn ? "nobowl" : "bowl");
+    parts.push(flakesShowing() ? "flakes" : "");
+    for (let i = 0; i < tankFish.length; i++) parts.push(tankFish[i]);
+    for (let i = 0; i < smudges.length; i++) parts.push("m" + smudges[i]);
+    return parts.join("|");
+  }
+  function syncSwimmers(svg) {
+    for (let i = 0; i < tankFish.length; i++) {
+      const id = tankFish[i];
+      const g = svg.querySelector('[data-fish="' + id + '"]');
+      if (!g) continue;
+      const pose = fishPose(id);
+      g.setAttribute("transform", "translate(" + (pose.x * 1000) + " " + (pose.y * 1000) + ") scale(" + pose.face + " 1)");
+      const open = g.querySelector('[data-mouth="open"]');
+      const shut = g.querySelector('[data-mouth="shut"]');
+      const heart = g.querySelector("[data-heart]");
+      if (open) open.setAttribute("display", pose.hungry ? "inline" : "none");
+      if (shut) shut.setAttribute("display", pose.hungry ? "none" : "inline");
+      if (heart) heart.setAttribute("display", pose.heart ? "inline" : "none");
     }
-    const fall = clock - flakeAt;
-    if (fall >= 0 && fall < 2000) {
-      const p = reducedMotion() ? 1 : fall / 2000;
-      const ys = [180 + p * 620, 140 + p * 640, 200 + p * 600];
-      const xs = [460, 520, 490];
-      for (let i = 0; i < 3; i++) {
-        svg.appendChild(svgEl("ellipse", {
-          cx: xs[i], cy: ys[i], rx: 14, ry: 8, fill: "#e2a62e", stroke: "#2c2416", "stroke-width": 3
+    if (!flakesShowing()) return;
+    const p = flakeProgress();
+    const nodes = svg.querySelectorAll("[data-flake]");
+    for (let i = 0; i < nodes.length; i++) {
+      const n = Number(nodes[i].getAttribute("data-flake"));
+      nodes[i].setAttribute("cy", String(FLAKE_Y0[n] + FLAKE_DY[n] * p));
+    }
+  }
+  function drawTank(tank) {
+    if (!tank || screen !== "play") {
+      while (tankEl.firstChild) tankEl.removeChild(tankEl.firstChild);
+      tankScene = "";
+      return;
+    }
+    place(tankEl, tank);
+    const key = sceneKey();
+    let svg = tankEl.querySelector("svg");
+    if (!svg || key !== tankScene) {
+      while (tankEl.firstChild) tankEl.removeChild(tankEl.firstChild);
+      svg = svgEl("svg", { viewBox: "0 0 1000 1000", preserveAspectRatio: "none", "aria-hidden": "true" });
+      svg.appendChild(svgEl("rect", { x: 0, y: 780, width: 1000, height: 220, fill: "#f0d9a0" }));
+      for (let i = 0; i < placed.length; i++) {
+        if (placed[i]) drawDecor(svg, placed[i], SPOT_AT[i]);
+      }
+      const showFoodBtn = tool === "feed" && !bandSpec().oneStep && !chooser;
+      if (!showFoodBtn) {
+        svg.appendChild(svgEl("circle", {
+          cx: 500, cy: 100, r: 78, fill: "none", stroke: "#2c2416", "stroke-width": 6, "stroke-dasharray": "16 12"
         }));
       }
+      if (flakesShowing()) {
+        const p = flakeProgress();
+        for (let i = 0; i < FLAKE_XS.length; i++) {
+          svg.appendChild(svgEl("ellipse", {
+            "data-flake": String(i),
+            cx: FLAKE_XS[i],
+            cy: FLAKE_Y0[i] + FLAKE_DY[i] * p,
+            rx: 14, ry: 8, fill: "#e2a62e", stroke: "#2c2416", "stroke-width": 3
+          }));
+        }
+      }
+      for (let i = 0; i < tankFish.length; i++) {
+        const spec = fishById(tankFish[i]);
+        if (spec) drawFish(svg, spec, fishPose(spec.id));
+      }
+      for (let i = 0; i < smudges.length; i++) drawSmudge(svg, smudges[i]);
+      tankEl.appendChild(svg);
+      tankScene = key;
+    } else {
+      syncSwimmers(svg);
     }
-    for (let i = 0; i < tankFish.length; i++) {
-      const spec = fishById(tankFish[i]);
-      if (spec) drawFish(svg, spec, fishPose(spec.id));
-    }
-    tankEl.appendChild(svg);
   }
   function render() {
     const w = window.innerWidth;
@@ -2062,6 +2152,92 @@
       press("feed", "tool-feed");
       if (state().fish.some(function (f) { return f.hungry; })) fail("feed", "Tiny Feed did not act at once.");
       if (state().tool !== null) fail("feed", "Tiny Feed stayed selected.");
+    });
+    run("feed-swim", function () {
+      resetInput();
+      seed(1);
+      start("little");
+      step(10000);
+      advance(HUNGER_MS);
+      if (!state().fish.every(function (f) { return f.hungry; })) fail("feed-swim", "The fish were not hungry before Feed.");
+      if (!state().smudges.length) fail("feed-swim", "No smudge was on the glass.");
+      const feed = targetById(centers().targets, "tool-feed");
+      if (!feed) fail("feed-swim", "Feed was not a target.");
+      else {
+        const t0 = clock + 1000;
+        enterLook(feed, t0);
+        step(t0 + 660);
+        if (state().tool !== "feed") fail("feed-swim", "A finished look did not select Feed.");
+      }
+      const food = targetById(centers().targets, "food");
+      if (!food) fail("feed-swim", "Food was not a target.");
+      else {
+        const t1 = clock + 1000;
+        enterLook(food, t1);
+        step(t1 + 660);
+      }
+      if (state().fish.some(function (f) { return f.hungry; })) fail("feed-swim", "Feed did not reset hunger.");
+      function readFish() {
+        const nodes = tankEl.querySelectorAll("[data-fish]");
+        const out = [];
+        for (let i = 0; i < nodes.length; i++) {
+          const tr = nodes[i].getAttribute("transform") || "";
+          const m = /translate\(\s*([-\d.eE]+)\s+([-\d.eE]+)\s*\)/.exec(tr);
+          out.push({
+            id: nodes[i].getAttribute("data-fish"),
+            x: m ? Number(m[1]) : NaN,
+            y: m ? Number(m[2]) : NaN,
+            node: nodes[i]
+          });
+        }
+        return out;
+      }
+      const aimX = (FLAKE_XS[0] + FLAKE_XS[1] + FLAKE_XS[2]) / 3;
+      const aimY = (FLAKE_Y0[0] + FLAKE_DY[0] + FLAKE_Y0[1] + FLAKE_DY[1] + FLAKE_Y0[2] + FLAKE_DY[2]) / 3;
+      function apart(p) { return Math.hypot(p.x - aimX, p.y - aimY); }
+      const early = readFish();
+      if (early.length !== state().fish.length) fail("feed-swim", "A fish was not drawn during the flake window.");
+      const earlyNode = {};
+      const earlyDist = {};
+      for (let i = 0; i < early.length; i++) {
+        if (!Number.isFinite(early[i].x) || !Number.isFinite(early[i].y)) fail("feed-swim", "A fish had no place to swim from.");
+        earlyNode[early[i].id] = early[i].node;
+        earlyDist[early[i].id] = apart(early[i]);
+      }
+      step(clock + 1000);
+      const mid = readFish();
+      if (mid.length !== early.length) fail("feed-swim", "A fish left during the flake window.");
+      const midDist = {};
+      for (let i = 0; i < mid.length; i++) {
+        const id = mid[i].id;
+        midDist[id] = apart(mid[i]);
+        if (!(midDist[id] < earlyDist[id] - 1)) fail("feed-swim", id + " did not move toward the flakes.");
+        if (mid[i].node !== earlyNode[id]) fail("feed-swim", id + " was replaced while the flakes fell.");
+      }
+      step(clock + 800);
+      const late = readFish();
+      if (late.length !== early.length) fail("feed-swim", "A fish left before the flakes settled.");
+      for (let i = 0; i < late.length; i++) {
+        const id = late[i].id;
+        if (!(apart(late[i]) < midDist[id] - 1)) fail("feed-swim", id + " stopped short of the flakes.");
+        if (late[i].node !== earlyNode[id]) fail("feed-swim", id + " was replaced while the flakes fell.");
+      }
+      const svg = tankEl.querySelector("svg");
+      const kids = svg ? svg.children : [];
+      let lastFish = -1;
+      let lastFlake = -1;
+      const smudgeAt = [];
+      for (let i = 0; i < kids.length; i++) {
+        const el = kids[i];
+        if (el.getAttribute("data-fish")) lastFish = i;
+        if (el.hasAttribute("data-flake")) lastFlake = i;
+        if (el.hasAttribute("data-smudge")) smudgeAt.push(i);
+      }
+      if (lastFish < 0 || lastFlake < 0 || !smudgeAt.length) fail("feed-swim", "The glass did not show fish, flakes, and a smudge.");
+      for (let i = 0; i < smudgeAt.length; i++) {
+        if (smudgeAt[i] < lastFish || smudgeAt[i] < lastFlake) fail("feed-swim", "A smudge was painted before the fish or the flakes.");
+      }
+      if (state().fish.some(function (f) { return f.hungry; })) fail("feed-swim", "Hunger came back while the flakes fell.");
     });
     run("hunger-harmless", function () {
       const bands = ["tiny", "little", "shop", "rush"];
