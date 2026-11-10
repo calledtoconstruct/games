@@ -24,6 +24,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Music Maker](https://calledtoconstruct.github.io/games/music-maker/)
 - [Follow the Lights](https://calledtoconstruct.github.io/games/follow-the-lights/)
 - [Fish Tank](https://calledtoconstruct.github.io/games/fish-tank/)
+- [Feelings and Choices](https://calledtoconstruct.github.io/games/feelings-and-choices/)
 
 ## Pop Pals
 
@@ -170,6 +171,14 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 A caretaking game for ages 2 and up. Feed the fish, wipe the glass, and add plants, rocks, and new fish. Little Bowl has two fish to feed and clean. Tank adds plants. Big Tank lets you add more fish. Reef adds fish that like plants or rocks. Fish get hungry slowly and never get sick.
 
 Open `fish-tank/index.html` in a browser, or play [Fish Tank](https://calledtoconstruct.github.io/games/fish-tank/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## Feelings and Choices
+
+A gentle talking game for ages 2 and up. Bo asks how you feel or what you would like, and you look at a face or picture to answer. Bo always answers kindly. Faces has two big faces. Talk with Bo has three choices. Bo's Day has four. Bo's Friend adds a question about what would help. Nothing you pick is saved.
+
+Open `feelings-and-choices/index.html` in a browser, or play [Feelings and Choices](https://calledtoconstruct.github.io/games/feelings-and-choices/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
