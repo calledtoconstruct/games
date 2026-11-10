@@ -1,0 +1,2628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Two Pairs of Eyes</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #view {
+    position: fixed; inset: 0; width: 100%; height: 100%;
+    display: block; pointer-events: none; z-index: 0;
+  }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 1; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 4px 8px;
+    font-weight: 800; font-size: 16px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #banner {
+    position: fixed; z-index: 4; pointer-events: none; margin: 0;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 2px 8px; font-size: 13px; font-weight: 800; line-height: 15px;
+    text-align: center; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  #menu-card, #setup-card, #rest-card, #wait-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-setup, #screen-rest, #screen-wait, #play,
+  #menu-copy, #setup-copy, #rest-line, #wait-line, #setup-note, h1, p, b, small {
+    pointer-events: none;
+  }
+  #menu-copy, #setup-copy, #rest-line, #wait-line, #setup-note {
+    position: fixed; z-index: 24; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1, #setup-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p, #setup-copy p, #setup-note { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line, #wait-line { font-size: 26px; font-weight: 800; line-height: 30px; }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush, #another,
+  #open-helper, #one-screen, #solo, #play button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back, #another {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 14px; line-height: 1.1;
+    padding: 4px;
+  }
+  #another { background: var(--sun); box-shadow: 0 5px 0 var(--sun-d); font-size: 22px; }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #tiny, #little, #shop, #rush, #open-helper, #one-screen, #solo {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b,
+  #open-helper b, #one-screen b, #solo b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small,
+  #open-helper small, #one-screen small, #solo small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 26px;
+  }
+  #play button {
+    border: 0; border-radius: 10px; padding: 0; background: transparent;
+  }
+</style>
+</head>
+<body>
+<canvas id="view"></canvas>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick a cave.</p>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Two Pairs of Eyes</h1>
+    <p>A game for two: a guide who looks and a helper who clicks.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Little Cave</b><small>Ages 2 to 3 (with a grown-up helper). A small cave, one gem.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Cozy Cave</b><small>Ages 4 to 5. Two gems.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Deep Cave</b><small>Ages 6 to 8. Three gems and puddles.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Giant Cave</b><small>Ages 9 and up. Four gems.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<section id="screen-setup" hidden>
+  <div id="setup-card"></div>
+  <div id="setup-copy">
+    <h1>How will you play?</h1>
+    <p>One computer. A guide and a helper.</p>
+  </div>
+  <p id="setup-note"></p>
+  <button id="open-helper" type="button"><b>Open the helper's screen</b><small>Helper: click here</small></button>
+  <button id="one-screen" type="button"><b>One screen</b><small>Map and cave together.</small></button>
+  <button id="solo" type="button"><b>Solo</b><small>Look next to the explorer to walk.</small></button>
+</section>
+<div id="play" hidden></div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">You found every gem together.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<section id="screen-wait" hidden>
+  <div id="wait-card"></div>
+  <p id="wait-line">Waiting for the map...</p>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const GEM_COUNT = { tiny: 1, little: 2, shop: 3, rush: 4 };
+  const LIGHT = { tiny: 2, little: 2, shop: 1, rush: 1 };
+  const DIM = { tiny: [4, 4], little: [5, 5], shop: [6, 6], rush: [8, 6] };
+  const CAVES = {
+    tiny: ["S..#", ".#..", ".#.#", "...G"],
+    little: ["S...#", ".##.G", ".#...", ".#.#.", "G..#."],
+    shop: ["S.#...", "..#.#G", ".~..#.", "##.##.", "G..~..", ".#..#G"],
+    rush: ["S..#....", ".#.#.##G", ".#...~..", ".####.#.", "G~..#...", ".#.G..#G"]
+  };
+  const DIRS = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
+  const DIR_NAMES = ["up", "down", "left", "right"];
+  const inPagePeer = { role: "cave" };
+
+  const canvas = document.getElementById("view");
+  const ctx = canvas.getContext("2d");
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const setupEl = document.getElementById("screen-setup");
+  const setupCard = document.getElementById("setup-card");
+  const setupCopy = document.getElementById("setup-copy");
+  const setupNote = document.getElementById("setup-note");
+  const playEl = document.getElementById("play");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const anotherBtn = document.getElementById("another");
+  const waitEl = document.getElementById("screen-wait");
+  const waitCard = document.getElementById("wait-card");
+  const waitLine = document.getElementById("wait-line");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+  const letsBtn = document.getElementById("lets-go");
+
+  let role = "map";
+  let screen = "menu";
+  let level = "tiny";
+  let mode = null;
+  let muted = false;
+  let note = "";
+  let mirror = false;
+  let grid = [];
+  let explorer = null;
+  let found = [];
+  let mark = null;
+  let pendingRest = false;
+  let restFrom = 0;
+  let trail = [];
+  let walk = null;
+  let bump = null;
+  let caveWindow = null;
+  let pin = null;
+  let checking = false;
+  let suppressReconnect = false;
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let lastLookSent = -1;
+  let sent = [];
+  let mapHidden = false;
+  let cavePhase = "wait";
+  let remote = null;
+  let remoteFoundN = -1;
+  let remoteMarkKey = "";
+  let lastLayout = null;
+  const playButtons = {};
+
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function knownBand(band) { return BAND_IDS.indexOf(band) >= 0; }
+  function caveQuery(search) {
+    const q = search.charAt(0) === "?" ? search.slice(1) : search;
+    const p = new URLSearchParams(q);
+    if (p.has("selfcheck")) return false;
+    return p.has("cave");
+  }
+  function wouldSocket(protocol, pageRole, blocked) {
+    if (blocked) return false;
+    if (pageRole !== "map") return false;
+    if (protocol === "https:") return false;
+    return true;
+  }
+  function clone(obj) { return JSON.parse(JSON.stringify(obj)); }
+  function overlaps(a, b) {
+    if (!a || !b) return false;
+    return a.x < b.x + b.w - 0.5 && b.x < a.x + a.w - 0.5 && a.y < b.y + b.h - 0.5 && b.y < a.y + a.h - 0.5;
+  }
+  function charAt(rows, c, r) {
+    if (!rows || r < 0 || c < 0 || r >= rows.length) return "#";
+    const row = rows[r];
+    if (c >= row.length) return "#";
+    return row.charAt(c);
+  }
+  function passable(ch) { return ch === "." || ch === "S" || ch === "G" || ch === "~"; }
+  function findChar(rows, ch) {
+    const out = [];
+    for (let r = 0; r < rows.length; r++) {
+      for (let c = 0; c < rows[r].length; c++) {
+        if (rows[r].charAt(c) === ch) out.push([c, r]);
+      }
+    }
+    return out;
+  }
+  function listGems(rows) { return findChar(rows, "G"); }
+  function findStart(rows) {
+    const s = findChar(rows, "S");
+    return s.length ? s[0] : null;
+  }
+  function countChar(rows, ch) {
+    let n = 0;
+    for (let r = 0; r < rows.length; r++) {
+      for (let c = 0; c < rows[r].length; c++) if (rows[r].charAt(c) === ch) n += 1;
+    }
+    return n;
+  }
+  function flipRows(rows) {
+    return rows.map(function (row) { return row.split("").reverse().join(""); });
+  }
+  function reachesGems(rows) {
+    const start = findStart(rows);
+    const gems = listGems(rows);
+    if (!start || !gems.length) return false;
+    const seen = {};
+    const q = [start];
+    seen[start[0] + "," + start[1]] = true;
+    let guard = 0;
+    while (q.length && guard < 400) {
+      guard += 1;
+      const cur = q.shift();
+      for (let i = 0; i < DIR_NAMES.length; i++) {
+        const d = DIRS[DIR_NAMES[i]];
+        const c = cur[0] + d[0];
+        const r = cur[1] + d[1];
+        const key = c + "," + r;
+        if (seen[key] || !passable(charAt(rows, c, r))) continue;
+        seen[key] = true;
+        q.push([c, r]);
+      }
+    }
+    for (let i = 0; i < gems.length; i++) {
+      if (!seen[gems[i][0] + "," + gems[i][1]]) return false;
+    }
+    return true;
+  }
+  function saneRows(rows) {
+    if (!Array.isArray(rows) || rows.length < 1 || rows.length > 12) return null;
+    const w = rows[0].length;
+    if (w < 1 || w > 12) return null;
+    const out = [];
+    for (let i = 0; i < rows.length; i++) {
+      if (typeof rows[i] !== "string" || rows[i].length !== w) return null;
+      if (!/^[#.SG~]+$/.test(rows[i])) return null;
+      out.push(rows[i]);
+    }
+    return out;
+  }
+  function pairOK(cell) {
+    return Array.isArray(cell) && cell.length === 2 &&
+      typeof cell[0] === "number" && typeof cell[1] === "number" &&
+      cell[0] === (cell[0] | 0) && cell[1] === (cell[1] | 0);
+  }
+  function markKey(cell) { return cell ? cell[0] + "," + cell[1] : ""; }
+  function sameCell(a, b) { return !!a && !!b && a[0] === b[0] && a[1] === b[1]; }
+  function modeName() { return mode === "one" ? "one" : "map"; }
+  function bannerText() {
+    if (note) return note;
+    if (screen === "setup") return "Choose a way to play.";
+    if (screen === "play") return "Look where the explorer should go.";
+    if (screen === "rest") return "You found every gem together.";
+    return "Pick a cave.";
+  }
+  function seed(n) { pin = n >>> 0; render(); }
+
+  function ensureAudio() {
+    if (checking || ac) {
+      if (ac && ac.state === "suspended") {
+        try { ac.resume(); } catch (err) {}
+      }
+      return;
+    }
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(ac.destination);
+      if (ac.state === "suspended") ac.resume();
+    } catch (err) {
+      ac = null;
+      master = null;
+    }
+  }
+  function tone(freq, dur, when, gain) {
+    if (checking || !ac || !master) return;
+    try {
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      osc.connect(g);
+      g.connect(master);
+      const t0 = ac.currentTime + (when || 0);
+      g.gain.setValueAtTime(gain || 0.22, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+      osc.start(t0);
+      osc.stop(t0 + dur + 0.02);
+    } catch (err) {}
+  }
+  function gemSound() {
+    tone(523, 0.2, 0, 0.16);
+    tone(659, 0.2, 0.02, 0.16);
+    tone(784, 0.22, 0.04, 0.16);
+  }
+  function bumpSound() { tone(120, 0.06, 0, 0.28); }
+  function markSound() { tone(880, 0.06, 0, 0.2); }
+  function splashSound() {
+    if (checking || !ac || !master) return;
+    try {
+      const n = Math.max(1, Math.floor(ac.sampleRate * 0.15));
+      const buf = ac.createBuffer(1, n, ac.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) data[i] = Math.random() * 2 - 1;
+      const src = ac.createBufferSource();
+      src.buffer = buf;
+      const filter = ac.createBiquadFilter();
+      filter.type = "lowpass";
+      filter.frequency.value = 900;
+      const g = ac.createGain();
+      const t0 = ac.currentTime;
+      g.gain.setValueAtTime(0.35, t0);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.15);
+      src.connect(filter);
+      filter.connect(g);
+      g.connect(master);
+      src.start(t0);
+      src.stop(t0 + 0.15);
+    } catch (err) {}
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+
+  function chromeBoxes(w) {
+    const y = 8;
+    const bh = 72;
+    const edge = 8;
+    const gap = w < 760 ? 4 : 8;
+    const mute = { id: "mute", x: edge, y: y, w: 72, h: bh };
+    const full = { id: "full", x: mute.x + 72 + gap, y: y, w: 72, h: bh };
+    let backW = w < 760 ? 96 : 168;
+    let backX = w - edge - backW;
+    if (backX < full.x + full.w + gap) {
+      backW = Math.max(72, w - edge - (full.x + full.w + gap) - edge);
+      backX = w - edge - backW;
+    }
+    const back = { id: "back", x: backX, y: y, w: backW, h: bh };
+    const bannerX = full.x + full.w + gap;
+    const banner = { id: "banner", x: bannerX, y: 14, w: Math.max(0, back.x - gap - bannerX), h: 56 };
+    return { mute: mute, full: full, back: back, banner: banner };
+  }
+  function mapPaneBox(w, h, which) {
+    const top = 84;
+    const bottom = 16;
+    const edge = 16;
+    const contentH = Math.max(0, h - top - bottom);
+    const contentW = Math.max(0, w - edge * 2);
+    if (which === "one" && w >= 800) {
+      const panel = Math.floor(w * 0.6);
+      return { x: edge, y: top, w: Math.max(0, panel - edge - 28), h: contentH, panel: panel, side: true };
+    }
+    if (which === "one") {
+      const gap = 8;
+      const mh = Math.floor((contentH - gap) / 2);
+      return { x: edge, y: top, w: contentW, h: Math.max(0, mh), stack: true, gap: gap, contentH: contentH };
+    }
+    return { x: edge, y: top, w: contentW, h: contentH };
+  }
+  function bandFits(band, w, h, which) {
+    if (!(w >= 320) || !DIM[band]) return false;
+    const pane = mapPaneBox(w, h, which || "map");
+    const spec = DIM[band];
+    if (pane.w < 1 || pane.h < 1) return false;
+    return Math.min(pane.w / spec[0], pane.h / spec[1]) >= 72;
+  }
+  function offeredBands(w, h, which) {
+    const out = [];
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      if (bandFits(BAND_IDS[i], w, h, which)) out.push(BAND_IDS[i]);
+    }
+    return out;
+  }
+  function columnLayout(w, h, ids, titleH, top) {
+    const btnH = 72;
+    const gap = 8;
+    const cardW = w < 520 ? w - 16 : Math.min(480, w - 24);
+    const cardX = Math.round((w - cardW) / 2);
+    const buttons = [];
+    const columnH = titleH + (ids.length ? gap : 0) + ids.length * btnH + Math.max(0, ids.length - 1) * gap;
+    let useTop = top;
+    if (useTop + columnH > h - 8) useTop = 8;
+    if (useTop + columnH <= h - 8 && cardW >= 72) {
+      let y = useTop + titleH + (ids.length ? gap : 0);
+      for (let i = 0; i < ids.length; i++) {
+        buttons.push({ id: ids[i], x: cardX, y: y, w: cardW, h: btnH });
+        y += btnH + gap;
+      }
+      const card = { x: cardX, y: useTop, w: cardW, h: Math.max(titleH, y - gap - useTop) };
+      return {
+        title: { x: cardX, y: useTop, w: cardW, h: titleH },
+        card: card,
+        buttons: buttons,
+        ok: true
+      };
+    }
+    const bands = ids.filter(function (id) { return id !== "lets-go" && id !== "open-helper" && id !== "one-screen" && id !== "solo"; });
+    const tail = ids.filter(function (id) { return bands.indexOf(id) < 0; });
+    const colW = Math.max(72, Math.floor((cardW - gap) / 2));
+    const gridW = colW * 2 + gap;
+    const gridX = cardX + Math.max(0, (cardW - gridW) / 2);
+    const rows = Math.ceil(bands.length / 2);
+    const gridTitle = Math.min(titleH, 56);
+    const gridTop = 84;
+    let y = gridTop + gridTitle + gap;
+    for (let i = 0; i < bands.length; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      buttons.push({
+        id: bands[i],
+        x: gridX + col * (colW + gap),
+        y: y + row * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    y += rows * (btnH + gap);
+    for (let i = 0; i < tail.length; i++) {
+      buttons.push({ id: tail[i], x: cardX, y: y, w: cardW, h: btnH });
+      y += btnH + gap;
+    }
+    const card = { x: cardX, y: gridTop, w: cardW, h: Math.max(gridTitle, y - gap - gridTop) };
+    const fits = card.y + card.h <= h + 0.5 && card.x >= 8 - 0.5;
+    return {
+      title: { x: cardX, y: gridTop, w: cardW, h: gridTitle },
+      card: card,
+      buttons: buttons,
+      ok: fits
+    };
+  }
+  function menuLayout(w, h) {
+    const which = modeName();
+    const ids = offeredBands(w, h, which).concat(["lets-go"]);
+    return columnLayout(w, h, ids, 88, 128);
+  }
+  function setupLayout(w, h) {
+    const ids = [];
+    if (w >= 700) ids.push("open-helper");
+    ids.push("one-screen");
+    ids.push("solo");
+    const titleH = note ? 150 : 72;
+    return columnLayout(w, h, ids, titleH, 128);
+  }
+  function restLayout(w, h) {
+    const cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+    const cardX = Math.round((w - cardW) / 2);
+    const y = Math.max(128, Math.min(Math.round(h * 0.26), h - 240));
+    const card = { x: cardX, y: y, w: cardW, h: 200 };
+    const line = { x: cardX + 12, y: y + 28, w: cardW - 24, h: 72 };
+    const another = { id: "another", x: cardX + 12, y: y + 200 - 16 - 72, w: cardW - 24, h: 72 };
+    return { card: card, line: line, another: another };
+  }
+  function placeEyes(w, h, obstacles) {
+    const bw = 72;
+    const bh = 36;
+    const spots = [
+      { x: w - 8 - bw, y: h - 8 - bh },
+      { x: 8, y: h - 8 - bh },
+      { x: w - 8 - bw, y: 84 },
+      { x: 8, y: 84 }
+    ];
+    for (let i = 0; i < spots.length; i++) {
+      const b = { id: "eyes", x: spots[i].x, y: spots[i].y, w: bw, h: bh };
+      if (b.x < 8 || b.y < 8 || b.x + b.w > w - 8 + 0.5 || b.y + b.h > h + 0.5) continue;
+      let hit = false;
+      for (let k = 0; k < obstacles.length; k++) {
+        if (overlaps(b, obstacles[k])) { hit = true; break; }
+      }
+      if (!hit) return b;
+    }
+    return null;
+  }
+  function cellButtons(prefix, rows, origin, pitch, kind, onlyNear) {
+    const buttons = [];
+    if (!rows || !origin || pitch < 72) return buttons;
+    for (let r = 0; r < rows.length; r++) {
+      for (let c = 0; c < rows[r].length; c++) {
+        const ch = rows[r].charAt(c);
+        if (!passable(ch)) continue;
+        if (onlyNear && explorer) {
+          if (Math.abs(c - explorer[0]) + Math.abs(r - explorer[1]) !== 1) continue;
+        }
+        let label = "Floor";
+        if (ch === "G") label = "Gem";
+        else if (ch === "~") label = "Puddle";
+        else if (ch === "S") label = "Start";
+        buttons.push({
+          id: prefix + c + "-" + r,
+          x: origin.x + c * pitch,
+          y: origin.y + r * pitch,
+          w: pitch,
+          h: pitch,
+          play: kind === "map",
+          kind: kind,
+          col: c,
+          row: r,
+          label: label
+        });
+      }
+    }
+    return buttons;
+  }
+  function dpadBoxes(x, y) {
+    const s = 72;
+    const g = 8;
+    return [
+      { id: "pad-up", x: x + s + g, y: y, w: s, h: s, dir: "up", kind: "pad", play: false, label: "Step up" },
+      { id: "pad-left", x: x, y: y + s + g, w: s, h: s, dir: "left", kind: "pad", play: false, label: "Step left" },
+      { id: "pad-right", x: x + (s + g) * 2, y: y + s + g, w: s, h: s, dir: "right", kind: "pad", play: false, label: "Step right" },
+      { id: "pad-down", x: x + s + g, y: y + (s + g) * 2, w: s, h: s, dir: "down", kind: "pad", play: false, label: "Step down" }
+    ];
+  }
+  function playGrids(w, h, which, cols, rows) {
+    const edge = 16;
+    const bottom = 16;
+    const top = 84;
+    let chosen = null;
+    for (let shrink = 0; shrink <= 160; shrink++) {
+      const right = edge + shrink;
+      const contentW = w - edge - right;
+      const contentH = h - top - bottom;
+      if (contentW < 72 || contentH < 72) break;
+      let map;
+      let cave = null;
+      let pane = null;
+      if (which === "one" && w >= 800) {
+        const panel = Math.floor(w * 0.6);
+        map = { x: edge, y: top, w: Math.min(contentW, panel - edge - 28), h: contentH };
+        const caveX = panel + 8;
+        pane = { x: caveX, y: top, w: Math.max(0, w - edge - caveX), h: contentH };
+      } else if (which === "one") {
+        const gap = 8;
+        const half = Math.floor((contentH - gap) / 2);
+        const need = rows * 72;
+        const mh = half < need && contentH - gap >= need ? need : half;
+        map = { x: edge, y: top, w: contentW, h: mh };
+        pane = { x: edge, y: top + mh + gap, w: contentW, h: contentH - mh - gap };
+      } else {
+        map = { x: edge, y: top, w: contentW, h: contentH };
+      }
+      const pitch = Math.min(map.w / cols, map.h / rows);
+      if (pitch < 72) break;
+      const mapGrid = { x: map.x, y: map.y, w: pitch * cols, h: pitch * rows, pitch: pitch };
+      let caveGrid = null;
+      let cavePitch = 0;
+      if (pane && pane.w > 0 && pane.h > 0) {
+        cavePitch = Math.min(pane.w / cols, pane.h / rows);
+        caveGrid = { x: pane.x, y: pane.y, w: cavePitch * cols, h: cavePitch * rows, pitch: cavePitch };
+      }
+      const ch = chromeBoxes(w);
+      const obstacles = [ch.mute, ch.full, ch.back, ch.banner, mapGrid];
+      if (caveGrid) obstacles.push(caveGrid);
+      let pads = [];
+      if (pane && cavePitch < 72) {
+        const pack = dpadBoxes(pane.x, pane.y);
+        const packW = 72 * 3 + 16;
+        const packH = 72 * 3 + 16;
+        let px = pane.x;
+        let py = caveGrid ? caveGrid.y + caveGrid.h + 8 : pane.y;
+        if (py + packH > pane.y + pane.h) py = pane.y + Math.max(0, pane.h - packH);
+        if (px + packW > pane.x + pane.w) px = pane.x + Math.max(0, pane.w - packW);
+        const moved = dpadBoxes(px, py);
+        let fit = py >= pane.y - 0.5 && px >= pane.x - 0.5 && px + packW <= w - 16 + 0.5 && py + packH <= h - 16 + 0.5;
+        for (let i = 0; i < moved.length; i++) {
+          if (overlaps(moved[i], mapGrid) || overlaps(moved[i], ch.banner) || overlaps(moved[i], ch.back)) fit = false;
+        }
+        if (fit) {
+          pads = moved;
+          for (let i = 0; i < pads.length; i++) obstacles.push(pads[i]);
+        }
+      }
+      const eyes = placeEyes(w, h, obstacles);
+      if (!eyes) continue;
+      let eyesOK = true;
+      if (pads.length) {
+        for (let i = 0; i < pads.length; i++) if (overlaps(eyes, pads[i])) eyesOK = false;
+      }
+      if (!eyesOK) continue;
+      chosen = {
+        pitch: pitch,
+        mapGrid: mapGrid,
+        caveGrid: caveGrid,
+        cavePane: pane,
+        pads: pads,
+        eyes: eyes,
+        shrink: shrink
+      };
+      break;
+    }
+    return chosen;
+  }
+  function layoutFor(w, h) {
+    const ch = chromeBoxes(w);
+    const targets = [ch.mute, ch.full];
+    const blocks = [ch.banner];
+    if (!(w >= 320)) return { ok: false, targets: [], blocks: blocks, eyes: null, chrome: ch };
+    if (screen !== "menu") targets.push(ch.back);
+    let menu = null;
+    let setup = null;
+    let rest = null;
+    let grids = null;
+    let playSpecs = [];
+    if (screen === "menu") {
+      menu = menuLayout(w, h);
+      for (let i = 0; i < menu.buttons.length; i++) targets.push(menu.buttons[i]);
+      blocks.push(menu.card);
+    } else if (screen === "setup") {
+      setup = setupLayout(w, h);
+      for (let i = 0; i < setup.buttons.length; i++) targets.push(setup.buttons[i]);
+      blocks.push(setup.card);
+    } else if (screen === "rest") {
+      rest = restLayout(w, h);
+      targets.push(rest.another);
+      blocks.push(rest.card);
+    } else if (screen === "play") {
+      const spec = DIM[level] || [4, 4];
+      const rowsN = grid.length || spec[1];
+      const colsN = grid.length ? grid[0].length : spec[0];
+      grids = playGrids(w, h, modeName(), colsN, rowsN);
+      if (!grids) return { ok: false, targets: [], blocks: blocks, eyes: null, chrome: ch };
+      const mapRows = grid.length ? grid : emptyRows(colsN, rowsN);
+      playSpecs = cellButtons("mc-", mapRows, grids.mapGrid, grids.pitch, "map", false);
+      if (grids.caveGrid && grids.caveGrid.pitch >= 72) {
+        const near = cellButtons("cc-", mapRows, grids.caveGrid, grids.caveGrid.pitch, "cave", true);
+        for (let i = 0; i < near.length; i++) playSpecs.push(near[i]);
+      }
+      for (let i = 0; i < grids.pads.length; i++) playSpecs.push(grids.pads[i]);
+      for (let i = 0; i < playSpecs.length; i++) targets.push(playSpecs[i]);
+    }
+    const obstacles = targets.concat(blocks);
+    const eyes = grids && grids.eyes ? grids.eyes : placeEyes(w, h, obstacles);
+    let ok = !!eyes;
+    if (menu && !menu.ok) ok = false;
+    if (setup && !setup.ok) ok = false;
+    for (let i = 0; i < targets.length; i++) {
+      const t = targets[i];
+      if (Math.min(t.w, t.h) < 72) ok = false;
+      const edge = (String(t.id).indexOf("mc-") === 0 || String(t.id).indexOf("cc-") === 0 || String(t.id).indexOf("pad-") === 0) ? 16 : 8;
+      if (t.x < edge - 0.5 || t.y < edge - 0.5 || t.x + t.w > w - edge + 0.5 || t.y + t.h > h + 0.5) ok = false;
+    }
+    if (eyes) {
+      for (let i = 0; i < obstacles.length; i++) if (overlaps(eyes, obstacles[i])) ok = false;
+    }
+    return {
+      ok: ok,
+      targets: targets,
+      blocks: blocks,
+      eyes: eyes,
+      chrome: ch,
+      menu: menu,
+      setup: setup,
+      rest: rest,
+      grids: grids,
+      playSpecs: playSpecs
+    };
+  }
+  function emptyRows(cols, rows) {
+    const out = [];
+    for (let r = 0; r < rows; r++) {
+      let s = "";
+      for (let c = 0; c < cols; c++) s += ".";
+      out.push(s);
+    }
+    return out;
+  }
+
+  function place(el, box) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+  function hideStatic(except) {
+    const ids = ["tiny", "little", "shop", "rush", "lets-go", "open-helper", "one-screen", "solo", "another"];
+    for (let i = 0; i < ids.length; i++) {
+      const el = document.getElementById(ids[i]);
+      if (!el) continue;
+      el.hidden = !except[ids[i]];
+    }
+  }
+  function syncPlay(specs) {
+    const keep = {};
+    for (let i = 0; i < specs.length; i++) {
+      const spec = specs[i];
+      keep[spec.id] = true;
+      let btn = playButtons[spec.id];
+      if (!btn) {
+        btn = document.createElement("button");
+        btn.type = "button";
+        btn.id = spec.id;
+        playEl.appendChild(btn);
+        playButtons[spec.id] = btn;
+      }
+      if (spec.play) btn.setAttribute("data-play", "true");
+      else btn.removeAttribute("data-play");
+      if (spec.kind) btn.setAttribute("data-kind", spec.kind);
+      else btn.removeAttribute("data-kind");
+      if (spec.dir) btn.setAttribute("data-dir", spec.dir);
+      else btn.removeAttribute("data-dir");
+      btn.setAttribute("data-col", spec.col === undefined || spec.col === null ? "" : String(spec.col));
+      btn.setAttribute("data-row", spec.row === undefined || spec.row === null ? "" : String(spec.row));
+      btn.setAttribute("aria-label", spec.label || "Cave");
+      btn.className = spec.kind === "pad" ? "pad" : "";
+      btn.hidden = false;
+      place(btn, spec);
+    }
+    const keys = Object.keys(playButtons);
+    for (let i = 0; i < keys.length; i++) {
+      if (!keep[keys[i]]) playButtons[keys[i]].hidden = true;
+    }
+  }
+  function paintChrome() {
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+  }
+  function resizeCanvas() {
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const bw = Math.max(1, Math.round(w * dpr));
+    const bh = Math.max(1, Math.round(h * dpr));
+    if (canvas.width !== bw || canvas.height !== bh) {
+      canvas.width = bw;
+      canvas.height = bh;
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, w, h);
+    ctx.fillStyle = "#f4f0d8";
+    ctx.fillRect(0, 0, w, h);
+  }
+  function cellOrigin(gridBox, c, r) {
+    return {
+      x: gridBox.x + c * gridBox.pitch,
+      y: gridBox.y + r * gridBox.pitch,
+      s: gridBox.pitch
+    };
+  }
+  function drawTiles(rows, gridBox, reveal) {
+    if (!rows || !gridBox) return;
+    for (let r = 0; r < rows.length; r++) {
+      for (let c = 0; c < rows[r].length; c++) {
+        const o = cellOrigin(gridBox, c, r);
+        const ch = rows[r].charAt(c);
+        if (ch === "#") {
+          ctx.fillStyle = "#3b3346";
+          ctx.fillRect(o.x, o.y, o.s, o.s);
+          ctx.strokeStyle = "#8d8498";
+          ctx.lineWidth = Math.max(2, o.s * 0.06);
+          ctx.strokeRect(o.x + 3, o.y + 3, o.s - 6, o.s - 6);
+        } else {
+          ctx.fillStyle = "#e6d5ae";
+          ctx.fillRect(o.x, o.y, o.s, o.s);
+          if (ch === "~") drawPuddle(o.x, o.y, o.s);
+          if (ch === "G") drawGem(o.x, o.y, o.s, reveal && reveal(c, r));
+        }
+      }
+    }
+  }
+  function drawPuddle(x, y, s) {
+    const cx = x + s / 2;
+    const cy = y + s / 2;
+    ctx.fillStyle = "#56B4E9";
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, s * 0.28, s * 0.18, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "#1d4e89";
+    ctx.lineWidth = Math.max(2, s * 0.05);
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 0.22, cy - s * 0.04);
+    ctx.quadraticCurveTo(cx - s * 0.08, cy - s * 0.12, cx, cy - s * 0.02);
+    ctx.quadraticCurveTo(cx + s * 0.1, cy + s * 0.08, cx + s * 0.22, cy);
+    ctx.moveTo(cx - s * 0.2, cy + s * 0.08);
+    ctx.quadraticCurveTo(cx, cy + s * 0.16, cx + s * 0.2, cy + s * 0.06);
+    ctx.stroke();
+  }
+  function drawGem(x, y, s, checked) {
+    const cx = x + s / 2;
+    const cy = y + s / 2;
+    const g = s * 0.22;
+    ctx.fillStyle = "#ffc857";
+    ctx.strokeStyle = "#2c2416";
+    ctx.lineWidth = Math.max(2, s * 0.05);
+    ctx.beginPath();
+    ctx.moveTo(cx, cy - g);
+    ctx.lineTo(cx + g, cy);
+    ctx.lineTo(cx, cy + g);
+    ctx.lineTo(cx - g, cy);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+    if (checked) {
+      ctx.beginPath();
+      ctx.moveTo(cx - g * 0.45, cy);
+      ctx.lineTo(cx - g * 0.05, cy + g * 0.4);
+      ctx.lineTo(cx + g * 0.55, cy - g * 0.45);
+      ctx.stroke();
+    }
+  }
+  function drawStar(x, y, s) {
+    const cx = x + s / 2;
+    const cy = y + s / 2;
+    const outer = s * 0.28;
+    const inner = outer * 0.45;
+    ctx.fillStyle = "#fffdf6";
+    ctx.strokeStyle = "#2c2416";
+    ctx.lineWidth = Math.max(2, s * 0.04);
+    ctx.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const rad = i % 2 === 0 ? outer : inner;
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const px = cx + Math.cos(a) * rad;
+      const py = cy + Math.sin(a) * rad;
+      if (i === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  }
+  function explorerPixel(gridBox, who) {
+    if (!gridBox || !who) return null;
+    let c = who[0];
+    let r = who[1];
+    if (walk && walk.ms > 0 && !checking && !reducedMotion()) {
+      const t = Math.max(0, Math.min(1, (clock - walk.t0) / walk.ms));
+      c = walk.from[0] + (walk.to[0] - walk.from[0]) * t;
+      r = walk.from[1] + (walk.to[1] - walk.from[1]) * t;
+    }
+    let x = gridBox.x + (c + 0.5) * gridBox.pitch;
+    let y = gridBox.y + (r + 0.5) * gridBox.pitch;
+    if (bump && !checking && !reducedMotion() && clock - bump.t0 < 120) {
+      const d = DIRS[bump.dir] || [0, 0];
+      const k = 1 - (clock - bump.t0) / 120;
+      x += d[0] * gridBox.pitch * 0.12 * k;
+      y += d[1] * gridBox.pitch * 0.12 * k;
+    }
+    return { x: x, y: y, s: gridBox.pitch };
+  }
+  function drawExplorer(at) {
+    if (!at) return;
+    const s = at.s;
+    ctx.fillStyle = "#fff6df";
+    ctx.strokeStyle = "#2c2416";
+    ctx.lineWidth = Math.max(2, s * 0.05);
+    ctx.beginPath();
+    ctx.arc(at.x, at.y, s * 0.22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.fillStyle = "#2c2416";
+    ctx.beginPath();
+    ctx.arc(at.x - s * 0.08, at.y - s * 0.04, s * 0.025, 0, Math.PI * 2);
+    ctx.arc(at.x + s * 0.08, at.y - s * 0.04, s * 0.025, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#ffc857";
+    ctx.strokeStyle = "#e2a62e";
+    ctx.beginPath();
+    ctx.arc(at.x + s * 0.2, at.y + s * 0.12, s * 0.07, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  }
+  function drawTrail(gridBox, scale) {
+    if (!gridBox) return;
+    const keep = [];
+    for (let i = 0; i < trail.length; i++) {
+      const age = clock - trail[i].t;
+      if (age >= 0 && age <= 1500) keep.push(trail[i]);
+    }
+    trail = keep;
+    const list = reducedMotion() && trail.length ? [trail[trail.length - 1]] : trail;
+    for (let i = 0; i < list.length; i++) {
+      const age = clock - list[i].t;
+      let alpha = reducedMotion() ? 0.9 : Math.max(0, 1 - age / 1500);
+      alpha *= scale;
+      if (alpha <= 0) continue;
+      const px = gridBox.x + list[i].x * gridBox.w;
+      const py = gridBox.y + list[i].y * gridBox.h;
+      const rad = gridBox.pitch * 0.4;
+      const g = ctx.createRadialGradient(px, py, 0, px, py, rad);
+      g.addColorStop(0, "rgba(255, 248, 226, " + alpha + ")");
+      g.addColorStop(1, "rgba(255, 248, 226, 0)");
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(px, py, rad, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+  function drawMark(gridBox, cell) {
+    if (!gridBox || !cell) return;
+    const o = cellOrigin(gridBox, cell[0], cell[1]);
+    drawStar(o.x, o.y, o.s);
+  }
+  function drawDark(pane, gridBox, who, band) {
+    if (!pane) return;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pane.x, pane.y, pane.w, pane.h);
+    ctx.clip();
+    ctx.fillStyle = "#100e14";
+    ctx.fillRect(pane.x, pane.y, pane.w, pane.h);
+    ctx.restore();
+    if (!gridBox || !who) return;
+    const at = explorerPixel(gridBox, who);
+    const radius = (LIGHT[band] || 1) * gridBox.pitch;
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pane.x, pane.y, pane.w, pane.h);
+    ctx.clip();
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(at.x, at.y, radius, 0, Math.PI * 2);
+    ctx.clip();
+    drawTiles(grid.length ? grid : (remote && remote.cave), gridBox, null);
+    ctx.restore();
+    ctx.restore();
+  }
+  function paintMap(lay) {
+    resizeCanvas();
+    if (screen !== "play" && screen !== "rest") return;
+    const rows = grid;
+    if (!rows.length || !lay || !lay.grids) return;
+    const g = lay.grids;
+    drawTiles(rows, g.mapGrid, function (c, r) {
+      for (let i = 0; i < found.length; i++) if (found[i][0] === c && found[i][1] === r) return true;
+      return false;
+    });
+    drawTrail(g.mapGrid, 0.35);
+    drawMark(g.mapGrid, mark);
+    drawExplorer(explorerPixel(g.mapGrid, explorer));
+    if (mode === "one" && g.cavePane) {
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(g.cavePane.x, g.cavePane.y, g.cavePane.w, g.cavePane.h);
+      ctx.clip();
+      ctx.fillStyle = "#100e14";
+      ctx.fillRect(g.cavePane.x, g.cavePane.y, g.cavePane.w, g.cavePane.h);
+      if (g.caveGrid && explorer) {
+        const at = explorerPixel(g.caveGrid, explorer);
+        const radius = (LIGHT[level] || 1) * g.caveGrid.pitch;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(at.x, at.y, Math.max(8, radius), 0, Math.PI * 2);
+        ctx.clip();
+        drawTiles(rows, g.caveGrid, function (c, r) {
+          for (let i = 0; i < found.length; i++) if (found[i][0] === c && found[i][1] === r) return true;
+          return false;
+        });
+        ctx.restore();
+        drawExplorer(at);
+      }
+      ctx.restore();
+      drawTrail(g.caveGrid, 1);
+      drawMark(g.caveGrid, mark);
+      ctx.strokeStyle = "#2c2416";
+      ctx.lineWidth = 3;
+      ctx.strokeRect(g.cavePane.x, g.cavePane.y, g.cavePane.w, g.cavePane.h);
+    }
+  }
+  function paintCave() {
+    resizeCanvas();
+    if (cavePhase !== "play" || !remote) return;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const top = 84;
+    const edge = 16;
+    const pane = { x: edge, y: top, w: Math.max(0, w - edge * 2), h: Math.max(0, h - top - 16) };
+    const rows = remote.cave;
+    if (!rows || !rows.length) return;
+    const cols = rows[0].length;
+    const pitch = Math.min(pane.w / cols, pane.h / rows.length);
+    const gridBox = { x: pane.x, y: pane.y, w: pitch * cols, h: pitch * rows.length, pitch: pitch };
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(pane.x, pane.y, pane.w, pane.h);
+    ctx.clip();
+    ctx.fillStyle = "#100e14";
+    ctx.fillRect(pane.x, pane.y, pane.w, pane.h);
+    if (remote.explorer) {
+      const at = {
+        x: gridBox.x + (remote.explorer[0] + 0.5) * pitch,
+        y: gridBox.y + (remote.explorer[1] + 0.5) * pitch,
+        s: pitch
+      };
+      const radius = (LIGHT[remote.band] || 1) * pitch;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(at.x, at.y, Math.max(8, radius), 0, Math.PI * 2);
+      ctx.clip();
+      drawTiles(rows, gridBox, function (c, r) {
+        const foundCells = remote.found || [];
+        for (let i = 0; i < foundCells.length; i++) {
+          if (foundCells[i][0] === c && foundCells[i][1] === r) return true;
+        }
+        return false;
+      });
+      ctx.restore();
+      drawExplorer(at);
+    }
+    ctx.restore();
+    drawTrail(gridBox, 1);
+    drawMark(gridBox, remote.mark);
+    syncCaveButtons(rows, gridBox, pane);
+  }
+  function syncCaveButtons(rows, gridBox, pane) {
+    if (cavePhase !== "play") {
+      syncPlay([]);
+      return;
+    }
+    let specs = [];
+    if (gridBox.pitch >= 72 && remote && remote.explorer) {
+      const prev = explorer;
+      explorer = remote.explorer;
+      specs = cellButtons("cc-", rows, gridBox, gridBox.pitch, "cave", true);
+      explorer = prev;
+    } else {
+      const packW = 72 * 3 + 16;
+      const packH = packW;
+      let px = pane.x;
+      let py = gridBox.y + gridBox.h + 8;
+      if (py + packH > pane.y + pane.h) py = pane.y + Math.max(0, pane.h - packH);
+      if (px + packW <= pane.x + pane.w && py + packH <= pane.y + pane.h) specs = dpadBoxes(px, py);
+    }
+    syncPlay(specs);
+  }
+
+  function renderCave() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const ch = chromeBoxes(w);
+    place(muteBtn, ch.mute);
+    place(fullBtn, ch.full);
+    place(bannerEl, ch.banner);
+    backBtn.hidden = true;
+    menuEl.hidden = true;
+    setupEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.hidden = true;
+    anotherBtn.hidden = true;
+    hideStatic({});
+    paintChrome();
+    if (cavePhase === "rest") {
+      waitEl.hidden = true;
+      restEl.hidden = false;
+      playEl.hidden = true;
+      const rest = restLayout(w, h);
+      place(restCard, rest.card);
+      place(restLine, rest.line);
+      restLine.textContent = "You found every gem together.";
+      bannerEl.textContent = "You found every gem together.";
+      syncPlay([]);
+    } else if (cavePhase === "play") {
+      waitEl.hidden = true;
+      restEl.hidden = true;
+      playEl.hidden = false;
+      bannerEl.textContent = mapHidden ? "The map window is hidden" : "Follow the light.";
+    } else {
+      waitEl.hidden = false;
+      restEl.hidden = true;
+      playEl.hidden = true;
+      const cardW = Math.min(460, w - 32);
+      const card = { x: Math.round((w - cardW) / 2), y: Math.max(128, h * 0.28), w: cardW, h: 160 };
+      place(waitCard, card);
+      place(waitLine, { x: card.x + 12, y: card.y + 48, w: card.w - 24, h: 64 });
+      bannerEl.textContent = "Waiting for the map...";
+      syncPlay([]);
+    }
+    paintCave();
+  }
+  function render() {
+    if (role === "cave") {
+      renderCave();
+      return;
+    }
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const lay = layoutFor(w, h);
+    lastLayout = lay;
+    const ch = lay.chrome;
+    place(muteBtn, ch.mute);
+    place(fullBtn, ch.full);
+    place(backBtn, ch.back);
+    place(bannerEl, ch.banner);
+    backBtn.hidden = screen === "menu";
+    menuEl.hidden = screen !== "menu";
+    setupEl.hidden = screen !== "setup";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "play";
+    waitEl.hidden = true;
+    anotherBtn.hidden = screen !== "rest";
+    bannerEl.textContent = bannerText();
+    setupNote.textContent = screen === "setup" ? note : "";
+    paintChrome();
+    eyesEl.hidden = !eyesOn();
+    if (lay.eyes) place(eyesEl, lay.eyes);
+    const shown = {};
+    if (screen === "menu" && lay.menu) {
+      place(menuCard, lay.menu.card);
+      place(menuCopy, lay.menu.title);
+      for (let i = 0; i < lay.menu.buttons.length; i++) {
+        const b = lay.menu.buttons[i];
+        shown[b.id] = true;
+        place(document.getElementById(b.id), b);
+      }
+    }
+    if (screen === "setup" && lay.setup) {
+      place(setupCard, lay.setup.card);
+      place(setupCopy, { x: lay.setup.title.x, y: lay.setup.title.y, w: lay.setup.title.w, h: note ? 72 : lay.setup.title.h });
+      if (note) {
+        place(setupNote, { x: lay.setup.title.x + 12, y: lay.setup.title.y + 76, w: lay.setup.title.w - 24, h: 70 });
+      }
+      for (let i = 0; i < lay.setup.buttons.length; i++) {
+        const b = lay.setup.buttons[i];
+        shown[b.id] = true;
+        place(document.getElementById(b.id), b);
+      }
+    }
+    if (screen === "rest" && lay.rest) {
+      place(restCard, lay.rest.card);
+      place(restLine, lay.rest.line);
+      restLine.textContent = "You found every gem together.";
+      shown.another = true;
+      place(anotherBtn, lay.rest.another);
+    }
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    hideStatic(shown);
+    if (screen === "play") syncPlay(lay.playSpecs || []);
+    else syncPlay([]);
+    paintMap(lay);
+  }
+
+  function stateMessage() {
+    return {
+      type: "state",
+      band: level,
+      cave: grid.slice(),
+      explorer: explorer ? [explorer[0], explorer[1]] : null,
+      found: found.map(function (p) { return [p[0], p[1]]; }),
+      mark: mark ? [mark[0], mark[1]] : null
+    };
+  }
+  function emitCave(msg) {
+    const copy = clone(msg);
+    if (checking) sent.push(copy);
+    if (mode === "one") {
+      handleCave(copy);
+      return;
+    }
+    if (caveWindow && !caveWindow.closed) {
+      try { caveWindow.postMessage(copy, "*"); } catch (err) {}
+    }
+  }
+  function postToMap(msg) {
+    if (role === "cave") {
+      if (window.opener && !window.opener.closed) {
+        try { window.opener.postMessage(msg, "*"); } catch (err) {}
+      }
+      return;
+    }
+    handleMap(msg, inPagePeer);
+  }
+  function pushTrail(frac, now) {
+    if (!frac) return;
+    trail.push({ x: frac.x, y: frac.y, t: now });
+    if (trail.length > 40) trail = trail.slice(trail.length - 40);
+  }
+  function handleCave(msg) {
+    if (!msg || typeof msg !== "object" || typeof msg.type !== "string") return;
+    if (msg.type === "look") {
+      if (mode === "one" && role === "map") return;
+      if (typeof msg.x !== "number" || typeof msg.y !== "number") return;
+      if (msg.x < 0 || msg.y < 0 || msg.x > 1 || msg.y > 1) return;
+      pushTrail({ x: msg.x, y: msg.y }, clock);
+      if (role === "cave") render();
+      return;
+    }
+    if (msg.type === "hidden") {
+      if (typeof msg.value !== "boolean") return;
+      mapHidden = msg.value;
+      if (role === "cave") render();
+      return;
+    }
+    if (msg.type === "rest") {
+      if (role === "cave") {
+        cavePhase = "rest";
+        render();
+      }
+      return;
+    }
+    if (msg.type === "state") {
+      if (role !== "cave") return;
+      const rows = saneRows(msg.cave);
+      if (!rows || !pairOK(msg.explorer)) return;
+      if (!Array.isArray(msg.found)) return;
+      const nextFound = [];
+      for (let i = 0; i < msg.found.length; i++) {
+        if (!pairOK(msg.found[i])) return;
+        nextFound.push([msg.found[i][0], msg.found[i][1]]);
+      }
+      if (!(msg.mark === null || pairOK(msg.mark))) return;
+      const band = knownBand(msg.band) ? msg.band : "tiny";
+      const prevN = remoteFoundN;
+      const prevMark = remoteMarkKey;
+      remote = {
+        band: band,
+        cave: rows,
+        explorer: [msg.explorer[0], msg.explorer[1]],
+        found: nextFound,
+        mark: msg.mark ? [msg.mark[0], msg.mark[1]] : null
+      };
+      remoteFoundN = nextFound.length;
+      remoteMarkKey = markKey(remote.mark);
+      cavePhase = "play";
+      if (prevN >= 0 && nextFound.length > prevN) gemSound();
+      if (prevMark && prevMark !== remoteMarkKey) markSound();
+      if (!prevMark && remoteMarkKey) markSound();
+      render();
+    }
+  }
+  function handleMap(msg, source) {
+    if (!msg || typeof msg !== "object" || typeof msg.type !== "string") return;
+    if (source !== inPagePeer && source !== caveWindow) return;
+    if (msg.type === "hello") {
+      note = "";
+      if (screen === "play") emitCave(stateMessage());
+      else if (screen === "rest") emitCave({ type: "rest" });
+      emitCave({ type: "hidden", value: !!document.hidden });
+      render();
+      return;
+    }
+    if (msg.type === "move") {
+      if (DIR_NAMES.indexOf(msg.dir) < 0) return;
+      applyMove(msg.dir);
+      return;
+    }
+    if (msg.type === "moveTo") {
+      if (!pairOK(msg.cell)) return;
+      applyMoveTo(msg.cell[0], msg.cell[1]);
+    }
+  }
+  function collect(c, r) {
+    for (let i = 0; i < found.length; i++) if (found[i][0] === c && found[i][1] === r) return;
+    found.push([c, r]);
+    gemSound();
+    if (found.length >= listGems(grid).length && listGems(grid).length) {
+      pendingRest = true;
+      restFrom = clock;
+    }
+  }
+  function applyMove(dir) {
+    if (role !== "map" || screen !== "play" || !explorer || pendingRest) {
+      render();
+      return false;
+    }
+    const d = DIRS[dir];
+    if (!d) { render(); return false; }
+    const c = explorer[0] + d[0];
+    const r = explorer[1] + d[1];
+    const ch = charAt(grid, c, r);
+    if (!passable(ch)) {
+      bumpSound();
+      bump = { t0: clock, dir: dir };
+      render();
+      return false;
+    }
+    let landC = c;
+    let landR = r;
+    let landCh = ch;
+    let slid = false;
+    if (ch === "~") {
+      const sc = c + d[0];
+      const sr = r + d[1];
+      const sch = charAt(grid, sc, sr);
+      if (passable(sch)) {
+        landC = sc;
+        landR = sr;
+        landCh = sch;
+        slid = true;
+      }
+    }
+    const from = [explorer[0], explorer[1]];
+    explorer = [landC, landR];
+    const ms = checking || reducedMotion() ? 0 : 200;
+    walk = { from: from, to: [landC, landR], t0: clock, ms: ms };
+    if (slid) splashSound();
+    if (landCh === "G") collect(landC, landR);
+    emitCave(stateMessage());
+    render();
+    return true;
+  }
+  function applyMoveTo(c, r) {
+    if (!explorer) { render(); return; }
+    const dc = c - explorer[0];
+    const dr = r - explorer[1];
+    if (Math.abs(dc) + Math.abs(dr) !== 1) { render(); return; }
+    const dir = dc === 1 ? "right" : dc === -1 ? "left" : dr === 1 ? "down" : "up";
+    applyMove(dir);
+  }
+  function toggleMark(c, r) {
+    if (screen !== "play" || pendingRest) { render(); return; }
+    if (!passable(charAt(grid, c, r))) { render(); return; }
+    if (mark && mark[0] === c && mark[1] === r) mark = null;
+    else mark = [c, r];
+    markSound();
+    emitCave(stateMessage());
+    render();
+  }
+  function onMapCell(c, r) {
+    if (screen !== "play" || !explorer) { render(); return; }
+    const dc = c - explorer[0];
+    const dr = r - explorer[1];
+    if (mode === "solo") {
+      if (Math.abs(dc) + Math.abs(dr) !== 1) { render(); return; }
+      const dir = dc === 1 ? "right" : dc === -1 ? "left" : dr === 1 ? "down" : "up";
+      applyMove(dir);
+      return;
+    }
+    toggleMark(c, r);
+  }
+  function loadCave() {
+    const src = CAVES[level] || CAVES.tiny;
+    grid = mirror ? flipRows(src) : src.slice();
+    explorer = findStart(grid);
+    found = [];
+    mark = null;
+    pendingRest = false;
+    restFrom = 0;
+    trail = [];
+    walk = null;
+    bump = null;
+    lastLookSent = -1;
+  }
+  function beginPlay() {
+    loadCave();
+    go("play");
+    emitCave(stateMessage());
+    emitCave({ type: "hidden", value: !!document.hidden });
+  }
+  function enterMode(next) {
+    mode = next;
+    beginPlay();
+  }
+  function chooseMode(next) {
+    if (next !== "one" && next !== "solo") { render(); return; }
+    const which = next === "one" ? "one" : "map";
+    if (!bandFits(level, window.innerWidth, window.innerHeight, which)) {
+      mode = next;
+      go("menu");
+      return;
+    }
+    note = "";
+    enterMode(next);
+  }
+  function openHelper() {
+    function finish(win, placed) {
+      if (!win) {
+        note = "Your browser blocked the helper's window. Allow pop-ups for this page and try again.";
+        caveWindow = null;
+        render();
+        return;
+      }
+      caveWindow = win;
+      enterMode("split");
+      note = placed ? "" : "Drag the new window to the helper's screen, then press its Fullscreen button.";
+      render();
+    }
+    function fallback() {
+      let win = null;
+      try { win = window.open("?cave", "two-pairs-cave", "width=900,height=700"); }
+      catch (err) { win = null; }
+      finish(win, false);
+    }
+    if (typeof window.getScreenDetails === "function") {
+      let pending = null;
+      try { pending = window.getScreenDetails(); }
+      catch (err) { pending = null; }
+      if (pending && typeof pending.then === "function") {
+        pending.then(function (details) {
+          const screens = details && details.screens ? details.screens : [];
+          const here = details && details.currentScreen;
+          let other = null;
+          for (let i = 0; i < screens.length; i++) {
+            if (screens[i] !== here) { other = screens[i]; break; }
+          }
+          if (other && screens.length >= 2) {
+            const feat = "left=" + other.availLeft + ",top=" + other.availTop + ",width=" + other.availWidth + ",height=" + other.availHeight;
+            let win = null;
+            try { win = window.open("?cave", "two-pairs-cave", feat); }
+            catch (err) { win = null; }
+            if (win) finish(win, true);
+            else fallback();
+            return;
+          }
+          fallback();
+        }).catch(function () { fallback(); });
+        return;
+      }
+    }
+    fallback();
+  }
+  function go(id) {
+    if (id !== "menu" && id !== "setup" && id !== "play" && id !== "rest") {
+      render();
+      return;
+    }
+    screen = id;
+    render();
+  }
+  function highlight(band) {
+    if (!knownBand(band)) { render(); return; }
+    level = band;
+    render();
+  }
+  function start(band) {
+    if (role !== "map") { render(); return; }
+    if (!knownBand(band)) { render(); return; }
+    level = band;
+    mirror = false;
+    grid = [];
+    explorer = null;
+    found = [];
+    mark = null;
+    pendingRest = false;
+    restFrom = 0;
+    note = "";
+    trail = [];
+    go("setup");
+  }
+  function another() {
+    if (screen !== "rest") { render(); return; }
+    mirror = !mirror;
+    note = "";
+    beginPlay();
+  }
+  function state() {
+    const snap = {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      mode: mode,
+      role: role,
+      cols: grid.length ? grid[0].length : 0,
+      rows: grid.length,
+      explorer: explorer ? [explorer[0], explorer[1]] : null,
+      found: found.map(function (p) { return [p[0], p[1]]; }),
+      mark: mark ? [mark[0], mark[1]] : null,
+      gems: grid.length ? listGems(grid).length : 0,
+      mirror: mirror
+    };
+    render();
+    return snap;
+  }
+  function gazeFraction() {
+    if (!gazePoint || !grid.length) return null;
+    const lay = layoutFor(window.innerWidth, window.innerHeight);
+    const box = lay && lay.grids && lay.grids.mapGrid;
+    if (!box || box.w <= 0 || box.h <= 0) return null;
+    const x = (gazePoint.x - box.x) / box.w;
+    const y = (gazePoint.y - box.y) / box.h;
+    if (x < 0 || y < 0 || x > 1 || y > 1) return null;
+    return { x: x, y: y };
+  }
+  function publishLook(now) {
+    if (role !== "map" || screen !== "play") return;
+    if (!eyesLive(now)) return;
+    const frac = gazeFraction();
+    if (!frac) return;
+    if (lastLookSent >= 0 && now - lastLookSent < 1000 / 15) return;
+    lastLookSent = now;
+    pushTrail(frac, now);
+    if (mode === "one" || (caveWindow && !caveWindow.closed)) emitCave({ type: "look", x: frac.x, y: frac.y });
+  }
+  function stepWorld(now) {
+    if (walk && now >= walk.t0 + walk.ms) walk = null;
+    if (bump && now >= bump.t0 + 120) bump = null;
+    publishLook(now);
+    if (role === "map" && pendingRest && now >= restFrom + 1500) {
+      pendingRest = false;
+      emitCave({ type: "rest" });
+      go("rest");
+    }
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function targetsAt(w, h) {
+    render();
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const lay = layoutFor(w, h);
+    if (!lay || !lay.ok) return { ok: false, targets: [] };
+    return {
+      ok: true,
+      targets: lay.targets.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+  function activate(btn, via) {
+    if (!btn || !buttonVisible(btn)) { render(); return; }
+    if (!via) via = "pointer";
+    if (!checking) ensureAudio();
+    const kind = btn.getAttribute("data-kind");
+    if (kind === "map") {
+      onMapCell(+btn.getAttribute("data-col"), +btn.getAttribute("data-row"));
+      return;
+    }
+    if (kind === "cave") {
+      if (via === "gaze") { render(); return; }
+      if (role === "cave") postToMap({ type: "moveTo", cell: [+btn.getAttribute("data-col"), +btn.getAttribute("data-row")] });
+      else applyMoveTo(+btn.getAttribute("data-col"), +btn.getAttribute("data-row"));
+      return;
+    }
+    if (kind === "pad") {
+      if (via === "gaze") { render(); return; }
+      const dir = btn.getAttribute("data-dir");
+      if (role === "cave") postToMap({ type: "move", dir: dir });
+      else applyMove(dir);
+      return;
+    }
+    const id = btn.id;
+    if (id === "lets-go") start(level);
+    else if (id === "back") { mode = null; note = ""; go("menu"); }
+    else if (id === "another") another();
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (id === "open-helper") {
+      if (via === "gaze") { render(); return; }
+      openHelper();
+    } else if (id === "one-screen") chooseMode("one");
+    else if (id === "solo") chooseMode("solo");
+    else if (knownBand(id)) {
+      if (!bandFits(id, window.innerWidth, window.innerHeight, modeName())) { render(); return; }
+      highlight(id);
+    } else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint || role === "cave") return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    if (role === "cave") {
+      eyesEl.hidden = true;
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn)) activate(btn, "gaze");
+      } else {
+        dwellProgress = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+      }
+    } else {
+      dwellProgress = 0;
+    }
+    if (LEAVE_MS < 0) clearDwell();
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    stepGaze(now);
+    stepWorld(now);
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) { render(); return; }
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) { render(); return; }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn, "pointer");
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (!wouldSocket(location.protocol, role, suppressReconnect || checking)) return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || btn.id !== armedId) return;
+    armedId = null;
+    activate(btn, "pointer");
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back, "key"); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn, "key"); e.preventDefault(); }
+      return;
+    }
+    const keyDir = {
+      ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down",
+      a: "left", d: "right", w: "up", s: "down",
+      A: "left", D: "right", W: "up", S: "down"
+    }[e.key];
+    if (!keyDir) return;
+    if (role === "cave") {
+      postToMap({ type: "move", dir: keyDir });
+      e.preventDefault();
+      return;
+    }
+    if (screen === "play") {
+      applyMove(keyDir);
+      e.preventDefault();
+    }
+  });
+  window.addEventListener("message", function (ev) {
+    const data = ev.data;
+    if (!data || typeof data !== "object") return;
+    if (role === "cave") {
+      if (!window.opener || ev.source !== window.opener) return;
+      handleCave(data);
+      return;
+    }
+    if (!caveWindow || ev.source !== caveWindow) return;
+    handleMap(data, ev.source);
+  });
+  document.addEventListener("visibilitychange", function () {
+    if (checking || role !== "map") return;
+    emitCave({ type: "hidden", value: !!document.hidden });
+  });
+  window.addEventListener("resize", function () {
+    if (!checking) render();
+  });
+
+  function frame(now) {
+    if (checking) return;
+    if (document.hidden) {
+      requestAnimationFrame(frame);
+      return;
+    }
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+  function bandIdsOf(lay) {
+    const ids = [];
+    const list = lay.targets || [];
+    for (let i = 0; i < list.length; i++) {
+      if (BAND_IDS.indexOf(list[i].id) >= 0) ids.push(list[i].id);
+    }
+    return ids;
+  }
+  function pathToGems() {
+    const start = explorer.slice();
+    const need = {};
+    const gems = listGems(grid);
+    for (let i = 0; i < gems.length; i++) need[gems[i][0] + "," + gems[i][1]] = true;
+    const q = [{ at: start, path: [] }];
+    const seen = {};
+    seen[start[0] + "," + start[1]] = true;
+    let guard = 0;
+    while (q.length && guard < 800) {
+      guard += 1;
+      const cur = q.shift();
+      const key = cur.at[0] + "," + cur.at[1];
+      if (need[key]) return cur.path.slice();
+      for (let i = 0; i < DIR_NAMES.length; i++) {
+        const dir = DIR_NAMES[i];
+        const d = DIRS[dir];
+        const c = cur.at[0] + d[0];
+        const r = cur.at[1] + d[1];
+        const ch = charAt(grid, c, r);
+        if (!passable(ch)) continue;
+        let landC = c;
+        let landR = r;
+        if (ch === "~") {
+          const sc = c + d[0];
+          const sr = r + d[1];
+          if (passable(charAt(grid, sc, sr))) { landC = sc; landR = sr; }
+        }
+        const lk = landC + "," + landR;
+        if (seen[lk]) continue;
+        seen[lk] = true;
+        q.push({ at: [landC, landR], path: cur.path.concat([dir]) });
+      }
+    }
+    return null;
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+    });
+    run("family-plain-state", function () {
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snap.level !== "tiny" || snap.screen !== "menu" || snap.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on Little Cave.");
+      }
+      const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank", "speech"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      resetInput();
+      mode = null;
+      start("tiny");
+      enterMode("one");
+      const box = targetById(centers().targets, "mc-1-0");
+      if (!box || !box.play) fail("family-play-dwell", "The floor cell was not a play target.");
+      else {
+        step(10000);
+        look(box.nx, box.ny);
+        step(10000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(10200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(10640);
+        if (state().mark) fail("family-play-dwell", "640 ms placed a mark.");
+        step(10660);
+        if (!state().mark || state().mark[0] !== 1 || state().mark[1] !== 0) fail("family-play-dwell", "660 ms did not place the mark.");
+      }
+      resetInput();
+      start("tiny");
+      enterMode("one");
+      const tapBox = targetById(centers().targets, "mc-1-0");
+      if (!tapBox) fail("family-play-dwell", "The floor cell was missing for the tap.");
+      else {
+        tap(tapBox.nx, tapBox.ny);
+        if (!state().mark || state().mark[0] !== 1 || state().mark[1] !== 0) fail("family-play-dwell", "A tap did not place the same mark.");
+      }
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      mode = null;
+      go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "setup") fail("family-menu-dwell", "1300 ms on Let's go did not open setup.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "setup") fail("family-menu-dwell", "600 ms on Back left setup.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      resetInput();
+      start("tiny");
+      enterMode("one");
+      const box = targetById(centers().targets, "mc-2-0");
+      if (!box) fail("family-pointer-blocks", "The floor cell was missing.");
+      else {
+        hold(box.nx, box.ny);
+        look(box.nx, box.ny);
+        step(30000);
+        step(30660);
+        if (state().mark || dwell() !== 0) fail("family-pointer-blocks", "A look during hold placed a mark or filled the ring.");
+        release();
+        releaseLook();
+        enterLook(box, 32000);
+        step(32660);
+        if (!state().mark || state().mark[0] !== 2 || state().mark[1] !== 0) fail("family-pointer-blocks", "A fresh look after release did not place the mark.");
+      }
+    });
+    run("family-stale", function () {
+      resetInput();
+      start("tiny");
+      enterMode("one");
+      const box = targetById(centers().targets, "mc-1-0");
+      if (!box) fail("family-stale", "The floor cell was missing.");
+      else {
+        try {
+          enterLook(box, 36000);
+          step(36200);
+          if (!(dwell() > 0) || state().mark) fail("family-stale", "The ring did not fill before the sample went stale.");
+          refreshHold = false;
+          step(36700);
+          if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+          if (state().mark) fail("family-stale", "A stale sample placed a mark.");
+        } finally {
+          refreshHold = true;
+        }
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      mode = null;
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      start("tiny");
+      const liveBefore = targetById(centers().targets, "mute");
+      checkView("setup");
+      const liveAfter = targetById(centers().targets, "mute");
+      if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+        fail("family-target-size", "targetsAt shrank a live setup button.");
+      }
+    });
+    run("family-eyes", function () {
+      resetInput();
+      step(40000);
+      look(0.5, 0.5);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("family-mute", function () {
+      resetInput();
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    run("roles", function () {
+      if (role !== "map") fail("roles", "This window was not the map.");
+      if (gazeSock) fail("roles", "The map check opened a socket.");
+      if (caveQuery(location.search)) fail("roles", "The check treated this page as the cave.");
+      if (!caveQuery("?cave") || !caveQuery("?cave=ignored")) fail("roles", "A cave flag was not a presence flag.");
+      if (caveQuery("?selfcheck&cave")) fail("roles", "The check flag still opened the cave role.");
+      if (wouldSocket("https:", "map", false)) fail("roles", "An https page would open the socket.");
+      if (wouldSocket("http:", "cave", false)) fail("roles", "The cave role would open the socket.");
+      if (wouldSocket("file:", "cave", false)) fail("roles", "The cave role would open the socket from disk.");
+      if (!wouldSocket("file:", "map", false) || !wouldSocket("http:", "map", false)) fail("roles", "The map role would not open the socket.");
+      if (wouldSocket("file:", "map", true)) fail("roles", "The check would still open the socket.");
+      if (waitLine.textContent !== "Waiting for the map...") fail("roles", "The waiting card text changed.");
+      if (!waitEl.hidden) fail("roles", "The map window showed the waiting card.");
+    });
+    run("caves-valid", function () {
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        const band = BAND_IDS[b];
+        const forms = [CAVES[band], flipRows(CAVES[band])];
+        for (let f = 0; f < forms.length; f++) {
+          const rows = forms[f];
+          const width = rows[0].length;
+          if (rows.length !== DIM[band][1] || width !== DIM[band][0]) fail("caves-valid", band + " was not the stated size.");
+          for (let r = 0; r < rows.length; r++) {
+            if (rows[r].length !== width) fail("caves-valid", band + " was not rectangular.");
+          }
+          if (countChar(rows, "S") !== 1) fail("caves-valid", band + " did not have one start.");
+          if (countChar(rows, "G") !== GEM_COUNT[band]) fail("caves-valid", band + " gem count changed.");
+          const puddles = countChar(rows, "~");
+          if ((band === "tiny" || band === "little") && puddles !== 0) fail("caves-valid", band + " had a puddle.");
+          if ((band === "shop" || band === "rush") && puddles < 1) fail("caves-valid", band + " had no puddle.");
+          if (!reachesGems(rows)) fail("caves-valid", band + " left a gem unreachable.");
+        }
+        if (LIGHT[band] !== (band === "tiny" || band === "little" ? 2 : 1)) fail("caves-valid", band + " light radius changed.");
+      }
+    });
+    run("move-rules", function () {
+      resetInput();
+      start("shop");
+      enterMode("one");
+      step(50000);
+      const startAt = state().explorer.slice();
+      handleMap({ type: "move", dir: "up" }, inPagePeer);
+      if (state().explorer[0] !== startAt[0] || state().explorer[1] !== startAt[1]) fail("move-rules", "A move into a wall changed the explorer.");
+      handleMap({ type: "move", dir: "right" }, inPagePeer);
+      if (!state().explorer || state().explorer[0] !== 1 || state().explorer[1] !== 0) fail("move-rules", "A move onto floor did not walk one cell.");
+      handleMap({ type: "move", dir: "right" }, inPagePeer);
+      if (state().explorer[0] !== 1 || state().explorer[1] !== 0) fail("move-rules", "A second move into a wall left the floor cell.");
+      start("shop");
+      enterMode("one");
+      step(52000);
+      handleMap({ type: "move", dir: "down" }, inPagePeer);
+      handleMap({ type: "move", dir: "down" }, inPagePeer);
+      if (state().explorer[0] !== 0 || state().explorer[1] !== 2) fail("move-rules", "The walk did not reach the cell beside the puddle.");
+      handleMap({ type: "move", dir: "right" }, inPagePeer);
+      if (state().explorer[0] !== 2 || state().explorer[1] !== 2) fail("move-rules", "A puddle did not slide one more floor cell.");
+    });
+    run("gems-rest", function () {
+      resetInput();
+      start("tiny");
+      enterMode("one");
+      step(60000);
+      const route = pathToGems();
+      if (!route) fail("gems-rest", "Tiny Cave had no walk to the gem.");
+      else {
+        const before = sent.length;
+        for (let i = 0; i < route.length; i++) handleMap({ type: "move", dir: route[i] }, inPagePeer);
+        if (state().found.length !== 1 || state().screen !== "play") fail("gems-rest", "The gem did not stay on the play screen before the pause.");
+        step(61499);
+        if (state().screen !== "play") fail("gems-rest", "Rest opened before 1500 ms.");
+        let early = false;
+        for (let i = before; i < sent.length; i++) if (sent[i].type === "rest") early = true;
+        if (early) fail("gems-rest", "A rest message went out before 1500 ms.");
+        step(61500);
+        if (state().screen !== "rest") fail("gems-rest", "The map was not on rest after 1500 ms.");
+        let rests = 0;
+        for (let i = before; i < sent.length; i++) if (sent[i].type === "rest") rests += 1;
+        if (rests !== 1) fail("gems-rest", "Rest was not sent once.");
+        if (state().banner !== "You found every gem together.") fail("gems-rest", "The rest sentence changed.");
+      }
+    });
+    run("mark-dwell", function () {
+      resetInput();
+      start("tiny");
+      enterMode("one");
+      const box = targetById(centers().targets, "mc-2-0");
+      if (!box) fail("mark-dwell", "The floor cell was missing.");
+      else {
+        enterLook(box, 70000);
+        step(70640);
+        if (state().mark) fail("mark-dwell", "640 ms placed a mark.");
+        step(70660);
+        if (!state().mark || state().mark[0] !== 2 || state().mark[1] !== 0) fail("mark-dwell", "660 ms did not place the mark.");
+        releaseLook();
+        enterLook(box, 72000);
+        step(72660);
+        if (state().mark) fail("mark-dwell", "Looking at the marked cell again did not clear it.");
+      }
+    });
+    run("look-messages", function () {
+      resetInput();
+      start("tiny");
+      enterMode("one");
+      const lay = layoutFor(window.innerWidth, window.innerHeight);
+      const box = lay.grids && lay.grids.mapGrid;
+      if (!box) fail("look-messages", "The map grid was missing.");
+      else {
+        const nx = (box.x + box.w / 2) / window.innerWidth;
+        const ny = (box.y + box.h / 2) / window.innerHeight;
+        step(80000);
+        look(nx, ny);
+        const startN = sent.length;
+        for (let t = 0; t <= 1000; t += 10) step(80000 + t);
+        let n = 0;
+        for (let i = startN; i < sent.length; i++) if (sent[i].type === "look") n += 1;
+        if (n < 10 || n > 15) fail("look-messages", "A fresh look sent " + n + " messages in one second.");
+        for (let i = startN; i < sent.length; i++) {
+          if (sent[i].type !== "look") continue;
+          if (typeof sent[i].x !== "number" || typeof sent[i].y !== "number" || sent[i].x < 0 || sent[i].y < 0 || sent[i].x > 1 || sent[i].y > 1) {
+            fail("look-messages", "A look message was outside the cave.");
+          }
+        }
+        const mid = sent.length;
+        refreshHold = false;
+        try {
+          step(82000);
+          step(82500);
+          step(83000);
+        } finally {
+          refreshHold = true;
+        }
+        let staleN = 0;
+        for (let i = mid; i < sent.length; i++) if (sent[i].type === "look") staleN += 1;
+        if (staleN !== 0) fail("look-messages", "A stale look still sent a message.");
+      }
+    });
+    run("message-filter", function () {
+      resetInput();
+      start("tiny");
+      enterMode("one");
+      step(90000);
+      const before = JSON.stringify(state());
+      handleMap({ type: "sprint", dir: "right" }, inPagePeer);
+      handleMap({ type: "move", dir: "right" }, { role: "other" });
+      try {
+        window.dispatchEvent(new MessageEvent("message", { data: { type: "move", dir: "right" }, source: window }));
+      } catch (err) {}
+      if (JSON.stringify(state()) !== before) fail("message-filter", "An unknown type or an unknown source changed the cave.");
+      handleMap({ type: "move", dir: "right" }, inPagePeer);
+      if (!state().explorer || state().explorer[0] !== 1) fail("message-filter", "The paired window could not move.");
+    });
+    run("solo", function () {
+      resetInput();
+      start("tiny");
+      enterMode("solo");
+      const near = targetById(centers().targets, "mc-1-0");
+      const far = targetById(centers().targets, "mc-2-0");
+      if (!near || !far) fail("solo", "A floor cell was missing.");
+      else {
+        const startAt = state().explorer.slice();
+        enterLook(far, 100000);
+        step(100660);
+        if (state().explorer[0] !== startAt[0] || state().explorer[1] !== startAt[1]) fail("solo", "A cell two away moved the explorer.");
+        releaseLook();
+        enterLook(near, 102000);
+        step(102640);
+        if (state().explorer[0] !== startAt[0] || state().explorer[1] !== startAt[1]) fail("solo", "640 ms walked the explorer.");
+        step(102660);
+        if (state().explorer[0] !== 1 || state().explorer[1] !== 0) fail("solo", "660 ms did not walk onto the next floor.");
+      }
+    });
+    run("band-fit", function () {
+      resetInput();
+      go("menu");
+      mode = "one";
+      const mid = bandIdsOf(targetsAt(1024, 768));
+      if (mid.indexOf("rush") >= 0) fail("band-fit", "Giant Cave was offered on one screen at 1024 by 768.");
+      if (mid.indexOf("tiny") < 0 || mid.indexOf("little") < 0 || mid.indexOf("shop") < 0) fail("band-fit", "A smaller cave was hidden on one screen at 1024 by 768.");
+      const wide = bandIdsOf(targetsAt(1280, 800));
+      if (wide.indexOf("rush") < 0) fail("band-fit", "Giant Cave was hidden on one screen at 1280 by 800.");
+      mode = null;
+      const phone = bandIdsOf(targetsAt(390, 700));
+      if (phone.length !== 1 || phone[0] !== "tiny") fail("band-fit", "The phone offered more than Little Cave.");
+      mode = "one";
+      const phoneOne = bandIdsOf(targetsAt(390, 700));
+      if (phoneOne.length !== 1 || phoneOne[0] !== "tiny") fail("band-fit", "One screen on a phone offered more than Little Cave.");
+      mode = null;
+      go("menu");
+    });
+    run("eyes-clear", function () {
+      function check(where, w, h) {
+        const lay = layoutFor(w, h);
+        if (!lay.eyes) fail("eyes-clear", "No eyes spot for " + where + ".");
+        else {
+          const all = (lay.targets || []).concat(lay.blocks || []);
+          for (let i = 0; i < all.length; i++) {
+            if (overlaps(lay.eyes, all[i])) fail("eyes-clear", "Eyes sat on " + (all[i].id || "a card") + " for " + where + ".");
+          }
+        }
+      }
+      mode = null;
+      go("menu");
+      check("menu 390", 390, 700);
+      check("menu 1024", 1024, 768);
+      start("tiny");
+      enterMode("solo");
+      check("solo 390", 390, 700);
+      check("solo 1024", 1024, 768);
+      enterMode("one");
+      check("one 390", 390, 700);
+      check("one 1024", 1024, 768);
+    });
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+      const end = state();
+      if (!("level" in end) || !("screen" in end) || !("banner" in end) || !("muted" in end)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+    });
+    try { assertJunk("at the end"); }
+    catch (err) { fail("family-query-inert", "The junk check threw."); }
+    try {
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.twoPairsOfEyes = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    dwell: dwell,
+    eyes: eyes,
+    centers: centers,
+    targetsAt: targetsAt,
+    state: state,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) {
+      result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else if (caveQuery(location.search)) {
+    role = "cave";
+    render();
+    if (window.opener && !window.opener.closed) {
+      try { window.opener.postMessage({ type: "hello" }, "*"); } catch (err) {}
+    }
+    requestAnimationFrame(frame);
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
