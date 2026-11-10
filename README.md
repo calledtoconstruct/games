@@ -20,6 +20,7 @@ Joseph Woolley made these games. The license is [MIT](LICENSE).
 - [Four in a Row](https://calledtoconstruct.github.io/games/four-in-a-row/)
 - [Memory Match](https://calledtoconstruct.github.io/games/memory-match/)
 - [Story Paths](https://calledtoconstruct.github.io/games/story-paths/)
+- [I Spy](https://calledtoconstruct.github.io/games/i-spy/)
 
 ## Pop Pals
 
@@ -134,6 +135,14 @@ If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.
 A picture book for ages 2 and up where you choose what happens next. Look at a choice card to turn the page. Every path has a happy ending. Picture Book has one story told in pictures. Story Time adds short sentences and a picnic story. Choose a Path and Story Explorer add a boat story and some three-way choices.
 
 Open `story-paths/index.html` in a browser, or play [Story Paths](https://calledtoconstruct.github.io/games/story-paths/).
+
+If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
+
+## I Spy
+
+A finding game for ages 2 and up. The banner shows what to find in the picture. Look at it until the ring fills. Look Look has a few big things. Spy Kids, Sharp Eyes, and Eagle Eye fill the room with more. If a find takes a while, the thing glows once. Nothing is timed.
+
+Open `i-spy/index.html` in a browser, or play [I Spy](https://calledtoconstruct.github.io/games/i-spy/).
 
 If a gaze daemon is listening at `ws://127.0.0.1:7081` (start it with `--ws 127.0.0.1:7081`), an Eyes mark appears. On connect the daemon sends the screen correction from `~/.config/tobii/screen_warp.json`, and the game applies it before placing the look. Look at a play target for 650 ms, until the ring fills. Menu buttons take twice as long, so reading one does not press it. Mouse and touch work in the same game. Fullscreen the page on the panel that was calibrated. An https page will not open that socket.
 
