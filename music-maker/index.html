@@ -186,6 +186,8 @@
   const MENU_DWELL_MS = 1300;
   const GAZE_FRESH_MS = 500;
   const LEAVE_MS = 280;
+  const STEP_GAP_MS = 120000;
+  const LOG_CAP = 64;
   const BAND_IDS = ["tiny", "little", "shop", "rush"];
   const SOUNDS = {
     c:      { label: "C",      kind: "bell", freq: 262, shape: "circle",   color: "#E69F00" },
@@ -460,10 +462,14 @@
     return snap;
   }
 
+  function remember(list, value) {
+    list.push(value);
+    if (list.length > LOG_CAP) list.splice(0, list.length - LOG_CAP);
+  }
   function playSound(soundId, bounceId) {
     if (!SOUNDS[soundId]) return;
     lastSound = soundId;
-    heard.push(soundId);
+    remember(heard, soundId);
     bounce = { id: bounceId || ("sound-" + soundId), t: clock };
     voice(soundId);
   }
@@ -536,7 +542,17 @@
       render();
       return;
     }
+    if (name === tempoName) {
+      render();
+      return;
+    }
+    const prev = currentTempo();
+    if (playing && prev > 0) pumpLoop(clock);
     tempoName = name;
+    const next = currentTempo();
+    if (playing && prev > 0 && next > 0 && prev !== next) {
+      playOrigin = clock - loopGen * next;
+    }
     render();
   }
   function chooseTab(tab) {
@@ -574,13 +590,20 @@
     const ms = currentTempo();
     if (!(ms > 0)) return;
     const elapsed = now - playOrigin;
+    const prevAt = playOrigin + loopGen * ms;
+    if (now - prevAt >= STEP_GAP_MS) {
+      const skipped = Math.floor(elapsed / ms);
+      if (skipped > loopGen) loopGen = skipped;
+      return;
+    }
     if (!(elapsed >= ms)) return;
     let n = Math.floor(elapsed / ms);
+    if (n <= loopGen) return;
     if (n > loopGen + 64) n = loopGen + 64;
     for (let ev = loopGen + 1; ev <= n; ev++) {
       const idx = (ev - 1) % 8;
       playhead = idx;
-      visits.push(idx);
+      remember(visits, idx);
       fireStep(idx);
     }
     loopGen = n;
@@ -1256,9 +1279,9 @@
       } else if (spec.kind === "shaker") {
         noiseBurst(0.08, "highpass", 6000, 0, 0.08);
       } else if (spec.kind === "clap") {
-        noiseBurst(0.04, "bandpass", 1500, 0, 0.12);
-        noiseBurst(0.04, "bandpass", 1500, 0.01, 0.11);
-        noiseBurst(0.04, "bandpass", 1500, 0.02, 0.1);
+        noiseBurst(0.12, "bandpass", 1500, 0, 0.12);
+        noiseBurst(0.11, "bandpass", 1500, 0.01, 0.11);
+        noiseBurst(0.1, "bandpass", 1500, 0.02, 0.1);
       }
     } catch (err) {}
   }
@@ -2036,6 +2059,53 @@
       if (end.heard.length !== n) fail("stop", "Stop did not halt recorded sounds.");
       if (end.playhead !== head) fail("stop", "Stop did not halt the playhead.");
       if (end.playing) fail("stop", "The loop started again on its own.");
+    });
+    run("rush-tempo", function () {
+      resetInput();
+      start("rush");
+      openTab("tab-sounds");
+      tapId("sound-c");
+      openTab("tab-loop");
+      tapId("bell-0");
+      tapId("tempo-slow");
+      if (state().tempo !== 500) fail("rush-tempo", "Slow was not 500 ms per step.");
+      const t0 = 200000;
+      step(t0);
+      tapId("play-toggle");
+      if (!state().playing) fail("rush-tempo", "Play did not start.");
+      step(t0 + 4000);
+      const slow = state();
+      if (slow.visits.join(",") !== "0,1,2,3,4,5,6,7") fail("rush-tempo", "4000 ms at Slow did not advance through all 8 slots once.");
+      if (slow.playhead !== 7) fail("rush-tempo", "The playhead did not finish on the last slot.");
+      const visitsSlow = slow.visits.length;
+      const heardSlow = slow.heard.length;
+      tapId("tempo-fast");
+      if (state().tempo !== 300) fail("rush-tempo", "Fast was not 300 ms per step.");
+      if (state().visits.length !== visitsSlow || state().heard.length !== heardSlow) fail("rush-tempo", "Changing tempo scheduled notes.");
+      step(t0 + 4000 + 299);
+      if (state().visits.length !== visitsSlow || state().heard.length !== heardSlow) fail("rush-tempo", "Speeding up scheduled a backlog of notes.");
+      step(t0 + 4000 + 300);
+      const sped = state();
+      if (sped.visits.length !== visitsSlow + 1 || sped.visits[sped.visits.length - 1] !== 0) fail("rush-tempo", "The next step did not wait one fast interval.");
+      if (sped.heard.length !== heardSlow + 1) fail("rush-tempo", "The next step did not play its sound.");
+      const fastMark = t0 + 4000 + 300;
+      tapId("tempo-slow");
+      if (state().tempo !== 500) fail("rush-tempo", "Slow did not return to 500 ms per step.");
+      if (state().visits.length !== sped.visits.length) fail("rush-tempo", "Slowing down scheduled notes.");
+      step(fastMark + 499);
+      if (state().visits.length !== sped.visits.length) fail("rush-tempo", "Slowing down moved the playhead early.");
+      step(fastMark + 500);
+      const slowed = state();
+      if (slowed.visits.length !== sped.visits.length + 1 || slowed.visits[slowed.visits.length - 1] !== 1) fail("rush-tempo", "Slowing down stalled the playhead past one slow interval.");
+      const gapFrom = fastMark + 500;
+      step(gapFrom + 120000);
+      const skipped = state();
+      if (skipped.visits.length !== slowed.visits.length) fail("rush-tempo", "A 120s gap did not skip the missed steps.");
+      if (skipped.heard.length !== slowed.heard.length) fail("rush-tempo", "A 120s gap played the missed steps.");
+      step(gapFrom + 120000 + 500);
+      const resumed = state();
+      if (resumed.visits.length !== slowed.visits.length + 1) fail("rush-tempo", "The loop did not resume one step after a 120s gap.");
+      if (resumed.heard.length !== slowed.heard.length) fail("rush-tempo", "The empty step after a 120s gap played a sound.");
     });
     run("sizes", function () {
       resetInput();
