@@ -1,0 +1,2074 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f4f0d8">
+<title>Memory Match</title>
+<style>
+  :root {
+    color-scheme: light;
+    --ink: #2c2416;
+    --paper: #f4f0d8;
+    --card: #fffdf6;
+    --sun: #ffc857;
+    --sun-d: #e2a62e;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    overflow: hidden;
+    font-family: "Arial Rounded MT Bold", "Trebuchet MS", "Segoe UI", sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: none;
+  }
+  button { font-family: inherit; cursor: pointer; margin: 0; touch-action: none; pointer-events: auto; }
+  button:focus-visible { outline: 3px solid #1d6fd4; outline-offset: 2px; }
+  [hidden] { display: none !important; }
+  #gaze {
+    --p: 0%;
+    position: fixed; z-index: 60; width: 54px; height: 54px;
+    margin: 0; border-radius: 50%; pointer-events: none;
+    transform: translate(-50%, -50%);
+    background: conic-gradient(#2f8a3e var(--p), rgba(244, 240, 216, 0.45) 0);
+    box-shadow: 0 0 0 3px rgba(244, 240, 216, 0.95);
+  }
+  #eyes {
+    position: fixed; z-index: 28; pointer-events: none;
+    background: var(--card); border-radius: 999px; padding: 8px 12px;
+    font-weight: 800; font-size: 16px;
+  }
+  #banner {
+    position: fixed; z-index: 25; pointer-events: none;
+    background: var(--paper); color: var(--ink);
+    border: 3px solid var(--ink); border-radius: 999px;
+    padding: 6px 14px; font-size: 18px; font-weight: 800;
+    text-align: center;
+  }
+  #menu-card, #rest-card {
+    position: fixed; z-index: 2; pointer-events: none;
+    background: var(--card); border-radius: 28px;
+    box-shadow: 0 18px 50px rgba(50, 30, 10, 0.18);
+  }
+  #screen-menu, #screen-rest, #play, #deck-host, #board, #menu-copy, #rest-line, h1, p, b, small {
+    pointer-events: none;
+  }
+  #menu-copy, #rest-line {
+    position: fixed; z-index: 24; margin: 0; text-align: center; overflow: hidden;
+  }
+  #menu-copy h1 { margin: 0; font-size: 26px; line-height: 28px; }
+  #menu-copy p { margin: 0; font-size: 14px; line-height: 16px; }
+  #rest-line { font-size: 28px; font-weight: 800; }
+  #mute, #full, #back, #lets-go, #tiny, #little, #shop, #rush, #another,
+  #animals, #food, #shapes, #board button {
+    position: fixed; z-index: 30; pointer-events: auto;
+  }
+  #mute, #full, #back {
+    z-index: 46; border: none; border-radius: 18px;
+    background: var(--card); color: var(--ink); font-weight: 800;
+    box-shadow: 0 4px 0 #d5c4a1; font-size: 15px; line-height: 1.1;
+    padding: 4px;
+  }
+  #mute { display: grid; place-items: center; padding: 0; }
+  #mute svg { width: 34px; height: 34px; display: block; }
+  #full { font-size: 13px; }
+  #tiny, #little, #shop, #rush {
+    border: 3px solid transparent; border-radius: 18px;
+    background: #fffdf6; color: var(--ink); text-align: left;
+    padding: 4px 10px; box-shadow: 0 4px 0 #e2d0b4; overflow: hidden;
+  }
+  #tiny b, #little b, #shop b, #rush b { display: block; font-size: 18px; line-height: 20px; }
+  #tiny small, #little small, #shop small, #rush small {
+    display: block; font-size: 12px; line-height: 14px; color: #5c4e3a; font-weight: 800;
+  }
+  #tiny[aria-pressed="true"], #little[aria-pressed="true"],
+  #shop[aria-pressed="true"], #rush[aria-pressed="true"] {
+    border-color: var(--ink); background: #fff6df;
+  }
+  #lets-go, #another {
+    border: none; border-radius: 18px;
+    background: var(--sun); color: var(--ink); font-weight: 800;
+    box-shadow: 0 5px 0 var(--sun-d); font-size: 26px;
+  }
+  #animals, #food, #shapes {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; border: 4px solid var(--ink); border-radius: 24px;
+    background: var(--card); color: var(--ink); font-weight: 800; font-size: 28px;
+    box-shadow: 0 6px 0 #e4d7b8;
+  }
+  #animals svg, #food svg, #shapes svg { width: 96px; height: 96px; display: block; }
+  #board button {
+    border: 4px solid var(--ink); border-radius: 18px; padding: 0;
+    background: var(--card); color: var(--ink);
+    box-shadow: 0 4px 0 #e4d7b8; overflow: hidden;
+  }
+  #board button * { pointer-events: none; }
+  #board button .flip {
+    position: absolute; inset: 0;
+    transform-style: preserve-3d;
+    transition: transform 250ms linear;
+    transform: rotateY(180deg);
+  }
+  #board button.up .flip { transform: rotateY(0deg); }
+  #board button .front, #board button .back {
+    position: absolute; inset: 0; backface-visibility: hidden;
+    border-radius: 12px; overflow: hidden;
+  }
+  #board button .back { transform: rotateY(180deg); background: var(--card); }
+  #board button .back svg { width: 100%; height: 100%; display: block; }
+  #board button .front {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: var(--card); gap: 2px;
+  }
+  #board button svg.face { width: 74%; height: 62%; display: block; }
+  #board button .name { font-size: 14px; line-height: 16px; font-weight: 800; }
+  #board button .check {
+    position: absolute; top: 6px; right: 6px; width: 28px; height: 28px;
+    border-radius: 50%; background: #1f8a4c;
+    display: grid; place-items: center;
+  }
+  #board button .check svg { width: 20px; height: 20px; display: block; }
+  @media (prefers-reduced-motion: reduce) {
+    #board button .flip { transition: none; }
+  }
+</style>
+</head>
+<body>
+<button id="mute" type="button" aria-label="Mute sound">
+  <svg id="sound-on" viewBox="0 0 24 24" aria-hidden="true">
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16.5 8.5a5 5 0 010 7"/>
+  </svg>
+  <svg id="sound-off" viewBox="0 0 24 24" aria-hidden="true" hidden>
+    <path fill="currentColor" d="M3 9h4l5-4v14l-5-4H3z"/>
+    <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M16 8l6 8"/>
+  </svg>
+</button>
+<button id="full" type="button">Fullscreen</button>
+<button id="back" type="button" hidden>Back to Menu</button>
+<div id="eyes" hidden>Eyes</div>
+<div id="gaze" hidden></div>
+<p id="banner">Pick who is playing.</p>
+<section id="screen-menu">
+  <div id="menu-card"></div>
+  <div id="menu-copy">
+    <h1>Memory Match</h1>
+    <p>Turn over two cards to find a pair.</p>
+    <p>Ages 2 and up</p>
+  </div>
+  <button id="tiny" type="button" aria-pressed="true"><b>Peek Pairs</b><small>Ages 2 to 3. Two pairs.</small></button>
+  <button id="little" type="button" aria-pressed="false"><b>Pair Party</b><small>Ages 4 to 5. Three pairs.</small></button>
+  <button id="shop" type="button" aria-pressed="false"><b>Card Table</b><small>Ages 6 to 8. Six pairs.</small></button>
+  <button id="rush" type="button" aria-pressed="false"><b>Big Deck</b><small>Ages 9 and up. Eight pairs.</small></button>
+  <button id="lets-go" type="button">Let's go</button>
+</section>
+<div id="play" hidden>
+  <div id="deck-host">
+    <button id="animals" type="button"><span class="sample"></span><b>Animals</b></button>
+    <button id="food" type="button"><span class="sample"></span><b>Food</b></button>
+    <button id="shapes" type="button"><span class="sample"></span><b>Shapes</b></button>
+  </div>
+  <div id="board" hidden></div>
+</div>
+<section id="screen-rest" hidden>
+  <div id="rest-card"></div>
+  <p id="rest-line">You found them all.</p>
+  <button id="another" type="button">Another</button>
+</section>
+<script>
+(function () {
+  "use strict";
+  const GAZE_URL = "ws://127.0.0.1:7081";
+  const PLAY_DWELL_MS = 650;
+  const MENU_DWELL_MS = 1300;
+  const GAZE_FRESH_MS = 500;
+  const LEAVE_MS = 280;
+  const BAND_IDS = ["tiny", "little", "shop", "rush"];
+  const DECK_IDS = ["animals", "food", "shapes"];
+  const SCREENS = ["menu", "deck", "play", "rest"];
+  const INK = "#2c2416";
+  const SVG_NS = "http://www.w3.org/2000/svg";
+  const BANDS = {
+    tiny: { pairs: 2, pause: 1500, portrait: [2, 2], landscape: [2, 2] },
+    little: { pairs: 3, pause: 1200, portrait: [2, 3], landscape: [3, 2] },
+    shop: { pairs: 6, pause: 1000, portrait: [3, 4], landscape: [4, 3] },
+    rush: { pairs: 8, pause: 1000, portrait: [4, 4], landscape: [4, 4] }
+  };
+  const DECKS = {
+    animals: [
+      { id: "cat",   label: "Cat",   color: "#E69F00" }, // round head, two triangle ears, three whiskers each side
+      { id: "dog",   label: "Dog",   color: "#8C5A2B" }, // round head, two long drooping ears, oval nose
+      { id: "fish",  label: "Fish",  color: "#56B4E9" }, // oval body, triangle tail, one dot eye
+      { id: "bird",  label: "Bird",  color: "#F0E442" }, // round body, small triangle beak, wing arc
+      { id: "frog",  label: "Frog",  color: "#009E73" }, // wide oval head, two circle eyes on top, smile line
+      { id: "pig",   label: "Pig",   color: "#CC79A7" }, // round head, oval snout with two dots, small ears
+      { id: "bunny", label: "Bunny", color: "#BBBBBB" }, // round head, two tall oval ears
+      { id: "bee",   label: "Bee",   color: "#F0E442" }  // oval body with three dark stripes, two wing ovals
+    ],
+    food: [
+      { id: "apple",  label: "Apple",  color: "#D55E00" }, // circle, small stem, one leaf
+      { id: "banana", label: "Banana", color: "#F0E442" }, // thick crescent
+      { id: "pear",   label: "Pear",   color: "#009E73" }, // small circle on big circle, stem
+      { id: "grapes", label: "Grapes", color: "#CC79A7" }, // triangle of six circles, stem
+      { id: "carrot", label: "Carrot", color: "#E69F00" }, // long triangle, three green leaf strokes
+      { id: "cheese", label: "Cheese", color: "#F0E442" }, // wedge triangle with three hole circles
+      { id: "bread",  label: "Bread",  color: "#C89B5B" }, // loaf: rectangle with a domed top
+      { id: "milk",   label: "Milk",   color: "#56B4E9" }  // carton: rectangle with a peaked top
+    ],
+    shapes: [
+      { id: "circle",   label: "Circle",   color: "#0072B2" },
+      { id: "square",   label: "Square",   color: "#E69F00" },
+      { id: "triangle", label: "Triangle", color: "#009E73" },
+      { id: "star",     label: "Star",     color: "#F0E442" },
+      { id: "heart",    label: "Heart",    color: "#D55E00" },
+      { id: "moon",     label: "Moon",     color: "#56B4E9" },
+      { id: "diamond",  label: "Diamond",  color: "#CC79A7" },
+      { id: "cross",    label: "Cross",    color: "#2C2416" }
+    ]
+  };
+
+  function svgEl(name, attrs) {
+    const node = document.createElementNS(SVG_NS, name);
+    if (attrs) {
+      for (const key in attrs) node.setAttribute(key, attrs[key]);
+    }
+    return node;
+  }
+  function add(parent, name, attrs) {
+    const node = svgEl(name, attrs);
+    parent.appendChild(node);
+    return node;
+  }
+  function strokeOf(color) {
+    return { fill: color, stroke: INK, "stroke-width": "3", "stroke-linejoin": "round" };
+  }
+  function starPoints() {
+    const pts = [];
+    for (let i = 0; i < 5; i++) {
+      const outer = -Math.PI / 2 + i * 2 * Math.PI / 5;
+      const inner = outer + Math.PI / 5;
+      pts.push((50 + 38 * Math.cos(outer)).toFixed(1) + "," + (52 + 38 * Math.sin(outer)).toFixed(1));
+      pts.push((50 + 16 * Math.cos(inner)).toFixed(1) + "," + (52 + 16 * Math.sin(inner)).toFixed(1));
+    }
+    return pts.join(" ");
+  }
+  const STAR_POINTS = starPoints();
+
+  const FACE = {
+    cat: function (svg, color) {
+      add(svg, "polygon", Object.assign({ points: "20,44 34,16 48,44" }, strokeOf(color)));
+      add(svg, "polygon", Object.assign({ points: "52,44 66,16 80,44" }, strokeOf(color)));
+      add(svg, "circle", Object.assign({ cx: "50", cy: "58", r: "26" }, strokeOf(color)));
+      const whisk = [[16, 54, 38, 58], [14, 62, 38, 62], [16, 70, 38, 66], [62, 58, 84, 54], [62, 62, 86, 62], [62, 66, 84, 70]];
+      for (let i = 0; i < whisk.length; i++) {
+        const w = whisk[i];
+        add(svg, "line", { x1: w[0], y1: w[1], x2: w[2], y2: w[3], stroke: INK, "stroke-width": "2", "stroke-linecap": "round" });
+      }
+    },
+    dog: function (svg, color) {
+      add(svg, "ellipse", Object.assign({ cx: "26", cy: "66", rx: "12", ry: "24", transform: "rotate(18 26 66)" }, strokeOf(color)));
+      add(svg, "ellipse", Object.assign({ cx: "74", cy: "66", rx: "12", ry: "24", transform: "rotate(-18 74 66)" }, strokeOf(color)));
+      add(svg, "circle", Object.assign({ cx: "50", cy: "52", r: "26" }, strokeOf(color)));
+      add(svg, "ellipse", { cx: "50", cy: "62", rx: "10", ry: "8", fill: INK });
+    },
+    fish: function (svg, color) {
+      add(svg, "ellipse", Object.assign({ cx: "46", cy: "52", rx: "28", ry: "18" }, strokeOf(color)));
+      add(svg, "polygon", Object.assign({ points: "70,52 94,32 94,72" }, strokeOf(color)));
+      add(svg, "circle", { cx: "32", cy: "46", r: "4", fill: INK });
+    },
+    bird: function (svg, color) {
+      add(svg, "circle", Object.assign({ cx: "46", cy: "54", r: "26" }, strokeOf(color)));
+      add(svg, "polygon", Object.assign({ points: "68,48 90,56 68,64" }, strokeOf(color)));
+      add(svg, "path", { d: "M28 58 Q 46 36 66 58", fill: "none", stroke: INK, "stroke-width": "4", "stroke-linecap": "round" });
+    },
+    frog: function (svg, color) {
+      add(svg, "ellipse", Object.assign({ cx: "50", cy: "60", rx: "34", ry: "22" }, strokeOf(color)));
+      add(svg, "circle", { cx: "32", cy: "36", r: "10", fill: "#fffdf6", stroke: INK, "stroke-width": "3" });
+      add(svg, "circle", { cx: "68", cy: "36", r: "10", fill: "#fffdf6", stroke: INK, "stroke-width": "3" });
+      add(svg, "path", { d: "M34 66 Q 50 78 66 66", fill: "none", stroke: INK, "stroke-width": "3", "stroke-linecap": "round" });
+    },
+    pig: function (svg, color) {
+      add(svg, "ellipse", Object.assign({ cx: "28", cy: "36", rx: "8", ry: "10" }, strokeOf(color)));
+      add(svg, "ellipse", Object.assign({ cx: "72", cy: "36", rx: "8", ry: "10" }, strokeOf(color)));
+      add(svg, "circle", Object.assign({ cx: "50", cy: "56", r: "28" }, strokeOf(color)));
+      add(svg, "ellipse", { cx: "50", cy: "64", rx: "14", ry: "10", fill: "#f4d2e4", stroke: INK, "stroke-width": "3" });
+      add(svg, "circle", { cx: "45", cy: "64", r: "2.5", fill: INK });
+      add(svg, "circle", { cx: "55", cy: "64", r: "2.5", fill: INK });
+    },
+    bunny: function (svg, color) {
+      add(svg, "ellipse", Object.assign({ cx: "36", cy: "32", rx: "10", ry: "22" }, strokeOf(color)));
+      add(svg, "ellipse", Object.assign({ cx: "64", cy: "32", rx: "10", ry: "22" }, strokeOf(color)));
+      add(svg, "circle", Object.assign({ cx: "50", cy: "64", r: "26" }, strokeOf(color)));
+    },
+    bee: function (svg, color) {
+      add(svg, "ellipse", { cx: "32", cy: "40", rx: "14", ry: "9", fill: "#fffdf6", stroke: INK, "stroke-width": "3" });
+      add(svg, "ellipse", { cx: "68", cy: "40", rx: "14", ry: "9", fill: "#fffdf6", stroke: INK, "stroke-width": "3" });
+      add(svg, "ellipse", Object.assign({ cx: "50", cy: "56", rx: "22", ry: "26" }, strokeOf(color)));
+      add(svg, "line", { x1: "32", y1: "48", x2: "68", y2: "48", stroke: INK, "stroke-width": "5", "stroke-linecap": "round" });
+      add(svg, "line", { x1: "30", y1: "58", x2: "70", y2: "58", stroke: INK, "stroke-width": "5", "stroke-linecap": "round" });
+      add(svg, "line", { x1: "32", y1: "68", x2: "68", y2: "68", stroke: INK, "stroke-width": "5", "stroke-linecap": "round" });
+    },
+    apple: function (svg, color) {
+      add(svg, "circle", Object.assign({ cx: "50", cy: "58", r: "28" }, strokeOf(color)));
+      add(svg, "line", { x1: "50", y1: "32", x2: "50", y2: "16", stroke: INK, "stroke-width": "4", "stroke-linecap": "round" });
+      add(svg, "ellipse", { cx: "66", cy: "24", rx: "12", ry: "6", fill: "#009E73", stroke: INK, "stroke-width": "3", transform: "rotate(-30 66 24)" });
+    },
+    banana: function (svg, color) {
+      add(svg, "path", Object.assign({ d: "M30 64 C 32 34, 58 20, 80 30 C 68 36, 58 42, 54 58 C 50 74, 62 82, 76 78 C 52 92, 28 82, 30 64 Z" }, strokeOf(color)));
+    },
+    pear: function (svg, color) {
+      add(svg, "circle", Object.assign({ cx: "50", cy: "66", r: "24" }, strokeOf(color)));
+      add(svg, "circle", Object.assign({ cx: "50", cy: "40", r: "16" }, strokeOf(color)));
+      add(svg, "line", { x1: "50", y1: "26", x2: "50", y2: "14", stroke: INK, "stroke-width": "4", "stroke-linecap": "round" });
+    },
+    grapes: function (svg, color) {
+      const pts = [[50, 30], [36, 44], [64, 44], [28, 58], [50, 58], [72, 58]];
+      for (let i = 0; i < pts.length; i++) {
+        add(svg, "circle", Object.assign({ cx: String(pts[i][0]), cy: String(pts[i][1]), r: "11" }, strokeOf(color)));
+      }
+      add(svg, "line", { x1: "50", y1: "18", x2: "50", y2: "8", stroke: INK, "stroke-width": "4", "stroke-linecap": "round" });
+    },
+    carrot: function (svg, color) {
+      add(svg, "polygon", Object.assign({ points: "50,92 26,38 74,38" }, strokeOf(color)));
+      add(svg, "line", { x1: "50", y1: "38", x2: "34", y2: "16", stroke: "#009E73", "stroke-width": "4", "stroke-linecap": "round" });
+      add(svg, "line", { x1: "50", y1: "38", x2: "50", y2: "12", stroke: "#009E73", "stroke-width": "4", "stroke-linecap": "round" });
+      add(svg, "line", { x1: "50", y1: "38", x2: "66", y2: "16", stroke: "#009E73", "stroke-width": "4", "stroke-linecap": "round" });
+    },
+    cheese: function (svg, color) {
+      add(svg, "polygon", Object.assign({ points: "16,80 50,18 84,80" }, strokeOf(color)));
+      add(svg, "circle", { cx: "46", cy: "48", r: "6", fill: "#fffdf6" });
+      add(svg, "circle", { cx: "60", cy: "62", r: "5", fill: "#fffdf6" });
+      add(svg, "circle", { cx: "40", cy: "66", r: "4", fill: "#fffdf6" });
+    },
+    bread: function (svg, color) {
+      add(svg, "rect", Object.assign({ x: "18", y: "48", width: "64", height: "30", rx: "4" }, strokeOf(color)));
+      add(svg, "ellipse", Object.assign({ cx: "50", cy: "48", rx: "32", ry: "16" }, strokeOf(color)));
+    },
+    milk: function (svg, color) {
+      add(svg, "path", Object.assign({ d: "M30 88 L30 42 L42 26 L58 26 L70 42 L70 88 Z" }, strokeOf(color)));
+    },
+    circle: function (svg, color) {
+      add(svg, "circle", Object.assign({ cx: "50", cy: "50", r: "32" }, strokeOf(color)));
+    },
+    square: function (svg, color) {
+      add(svg, "rect", Object.assign({ x: "18", y: "18", width: "64", height: "64", rx: "4" }, strokeOf(color)));
+    },
+    triangle: function (svg, color) {
+      add(svg, "polygon", Object.assign({ points: "50,14 90,84 10,84" }, strokeOf(color)));
+    },
+    star: function (svg, color) {
+      add(svg, "polygon", Object.assign({ points: STAR_POINTS }, strokeOf(color)));
+    },
+    heart: function (svg, color) {
+      add(svg, "path", Object.assign({ d: "M50 84 C 18 60, 12 40, 24 30 C 34 20, 46 28, 50 38 C 54 28, 66 20, 76 30 C 88 40, 82 60, 50 84 Z" }, strokeOf(color)));
+    },
+    moon: function (svg, color) {
+      add(svg, "path", Object.assign({ d: "M68 18 A 32 32 0 1 0 68 82 A 24 24 0 1 1 68 18 Z", "fill-rule": "evenodd" }, strokeOf(color)));
+    },
+    diamond: function (svg, color) {
+      add(svg, "polygon", Object.assign({ points: "50,10 90,50 50,90 10,50" }, strokeOf(color)));
+    },
+    cross: function (svg, color) {
+      add(svg, "rect", Object.assign({ x: "38", y: "12", width: "24", height: "76", rx: "4" }, strokeOf(color)));
+      add(svg, "rect", Object.assign({ x: "12", y: "38", width: "76", height: "24", rx: "4" }, strokeOf(color)));
+    }
+  };
+
+  function drawBack(svg) {
+    add(svg, "rect", { x: "0", y: "0", width: "100", height: "100", fill: "#fffdf6" });
+    for (let y = 12; y <= 90; y += 16) {
+      for (let x = 12; x <= 90; x += 16) {
+        add(svg, "polygon", {
+          points: x + "," + (y - 5) + " " + (x + 5) + "," + y + " " + x + "," + (y + 5) + " " + (x - 5) + "," + y,
+          fill: "#ffc857",
+          stroke: "#e2a62e",
+          "stroke-width": "1"
+        });
+      }
+    }
+  }
+
+  function makeRng(seed) {
+    let state = seed >>> 0;
+    return {
+      uint: function () {
+        state = (state + 0x6D2B79F5) >>> 0;
+        let t = Math.imul(state ^ (state >>> 15), state | 1);
+        t = t ^ (t + Math.imul(t ^ (t >>> 7), t | 61));
+        return (t ^ (t >>> 14)) >>> 0;
+      }
+    };
+  }
+  function rngUint(rng) { return rng.uint(); }
+  function rngInt(rng, lo, hi) {
+    return lo + (rngUint(rng) % (hi - lo + 1));
+  }
+  function rngShuffle(rng, items) {
+    const a = items.slice();
+    for (let i = a.length - 1; i >= 1; i--) {
+      const j = rngInt(rng, 0, i);
+      const tmp = a[i];
+      a[i] = a[j];
+      a[j] = tmp;
+    }
+    return a;
+  }
+  function playSeed(clockMs, counter) {
+    return (Math.imul(((clockMs >>> 0) ^ Math.imul(counter >>> 0, 0x9E3779B9)), 0x85EBCA6B)) >>> 0;
+  }
+
+  const muteBtn = document.getElementById("mute");
+  const fullBtn = document.getElementById("full");
+  const backBtn = document.getElementById("back");
+  const eyesEl = document.getElementById("eyes");
+  const gazeEl = document.getElementById("gaze");
+  const bannerEl = document.getElementById("banner");
+  const menuEl = document.getElementById("screen-menu");
+  const menuCard = document.getElementById("menu-card");
+  const menuCopy = document.getElementById("menu-copy");
+  const playEl = document.getElementById("play");
+  const deckHost = document.getElementById("deck-host");
+  const boardEl = document.getElementById("board");
+  const restEl = document.getElementById("screen-rest");
+  const restCard = document.getElementById("rest-card");
+  const restLine = document.getElementById("rest-line");
+  const soundOn = document.getElementById("sound-on");
+  const soundOff = document.getElementById("sound-off");
+
+  let screen = "menu";
+  let level = "tiny";
+  let deckId = null;
+  let cards = [];
+  let bannerKey = "find";
+  let locked = false;
+  let pauseUntil = 0;
+  let restAt = 0;
+  let muted = false;
+  let pin = null;
+  let counter = 1;
+  let checking = false;
+  let suppressReconnect = false;
+  let deckDrawn = false;
+  let clock = 0;
+  let ac = null;
+  let master = null;
+  let pointerDown = false;
+  let armedId = null;
+  let gazeSock = null;
+  let gazeTimer = 0;
+  let gazeBuf = new Uint8Array(0);
+  let gazeWarp = null;
+  let gazeHold = null;
+  let refreshHold = false;
+  let haveSmooth = false;
+  let smoothed = null;
+  let gazePoint = null;
+  let gazeAt = 0;
+  let dwellKey = null;
+  let dwellStart = 0;
+  let dwellFired = false;
+  let dwellProgress = 0;
+  let dwellMs = PLAY_DWELL_MS;
+  let dwellOffAt = 0;
+  let trailOn = false;
+
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  }
+  function knownBand(band) { return BAND_IDS.indexOf(band) >= 0; }
+  function faceById(id) {
+    for (let d = 0; d < DECK_IDS.length; d++) {
+      const list = DECKS[DECK_IDS[d]];
+      for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    }
+    return null;
+  }
+  function bannerText() {
+    if (screen === "menu") return "Pick who is playing.";
+    if (screen === "deck") return "Pick a deck.";
+    if (screen === "rest") return "You found them all.";
+    if (bannerKey === "look") return "Look at another card.";
+    if (bannerKey === "pair") return "A pair!";
+    return "Find a pair.";
+  }
+  function takePageSeed() {
+    let s;
+    if (pin !== null) s = pin;
+    else if (checking) s = 1;
+    else s = playSeed(Date.now(), counter);
+    pin = null;
+    counter += 1;
+    return s >>> 0;
+  }
+  function dealBoard() {
+    const spec = DECKS[deckId];
+    const rng = makeRng(takePageSeed());
+    const order = rngShuffle(rng, spec.map(function (face) { return face.id; }));
+    const chosen = order.slice(0, BANDS[level].pairs);
+    const pile = [];
+    for (let i = 0; i < chosen.length; i++) {
+      pile.push({ face: chosen[i], up: false, found: false });
+      pile.push({ face: chosen[i], up: false, found: false });
+    }
+    cards = rngShuffle(rng, pile);
+    bannerKey = "find";
+    locked = false;
+    pauseUntil = 0;
+    restAt = 0;
+  }
+
+  function go(id) {
+    if (SCREENS.indexOf(id) < 0) {
+      render();
+      return;
+    }
+    if (id !== "play") {
+      pauseUntil = 0;
+      restAt = 0;
+      locked = false;
+    }
+    screen = id;
+    render();
+  }
+  function highlight(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    render();
+  }
+  function start(band) {
+    if (!knownBand(band)) {
+      render();
+      return;
+    }
+    level = band;
+    deckId = null;
+    cards = [];
+    bannerKey = "find";
+    locked = false;
+    pauseUntil = 0;
+    restAt = 0;
+    go("deck");
+  }
+  function pickDeck(id) {
+    if (screen !== "deck" || !DECKS[id]) {
+      render();
+      return;
+    }
+    deckId = id;
+    dealBoard();
+    go("play");
+  }
+  function another() {
+    if (screen !== "rest") {
+      render();
+      return;
+    }
+    start(level);
+  }
+  function state() {
+    const snap = {
+      level: level,
+      screen: screen,
+      banner: bannerText(),
+      muted: muted,
+      deck: deckId,
+      cards: cards.map(function (card) {
+        return { face: card.face, up: card.up, found: card.found };
+      })
+    };
+    render();
+    return snap;
+  }
+  function allFound() {
+    if (!cards.length) return false;
+    for (let i = 0; i < cards.length; i++) if (!cards[i].found) return false;
+    return true;
+  }
+  function flipCard(index) {
+    if (screen !== "play" || locked) {
+      render();
+      return;
+    }
+    const card = cards[index];
+    if (!card || card.up || card.found) {
+      render();
+      return;
+    }
+    card.up = true;
+    playTone(520, 0.09, 0.8, 0);
+    const open = [];
+    for (let i = 0; i < cards.length; i++) {
+      if (cards[i].up && !cards[i].found) open.push(cards[i]);
+    }
+    if (open.length === 1) {
+      bannerKey = "look";
+    } else if (open.length >= 2) {
+      if (open[0].face === open[1].face) {
+        open[0].found = true;
+        open[1].found = true;
+        bannerKey = "pair";
+        playTone(660, 0.12, 0.8, 0);
+        playTone(880, 0.12, 0.8, 0.12);
+        if (allFound()) {
+          playTone(523, 0.12, 0.8, 0.24);
+          playTone(659, 0.12, 0.8, 0.36);
+          playTone(784, 0.12, 0.8, 0.48);
+          restAt = clock + 900;
+          locked = true;
+        }
+      } else {
+        bannerKey = "find";
+        locked = true;
+        pauseUntil = clock + BANDS[level].pause;
+        playTone(330, 0.08, 0.4, 0);
+      }
+    }
+    render();
+  }
+  function resolveTimers(now) {
+    if (screen !== "play") return;
+    if (pauseUntil && now >= pauseUntil) {
+      for (let i = 0; i < cards.length; i++) {
+        if (cards[i].up && !cards[i].found) cards[i].up = false;
+      }
+      pauseUntil = 0;
+      locked = false;
+      bannerKey = "find";
+    }
+    if (restAt && now >= restAt) {
+      restAt = 0;
+      locked = false;
+      go("rest");
+    }
+  }
+
+  function chromeBoxes(w) {
+    const y = 8;
+    const h = 72;
+    if (screen === "menu") {
+      return {
+        mute: { id: "mute", x: 8, y: y, w: 72, h: h },
+        full: { id: "full", x: 88, y: y, w: 72, h: h },
+        back: { id: "back", x: Math.max(8, w - 8 - 160), y: y, w: 160, h: h }
+      };
+    }
+    const full = { id: "full", x: w - 8 - 72, y: y, w: 72, h: h };
+    const mute = { id: "mute", x: full.x - 8 - 72, y: y, w: 72, h: h };
+    const backMax = mute.x - 16;
+    const backW = Math.max(72, Math.min(168, backMax));
+    return {
+      mute: mute,
+      full: full,
+      back: { id: "back", x: 8, y: y, w: backW, h: h }
+    };
+  }
+  function menuLayout(w, h) {
+    const btnH = 72;
+    const gap = 8;
+    const titleH = 64;
+    const ids = ["tiny", "little", "shop", "rush", "lets-go"];
+    const columnH = titleH + gap + ids.length * btnH + (ids.length - 1) * gap;
+    const belowTop = 92;
+    const fitsBelow = belowTop + columnH <= h - 8;
+    let cardW;
+    let cardX;
+    let top;
+    if (fitsBelow) {
+      cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      cardX = (w - cardW) / 2;
+      top = belowTop;
+    } else if (8 + columnH <= h - 8) {
+      const leftLimit = 168;
+      const rightLimit = w - 8;
+      cardW = Math.min(460, Math.max(72, rightLimit - leftLimit));
+      cardX = leftLimit + Math.max(0, (rightLimit - leftLimit - cardW) / 2);
+      top = 8;
+    } else {
+      cardW = w < 480 ? w - 16 : Math.min(460, w - 24);
+      cardX = (w - cardW) / 2;
+      top = 8;
+    }
+    const buttons = [];
+    const useGrid = top + columnH > h - 8;
+    let title;
+    if (!useGrid) {
+      title = { x: cardX, y: top, w: cardW, h: titleH };
+      let y = top + titleH + gap;
+      for (let i = 0; i < ids.length; i++) {
+        buttons.push({ id: ids[i], x: cardX, y: y, w: Math.max(72, cardW), h: btnH });
+        y += btnH + gap;
+      }
+      const card = { x: cardX, y: top, w: cardW, h: y - gap - top };
+      return { title: title, buttons: buttons, card: card };
+    }
+    const gridTitle = 48;
+    title = { x: cardX, y: top, w: cardW, h: gridTitle };
+    const colW = Math.max(72, Math.floor((cardW - gap) / 2));
+    const gridW = colW * 2 + gap;
+    const gridX = cardX + Math.max(0, (cardW - gridW) / 2);
+    let yBtn = top + gridTitle + gap;
+    const bandIds = ["tiny", "little", "shop", "rush"];
+    for (let i = 0; i < bandIds.length; i++) {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      buttons.push({
+        id: bandIds[i],
+        x: gridX + col * (colW + gap),
+        y: yBtn + row * (btnH + gap),
+        w: colW,
+        h: btnH
+      });
+    }
+    yBtn += 2 * (btnH + gap);
+    buttons.push({ id: "lets-go", x: cardX, y: yBtn, w: Math.max(72, cardW), h: btnH });
+    const card = { x: cardX, y: top, w: cardW, h: yBtn + btnH - top };
+    return { title: title, buttons: buttons, card: card };
+  }
+  function narrowPlay(w) { return w < 700; }
+  function bottomReserve(w) { return narrowPlay(w) ? 72 : 16; }
+  function deckBoxes(w, h) {
+    const inset = 16;
+    const gap = 16;
+    const top = 88;
+    const availW = w - inset * 2;
+    const availH = h - top - bottomReserve(w);
+    const boxes = [];
+    if (!narrowPlay(w)) {
+      const bw = Math.floor((availW - gap * 2) / 3);
+      const bh = Math.min(240, availH);
+      if (bw < 112 || bh < 112) return null;
+      const totalW = bw * 3 + gap * 2;
+      const x0 = inset + Math.floor((availW - totalW) / 2);
+      const y0 = top + Math.max(0, Math.floor((availH - bh) / 2));
+      for (let i = 0; i < DECK_IDS.length; i++) {
+        boxes.push({ id: DECK_IDS[i], x: x0 + i * (bw + gap), y: y0, w: bw, h: bh });
+      }
+      return boxes;
+    }
+    const bh = Math.floor((availH - gap * 2) / 3);
+    if (availW < 112 || bh < 112) return null;
+    const totalH = bh * 3 + gap * 2;
+    const y0 = top + Math.max(0, Math.floor((availH - totalH) / 2));
+    for (let i = 0; i < DECK_IDS.length; i++) {
+      boxes.push({ id: DECK_IDS[i], x: inset, y: y0 + i * (bh + gap), w: availW, h: bh });
+    }
+    return boxes;
+  }
+  function gridSpec(w, h) {
+    const band = BANDS[level];
+    return h >= w ? band.portrait : band.landscape;
+  }
+  function cardBoxes(w, h) {
+    if (!cards.length || !BANDS[level]) return null;
+    const spec = gridSpec(w, h);
+    const cols = spec[0];
+    const rows = spec[1];
+    if (cols * rows < cards.length) return null;
+    const inset = 16;
+    const gap = narrowPlay(w) ? 8 : 16;
+    const top = 88;
+    const availW = w - inset * 2;
+    const availH = h - top - bottomReserve(w);
+    const byW = (availW - (cols - 1) * gap) / cols;
+    const byH = (availH - (rows - 1) * gap) / rows;
+    const card = Math.floor(Math.min(168, byW, byH));
+    if (card < 72) return null;
+    const boardW = cols * card + (cols - 1) * gap;
+    const boardH = rows * card + (rows - 1) * gap;
+    const x0 = inset + Math.floor((availW - boardW) / 2);
+    const y0 = top + Math.max(0, Math.floor((availH - boardH) / 2));
+    const boxes = [];
+    for (let i = 0; i < cards.length; i++) {
+      const c = i % cols;
+      const r = Math.floor(i / cols);
+      boxes.push({
+        id: "card-" + i,
+        x: x0 + c * (card + gap),
+        y: y0 + r * (card + gap),
+        w: card,
+        h: card
+      });
+    }
+    return boxes;
+  }
+  function anotherBox(w, h) {
+    const chrome = chromeBoxes(w);
+    const aw = 160;
+    const x = chrome.back.x + chrome.back.w + 8;
+    if (x + aw <= chrome.mute.x - 8) return { id: "another", x: x, y: 8, w: aw, h: 72 };
+    const bw = Math.min(220, Math.max(140, w - 32));
+    return { id: "another", x: Math.floor((w - bw) / 2), y: h - 16 - 72, w: bw, h: 72 };
+  }
+  function inside(box, w, h) {
+    return box.x >= -0.5 && box.y >= -0.5 && box.x + box.w <= w + 0.5 && box.y + box.h <= h + 0.5;
+  }
+  function layoutTargets(w, h) {
+    if (!(w >= 320) || !(h >= 480)) return null;
+    const chrome = chromeBoxes(w);
+    if (chrome.back.w < 72 || chrome.mute.x < 8) return null;
+    const targets = [chrome.mute, chrome.full];
+    if (screen !== "menu") targets.push(chrome.back);
+    if (screen === "menu") {
+      const menu = menuLayout(w, h);
+      for (let i = 0; i < menu.buttons.length; i++) targets.push(menu.buttons[i]);
+    }
+    if (screen === "deck") {
+      const decks = deckBoxes(w, h);
+      if (!decks || decks.length !== 3) return null;
+      for (let i = 0; i < decks.length; i++) targets.push(decks[i]);
+    }
+    if (screen === "play") {
+      const boxes = cardBoxes(w, h);
+      if (!boxes || boxes.length !== cards.length) return null;
+      for (let i = 0; i < boxes.length; i++) targets.push(boxes[i]);
+    }
+    if (screen === "rest") {
+      const again = anotherBox(w, h);
+      if (!again) return null;
+      targets.push(again);
+    }
+    for (let i = 0; i < targets.length; i++) {
+      const box = targets[i];
+      if (Math.min(box.w, box.h) < 72) return null;
+      if (!inside(box, w, h)) return null;
+    }
+    return targets;
+  }
+  function targetsAt(w, h) {
+    render();
+    if (!(w >= 320)) return { ok: false, targets: [] };
+    const boxes = layoutTargets(w, h);
+    if (!boxes) return { ok: false, targets: [] };
+    return {
+      ok: true,
+      targets: boxes.map(function (box) {
+        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+      })
+    };
+  }
+  function place(el, box) {
+    if (!el || !box) return;
+    el.style.left = box.x + "px";
+    el.style.top = box.y + "px";
+    el.style.width = box.w + "px";
+    el.style.height = box.h + "px";
+  }
+  function bannerBox(w, h) {
+    const chrome = chromeBoxes(w);
+    if (screen === "menu") {
+      const left = chrome.full.x + chrome.full.w + 8;
+      const bw = w - 8 - left;
+      if (bw >= 120) return { x: left, y: 18, w: bw, h: 52 };
+      return { x: 16, y: 88, w: Math.max(72, w - 32), h: 44 };
+    }
+    let left = chrome.back.x + chrome.back.w + 8;
+    let right = chrome.mute.x - 8;
+    if (screen === "rest") {
+      const again = anotherBox(w, h);
+      if (again && again.y < 88) right = Math.min(right, again.x - 8);
+    }
+    if (right - left >= 140) return { x: left, y: 18, w: right - left, h: 52 };
+    const eye = eyesBox(w, h);
+    const bannerRight = eye.x - 8;
+    return { x: 16, y: h - 16 - 48, w: Math.max(72, bannerRight - 16), h: 48 };
+  }
+  function eyesBox(w, h) {
+    const ew = 72;
+    const eh = 36;
+    return { x: Math.max(8, w - 8 - ew), y: Math.max(8, h - 8 - eh), w: ew, h: eh };
+  }
+  function restLayout(w, h) {
+    const cardW = Math.min(460, Math.max(160, w - 32));
+    const cardH = 160;
+    const x = Math.floor((w - cardW) / 2);
+    const y = Math.max(96, Math.min(Math.floor(h * 0.28), h - 240));
+    return {
+      card: { x: x, y: y, w: cardW, h: cardH },
+      line: { x: x + 12, y: y + 48, w: cardW - 24, h: 64 }
+    };
+  }
+  function makeCard() {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    const flip = document.createElement("span");
+    flip.className = "flip";
+    const front = document.createElement("span");
+    front.className = "front";
+    const svg = svgEl("svg", { viewBox: "0 0 100 100", class: "face", "aria-hidden": "true" });
+    const name = document.createElement("span");
+    name.className = "name";
+    name.hidden = true;
+    const check = document.createElement("span");
+    check.className = "check";
+    check.hidden = true;
+    check.setAttribute("aria-hidden", "true");
+    const tick = svgEl("svg", { viewBox: "0 0 24 24", "aria-hidden": "true" });
+    add(tick, "path", {
+      d: "M5 12 l5 5 l9-10",
+      fill: "none",
+      stroke: "#fffdf6",
+      "stroke-width": "3",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round"
+    });
+    check.appendChild(tick);
+    front.appendChild(svg);
+    front.appendChild(name);
+    front.appendChild(check);
+    const back = document.createElement("span");
+    back.className = "back";
+    const backSvg = svgEl("svg", { viewBox: "0 0 100 100", class: "back-art", "aria-hidden": "true" });
+    drawBack(backSvg);
+    back.appendChild(backSvg);
+    flip.appendChild(front);
+    flip.appendChild(back);
+    btn.appendChild(flip);
+    return btn;
+  }
+  function drawDeckSamples() {
+    if (deckDrawn) return;
+    for (let i = 0; i < DECK_IDS.length; i++) {
+      const id = DECK_IDS[i];
+      const face = DECKS[id][0];
+      const host = document.querySelector("#" + id + " .sample");
+      const svg = svgEl("svg", { viewBox: "0 0 100 100", "aria-hidden": "true" });
+      FACE[face.id](svg, face.color);
+      host.appendChild(svg);
+    }
+    deckDrawn = true;
+  }
+  function syncCards(boxes) {
+    while (boardEl.children.length > cards.length) boardEl.removeChild(boardEl.lastChild);
+    while (boardEl.children.length < cards.length) boardEl.appendChild(makeCard());
+    const showName = level === "shop" || level === "rush";
+    for (let i = 0; i < cards.length; i++) {
+      const card = cards[i];
+      const btn = boardEl.children[i];
+      const face = faceById(card.face);
+      btn.id = "card-" + i;
+      btn.setAttribute("data-card", String(i));
+      const playable = screen === "play" && !locked && !card.up && !card.found;
+      if (playable) {
+        btn.setAttribute("data-play", "true");
+        btn.removeAttribute("aria-disabled");
+      } else {
+        btn.removeAttribute("data-play");
+        btn.setAttribute("aria-disabled", "true");
+      }
+      btn.classList.toggle("up", !!card.up);
+      btn.setAttribute("aria-label", card.up && face ? face.label : "Face down card");
+      const svg = btn.querySelector("svg.face");
+      if (svg.getAttribute("data-face") !== card.face && face && FACE[card.face]) {
+        while (svg.firstChild) svg.removeChild(svg.firstChild);
+        FACE[card.face](svg, face.color);
+        svg.setAttribute("data-face", card.face);
+      }
+      const name = btn.querySelector(".name");
+      if (showName && face) {
+        name.hidden = false;
+        name.textContent = face.label;
+      } else {
+        name.hidden = true;
+        name.textContent = "";
+      }
+      btn.querySelector(".check").hidden = !card.found;
+      if (boxes && boxes[i]) place(btn, boxes[i]);
+    }
+  }
+  function render() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const chrome = chromeBoxes(w);
+    place(muteBtn, chrome.mute);
+    place(fullBtn, chrome.full);
+    place(backBtn, chrome.back);
+    backBtn.hidden = screen === "menu";
+    menuEl.hidden = screen !== "menu";
+    restEl.hidden = screen !== "rest";
+    playEl.hidden = screen !== "deck" && screen !== "play";
+    deckHost.hidden = screen !== "deck";
+    boardEl.hidden = screen !== "play";
+    bannerEl.textContent = bannerText();
+    place(bannerEl, bannerBox(w, h));
+    for (let i = 0; i < BAND_IDS.length; i++) {
+      const btn = document.getElementById(BAND_IDS[i]);
+      if (btn) btn.setAttribute("aria-pressed", BAND_IDS[i] === level ? "true" : "false");
+    }
+    muteBtn.setAttribute("aria-label", muted ? "Turn sound on" : "Mute sound");
+    soundOn.hidden = muted;
+    soundOff.hidden = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    const menu = menuLayout(w, h);
+    place(menuCard, menu.card);
+    place(menuCopy, menu.title);
+    for (let i = 0; i < menu.buttons.length; i++) {
+      place(document.getElementById(menu.buttons[i].id), menu.buttons[i]);
+    }
+    drawDeckSamples();
+    if (screen === "deck") {
+      const decks = deckBoxes(w, h) || [];
+      for (let i = 0; i < decks.length; i++) place(document.getElementById(decks[i].id), decks[i]);
+    }
+    if (screen === "play") syncCards(cardBoxes(w, h) || []);
+    else if (!cards.length) while (boardEl.firstChild) boardEl.removeChild(boardEl.firstChild);
+    const rest = restLayout(w, h);
+    place(restCard, rest.card);
+    place(restLine, rest.line);
+    const again = document.getElementById("another");
+    if (screen === "rest") place(again, anotherBox(w, h));
+    eyesEl.hidden = !eyesOn();
+    place(eyesEl, eyesBox(w, h));
+  }
+
+  function ensureAudio() {
+    if (checking || ac) return;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      ac = new Ctx();
+      master = ac.createGain();
+      master.gain.value = muted ? 0 : 0.5;
+      master.connect(ac.destination);
+    } catch (err) {
+      ac = null;
+      master = null;
+    }
+  }
+  function playTone(freq, dur, gain, delay) {
+    if (checking || !ac || !master) return;
+    try {
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      osc.type = "sine";
+      osc.frequency.value = freq;
+      osc.connect(g);
+      g.connect(master);
+      const t0 = ac.currentTime + delay;
+      g.gain.setValueAtTime(gain, t0);
+      g.gain.setValueAtTime(0, t0 + dur);
+      osc.start(t0);
+      osc.stop(t0 + dur);
+    } catch (err) {}
+  }
+  function toggleMute() {
+    muted = !muted;
+    if (master) master.gain.value = muted ? 0 : 0.5;
+    render();
+  }
+  function toggleFull() {
+    const root = document.documentElement;
+    try {
+      if (document.fullscreenElement) {
+        if (document.exitFullscreen) document.exitFullscreen();
+      } else if (root.requestFullscreen) {
+        const pending = root.requestFullscreen();
+        if (pending && pending.catch) pending.catch(function () {});
+      }
+    } catch (err) {}
+    render();
+  }
+
+  function buttonVisible(btn) {
+    if (!btn) return false;
+    let el = btn;
+    while (el) {
+      if (el.hidden) return false;
+      el = el.parentElement;
+    }
+    const r = btn.getBoundingClientRect();
+    return r.width > 0 && r.height > 0;
+  }
+  function buttonAt(x, y) {
+    const el = document.elementFromPoint(x, y);
+    const btn = el && el.closest ? el.closest("button") : null;
+    if (!btn || !buttonVisible(btn)) return null;
+    if (btn.getAttribute("aria-disabled") === "true") return null;
+    return btn;
+  }
+  function centers() {
+    render();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    const targets = [];
+    const buttons = document.querySelectorAll("button");
+    for (let i = 0; i < buttons.length; i++) {
+      const btn = buttons[i];
+      if (!buttonVisible(btn)) continue;
+      const r = btn.getBoundingClientRect();
+      targets.push({
+        id: btn.id,
+        nx: w ? (r.left + r.width / 2) / w : 0,
+        ny: h ? (r.top + r.height / 2) / h : 0,
+        x: r.left,
+        y: r.top,
+        w: r.width,
+        h: r.height,
+        play: btn.getAttribute("data-play") === "true"
+      });
+    }
+    return { targets: targets };
+  }
+  function activate(btn) {
+    if (!btn || !buttonVisible(btn)) {
+      render();
+      return;
+    }
+    if (btn.getAttribute("aria-disabled") === "true") {
+      render();
+      return;
+    }
+    if (!checking) ensureAudio();
+    if (btn.getAttribute("data-play") === "true") {
+      flipCard(Number(btn.getAttribute("data-card")));
+      return;
+    }
+    const id = btn.id;
+    if (id === "lets-go") start(level);
+    else if (id === "back") go("menu");
+    else if (id === "another") another();
+    else if (id === "mute") toggleMute();
+    else if (id === "full") toggleFull();
+    else if (knownBand(id)) highlight(id);
+    else if (DECKS[id]) pickDeck(id);
+    else render();
+  }
+  function clearDwell() {
+    dwellKey = null;
+    dwellStart = 0;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = PLAY_DWELL_MS;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function beginDwell(key, now, ms) {
+    dwellKey = key;
+    dwellStart = now;
+    dwellFired = false;
+    dwellProgress = 0;
+    dwellMs = ms;
+    dwellOffAt = 0;
+    trailOn = false;
+  }
+  function eyesOn() {
+    return !!(gazeHold || (gazeSock && gazeSock.readyState === 1));
+  }
+  function eyesLive(now) {
+    return !!(gazePoint && eyesOn() && now - gazeAt < GAZE_FRESH_MS);
+  }
+  function gazeTarget() {
+    if (!gazePoint) return null;
+    const btn = buttonAt(gazePoint.x, gazePoint.y);
+    if (!btn) return null;
+    const play = btn.getAttribute("data-play") === "true";
+    return { id: btn.id, ms: play ? PLAY_DWELL_MS : MENU_DWELL_MS, play: play };
+  }
+  function clamp01(p) {
+    if (p < 0) return 0;
+    if (p > 1) return 1;
+    return p;
+  }
+  function stepGaze(now) {
+    const on = eyesOn();
+    eyesEl.hidden = !on;
+    const live = eyesLive(now);
+    if (!live) {
+      gazeEl.hidden = true;
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    gazeEl.hidden = false;
+    gazeEl.style.left = gazePoint.x + "px";
+    gazeEl.style.top = gazePoint.y + "px";
+    if (pointerDown) {
+      clearDwell();
+      gazeEl.style.setProperty("--p", "0%");
+      return;
+    }
+    const target = gazeTarget();
+    const key = target ? target.id : null;
+    const ms = target ? target.ms : MENU_DWELL_MS;
+    if (dwellKey && key !== dwellKey) {
+      if (key) beginDwell(key, now, ms);
+      else clearDwell();
+    } else if (key && !dwellKey) {
+      beginDwell(key, now, ms);
+    }
+    const onButton = !!(dwellKey && key === dwellKey);
+    if (!dwellKey) {
+      dwellProgress = 0;
+      trailOn = false;
+    } else if (dwellFired && onButton) {
+      dwellProgress = 1;
+      trailOn = false;
+    } else if (!dwellFired && onButton) {
+      const elapsed = now - dwellStart;
+      if (elapsed >= dwellMs) {
+        dwellFired = true;
+        dwellProgress = 1;
+        trailOn = false;
+        const btn = document.getElementById(dwellKey);
+        if (btn && buttonVisible(btn) && btn.getAttribute("aria-disabled") !== "true") activate(btn);
+      } else {
+        const p = clamp01(dwellMs > 0 ? elapsed / dwellMs : 0);
+        dwellProgress = p;
+        const btn = document.getElementById(dwellKey);
+        trailOn = p > 0 && !!(btn && btn.getAttribute("data-play") === "true") && !reducedMotion();
+      }
+    } else {
+      dwellProgress = 0;
+      trailOn = false;
+    }
+    gazeEl.style.setProperty("--p", Math.round(dwellProgress * 100) + "%");
+  }
+  function step(now) {
+    clock = now;
+    if (gazeHold) {
+      if (!haveSmooth || checking) {
+        smoothed = { x: gazeHold.x, y: gazeHold.y };
+        haveSmooth = true;
+      } else {
+        smoothed = {
+          x: smoothed.x + (gazeHold.x - smoothed.x) * 0.45,
+          y: smoothed.y + (gazeHold.y - smoothed.y) * 0.45
+        };
+      }
+      gazePoint = smoothed;
+      if (refreshHold) gazeAt = now;
+    }
+    resolveTimers(now);
+    stepGaze(now);
+    render();
+  }
+  function look(nx, ny) {
+    gazeHold = { x: nx * window.innerWidth, y: ny * window.innerHeight };
+    refreshHold = true;
+    if (checking || !haveSmooth) {
+      smoothed = { x: gazeHold.x, y: gazeHold.y };
+      haveSmooth = true;
+      gazePoint = smoothed;
+      gazeAt = clock;
+    }
+    render();
+  }
+  function releaseLook() {
+    gazeHold = null;
+    refreshHold = false;
+    haveSmooth = false;
+    smoothed = null;
+    gazePoint = null;
+    gazeAt = 0;
+    clearDwell();
+    gazeEl.hidden = true;
+    eyesEl.hidden = true;
+    gazeEl.style.setProperty("--p", "0%");
+    render();
+  }
+  function hold(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    armedId = btn ? btn.id : null;
+    render();
+  }
+  function release() {
+    pointerDown = false;
+    armedId = null;
+    render();
+  }
+  function tap(nx, ny) {
+    if (pointerDown) {
+      render();
+      return;
+    }
+    const btn = buttonAt(nx * window.innerWidth, ny * window.innerHeight);
+    if (btn) activate(btn);
+    else render();
+  }
+  function dwell() {
+    render();
+    return dwellProgress;
+  }
+  function eyes() {
+    render();
+    return { on: eyesOn(), live: eyesLive(clock) };
+  }
+  function seed(n) {
+    pin = n >>> 0;
+    render();
+  }
+
+  function scheduleGaze() {
+    if (gazeTimer || suppressReconnect || checking) return;
+    gazeTimer = setTimeout(function () {
+      gazeTimer = 0;
+      connectGaze();
+    }, 2000);
+  }
+  function connectGaze() {
+    if (suppressReconnect || checking) return;
+    if (location.protocol === "https:") return;
+    if (gazeSock && gazeSock.readyState <= 1) return;
+    let sock;
+    try { sock = new WebSocket(GAZE_URL); }
+    catch (err) { scheduleGaze(); return; }
+    gazeSock = sock;
+    sock.binaryType = "arraybuffer";
+    sock.onopen = function () {
+      if (checking) { sock.close(); return; }
+      gazeBuf = new Uint8Array(0);
+      sock.send(new Uint8Array([1, 4, 0, 0, 0, 0, 5, 0, 0]));
+    };
+    sock.onmessage = function (ev) {
+      if (ev.data instanceof ArrayBuffer) takeGaze(new Uint8Array(ev.data));
+    };
+    sock.onerror = function () {};
+    sock.onclose = function () {
+      if (gazeSock === sock) gazeSock = null;
+      if (!gazeHold && !checking) { gazePoint = null; gazeAt = 0; }
+      if (!suppressReconnect && !checking) scheduleGaze();
+    };
+  }
+  function concatBytes(a, b) {
+    const out = new Uint8Array(a.length + b.length);
+    out.set(a, 0);
+    out.set(b, a.length);
+    return out;
+  }
+  function takeGaze(chunk) {
+    if (checking || gazeHold) return;
+    const buf = gazeBuf.length ? concatBytes(gazeBuf, chunk) : chunk;
+    const view = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    let pos = 0;
+    while (pos + 5 <= buf.length) {
+      const len = view.getUint32(pos + 1, true);
+      if (len > 1048576) { gazeBuf = new Uint8Array(0); return; }
+      if (pos + 5 + len > buf.length) break;
+      const payload = new DataView(buf.buffer, buf.byteOffset + pos + 5, len);
+      if (buf[pos] === 1 && len >= 56) applyGaze(payload);
+      else if (buf[pos] === 4) applyWarpMessage(payload);
+      pos += 5 + len;
+    }
+    gazeBuf = pos === 0 ? buf : buf.slice(pos);
+  }
+  function pushRaw(raw) {
+    if (!haveSmooth) {
+      smoothed = { x: raw.x, y: raw.y };
+      haveSmooth = true;
+    } else {
+      smoothed = {
+        x: smoothed.x + (raw.x - smoothed.x) * 0.45,
+        y: smoothed.y + (raw.y - smoothed.y) * 0.45
+      };
+    }
+    gazePoint = smoothed;
+    if (clock) gazeAt = clock;
+    else if (!checking) gazeAt = performance.now();
+  }
+  function applyGaze(view) {
+    const mask = view.getUint32(0, true);
+    if ((mask & 64) === 0) return;
+    if (mask & 12) {
+      const left = (mask & 4) ? view.getUint32(8, true) : 4;
+      const right = (mask & 8) ? view.getUint32(12, true) : 4;
+      if (left !== 0 && right !== 0) return;
+    }
+    const x = view.getFloat64(40, true);
+    const y = view.getFloat64(48, true);
+    if (!Number.isFinite(x) || !Number.isFinite(y) || x < 0 || y < 0) return;
+    const point = warpPoint(x, y);
+    pushRaw({ x: point.x * window.innerWidth, y: point.y * window.innerHeight });
+  }
+  function applyWarpMessage(view) {
+    if (view.byteLength === 0) { gazeWarp = null; return; }
+    if (view.byteLength < 72) return;
+    const next = new Float64Array(9);
+    for (let i = 0; i < 9; i++) next[i] = view.getFloat64(i * 8, true);
+    for (let i = 0; i < 9; i++) if (!Number.isFinite(next[i])) return;
+    gazeWarp = next;
+  }
+  function warpPoint(x, y) {
+    const hm = gazeWarp;
+    if (!hm) return { x: x, y: y };
+    const w = hm[6] * x + hm[7] * y + hm[8];
+    if (Math.abs(w) < 1e-9) return { x: x, y: y };
+    return {
+      x: (hm[0] * x + hm[1] * y + hm[2]) / w,
+      y: (hm[3] * x + hm[4] * y + hm[5]) / w
+    };
+  }
+
+  document.addEventListener("pointerdown", function (ev) {
+    if (pointerDown) return;
+    if (ev.pointerType === "mouse" && ev.button !== 0) return;
+    pointerDown = true;
+    if (!checking) ensureAudio();
+    clearDwell();
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    armedId = btn ? btn.id : null;
+    render();
+  });
+  document.addEventListener("pointerup", function (ev) {
+    const btn = buttonAt(ev.clientX, ev.clientY);
+    if (!btn || btn.id !== armedId) armedId = null;
+    pointerDown = false;
+    render();
+  });
+  document.addEventListener("click", function (ev) {
+    const btn = ev.target && ev.target.closest ? ev.target.closest("button") : null;
+    if (!btn || btn.id !== armedId) return;
+    armedId = null;
+    activate(btn);
+  });
+  document.addEventListener("keydown", function (e) {
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = e.target && e.target.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA") return;
+    if (e.key === "Escape") {
+      const back = document.getElementById("back");
+      if (back && buttonVisible(back)) { activate(back); e.preventDefault(); }
+      return;
+    }
+    if (e.key === "Enter" || e.key === " ") {
+      const btn = e.target && e.target.closest ? e.target.closest("button") : null;
+      if (btn && buttonVisible(btn)) { activate(btn); e.preventDefault(); }
+    }
+  });
+
+  function frame(now) {
+    if (checking) return;
+    step(now);
+    if (!checking) requestAnimationFrame(frame);
+  }
+
+  function targetById(list, id) {
+    for (let i = 0; i < list.length; i++) if (list[i].id === id) return list[i];
+    return null;
+  }
+  function junkInPage(junk) {
+    if (!junk) return false;
+    function walk(node) {
+      if (!node) return false;
+      if (node.nodeType === 3) return node.nodeValue.indexOf(junk) >= 0;
+      if (node.nodeType !== 1) return false;
+      if (node.tagName === "SCRIPT" || node.tagName === "STYLE") return false;
+      const attrs = node.attributes;
+      if (attrs) {
+        for (let i = 0; i < attrs.length; i++) {
+          if (attrs[i].value.indexOf(junk) >= 0) return true;
+        }
+      }
+      for (let c = node.firstChild; c; c = c.nextSibling) {
+        if (walk(c)) return true;
+      }
+      return false;
+    }
+    return walk(document.documentElement);
+  }
+  function resetInput() {
+    pointerDown = false;
+    armedId = null;
+    releaseLook();
+  }
+  function enterLook(box, t) {
+    releaseLook();
+    step(t);
+    look(box.nx, box.ny);
+    step(t);
+  }
+  function cardTarget(i) {
+    return targetById(centers().targets, "card-" + i);
+  }
+  function openPlay(band, deck, n) {
+    resetInput();
+    if (n !== undefined) seed(n);
+    start(band);
+    if (state().screen !== "deck") throw new Error("Start did not open the deck.");
+    const pick = targetById(centers().targets, deck);
+    if (!pick) throw new Error("The " + deck + " deck was not a target.");
+    tap(pick.nx, pick.ny);
+    if (state().screen !== "play") throw new Error("The deck did not deal.");
+  }
+
+  function selfCheck() {
+    const failures = [];
+    checking = true;
+    suppressReconnect = true;
+    function fail(name, detail) { failures.push(name + ": " + detail); }
+    function run(name, fn) {
+      try { fn(); }
+      catch (err) { fail(name, err && err.message ? err.message : "The check threw."); }
+    }
+    let storeLen = null;
+    let pop = null;
+    let writes = 0;
+    let origSet = null;
+    let origRem = null;
+    let origSpeak = null;
+    let speakCalls = 0;
+    try {
+      storeLen = localStorage.length;
+      pop = localStorage.getItem("pop-pals-v1");
+      origSet = localStorage.setItem;
+      origRem = localStorage.removeItem;
+      localStorage.setItem = function () { writes += 1; return origSet.apply(localStorage, arguments); };
+      localStorage.removeItem = function () { writes += 1; return origRem.apply(localStorage, arguments); };
+    } catch (err) {}
+    try {
+      if (window.speechSynthesis && window.speechSynthesis.speak) {
+        origSpeak = window.speechSynthesis.speak;
+        window.speechSynthesis.speak = function () {
+          speakCalls += 1;
+          return origSpeak.apply(window.speechSynthesis, arguments);
+        };
+      }
+    } catch (err) {}
+    const params = new URLSearchParams(location.search);
+    const junks = [];
+    params.forEach(function (value, key) {
+      if (key === "selfcheck" || key === "play" || key === "rush") return;
+      if (value) junks.push(value);
+    });
+    function assertJunk(where) {
+      for (let i = 0; i < junks.length; i++) {
+        if (junkInPage(junks[i])) fail("family-query-inert", "The junk flag value was written into the page " + where + ".");
+      }
+    }
+    run("family-guards", function () {
+      if (!checking || !suppressReconnect || gazeSock) fail("family-guards", "Checking was off, reconnect was allowed, or a socket existed.");
+    });
+    run("family-query-inert", function () {
+      assertJunk("at the start");
+      if (state().screen !== "menu") fail("family-query-inert", "The screen was not the menu.");
+      if (gazeSock) fail("family-query-inert", "A socket was open.");
+      if (state().deck !== null || state().cards.length !== 0) fail("family-query-inert", "A junk flag dealt a board.");
+    });
+    run("family-plain-state", function () {
+      const snap = state();
+      let json = "";
+      try { json = JSON.stringify(snap); }
+      catch (err) { json = ""; }
+      if (!json || json.indexOf("level") < 0 || json.indexOf("screen") < 0 || json.indexOf("banner") < 0 || json.indexOf("muted") < 0) {
+        fail("family-plain-state", "state could not be turned into JSON with level, screen, banner, and muted.");
+      }
+      if (snap.level !== "tiny" || snap.screen !== "menu" || snap.banner !== "Pick who is playing." || snap.muted !== false) {
+        fail("family-plain-state", "The menu state did not start on Peek Pairs.");
+      }
+      if (snap.deck !== null || snap.cards.length !== 0) fail("family-plain-state", "The state before the first deal was not empty.");
+      const ban = ["msLeft", "best", "lives", "score", "wrongs", "rank", "speech", "turns", "clock"];
+      for (let i = 0; i < ban.length; i++) {
+        if (Object.prototype.hasOwnProperty.call(snap, ban[i])) fail("family-plain-state", "state included " + ban[i] + ".");
+      }
+    });
+    run("family-play-dwell", function () {
+      resetInput();
+      openPlay("tiny", "animals", 1);
+      const box = cardTarget(0);
+      if (!box || !box.play) fail("family-play-dwell", "Card 0 was not a play target at " + window.innerWidth + " by " + window.innerHeight + ".");
+      else {
+        step(10000);
+        look(box.nx, box.ny);
+        step(10000);
+        if (dwell() !== 0) fail("family-play-dwell", "The entry step did not start the ring at 0.");
+        step(10200);
+        if (Math.abs(dwell() - 200 / PLAY_DWELL_MS) > 0.03) fail("family-play-dwell", "The ring at 200 ms was not 200/650.");
+        step(10640);
+        if (state().cards[0].up) fail("family-play-dwell", "640 ms turned the card over.");
+        step(10660);
+        if (!state().cards[0].up) fail("family-play-dwell", "660 ms did not turn the card over.");
+      }
+      resetInput();
+      openPlay("tiny", "animals", 1);
+      const again = cardTarget(0);
+      tap(again.nx, again.ny);
+      if (!state().cards[0].up) fail("family-play-dwell", "A tap did not turn over the same card.");
+    });
+    run("family-menu-dwell", function () {
+      resetInput();
+      if (state().screen !== "menu") go("menu");
+      const lets = targetById(centers().targets, "lets-go");
+      if (!lets) fail("family-menu-dwell", "Let's go was not a target.");
+      else {
+        const hit = buttonAt(lets.nx * window.innerWidth, lets.ny * window.innerHeight);
+        if (!hit || hit.id !== "lets-go") fail("family-menu-dwell", "The Let's go center was not the button.");
+        enterLook(lets, 20000);
+        if (dwell() !== 0) fail("family-menu-dwell", "The menu entry step filled the ring.");
+        step(20600);
+        if (state().screen !== "menu") fail("family-menu-dwell", "600 ms on Let's go left the menu.");
+        step(21300);
+        if (state().screen !== "deck") fail("family-menu-dwell", "1300 ms on Let's go did not open the deck.");
+      }
+      const back = targetById(centers().targets, "back");
+      if (!back) fail("family-menu-dwell", "Back to Menu was not a target.");
+      else {
+        enterLook(back, 24000);
+        step(24600);
+        if (state().screen !== "deck") fail("family-menu-dwell", "600 ms on Back left the deck.");
+        step(25300);
+        if (state().screen !== "menu") fail("family-menu-dwell", "1300 ms on Back did not return to the menu.");
+      }
+    });
+    run("family-pointer-blocks", function () {
+      resetInput();
+      openPlay("tiny", "animals", 1);
+      const box = cardTarget(0);
+      hold(box.nx, box.ny);
+      look(box.nx, box.ny);
+      step(30000);
+      step(30660);
+      if (state().cards[0].up || dwell() !== 0) fail("family-pointer-blocks", "A look during hold turned a card or filled the ring.");
+      release();
+      releaseLook();
+      enterLook(box, 32000);
+      step(32660);
+      if (!state().cards[0].up) fail("family-pointer-blocks", "A fresh look after release did not turn the card.");
+    });
+    run("family-stale", function () {
+      resetInput();
+      openPlay("tiny", "animals", 1);
+      const box = cardTarget(0);
+      try {
+        enterLook(box, 36000);
+        step(36200);
+        if (!(dwell() > 0) || state().cards[0].up) fail("family-stale", "The ring did not fill before the sample went stale.");
+        refreshHold = false;
+        step(36700);
+        if (dwell() !== 0) fail("family-stale", "A sample 500 ms old still filled the ring.");
+        if (state().cards[0].up) fail("family-stale", "A stale sample turned the card.");
+      } finally {
+        refreshHold = true;
+      }
+    });
+    run("family-target-size", function () {
+      resetInput();
+      go("menu");
+      function checkView(where) {
+        const views = [[390, 844], [1024, 768], [390, 700]];
+        for (let v = 0; v < views.length; v++) {
+          const lay = targetsAt(views[v][0], views[v][1]);
+          if (!lay.ok) fail("family-target-size", where + " at " + views[v][0] + " by " + views[v][1] + " was not ok.");
+          const list = lay.targets || [];
+          for (let i = 0; i < list.length; i++) {
+            if (Math.min(list[i].w, list[i].h) < 72) fail("family-target-size", where + " target " + list[i].id + " was under 72.");
+          }
+        }
+        const small = targetsAt(300, 600);
+        if (small.ok || (small.targets && small.targets.length)) fail("family-target-size", "A 300 px width was treated as ok.");
+      }
+      const before = muteBtn.getBoundingClientRect();
+      const beforeShort = Math.min(before.width, before.height);
+      checkView("menu");
+      const after = muteBtn.getBoundingClientRect();
+      if (Math.min(after.width, after.height) + 1 < beforeShort) fail("family-target-size", "targetsAt shrank a live button.");
+      if (targetById(centers().targets, "back")) fail("family-target-size", "Back was listed on the menu.");
+      start("tiny");
+      checkView("deck");
+      openPlay("tiny", "animals", 1);
+      const liveBefore = targetById(centers().targets, "mute");
+      checkView("play");
+      const liveAfter = targetById(centers().targets, "mute");
+      if (liveBefore && liveAfter && Math.min(liveAfter.w, liveAfter.h) + 1 < Math.min(liveBefore.w, liveBefore.h)) {
+        fail("family-target-size", "targetsAt shrank a live play button.");
+      }
+      go("rest");
+      checkView("rest");
+    });
+    run("family-eyes", function () {
+      resetInput();
+      step(40000);
+      look(0.5, 0.5);
+      step(40020);
+      const eye = eyes();
+      const keys = Object.keys(eye);
+      if (keys.length !== 2 || keys.indexOf("on") < 0 || keys.indexOf("live") < 0) fail("family-eyes", "eyes() did not return only on and live.");
+      if (typeof eye.on !== "boolean" || typeof eye.live !== "boolean") fail("family-eyes", "on or live was not a boolean.");
+      if (eye.on !== true || eye.live !== true) fail("family-eyes", "A fresh look did not set on and live.");
+      if (gazeSock) fail("family-eyes", "The socket was open.");
+      if (eyesEl.hidden || eyesEl.textContent !== "Eyes") fail("family-eyes", "The Eyes chip was hidden or mislabeled.");
+      releaseLook();
+      if (!eyesEl.hidden) fail("family-eyes", "The Eyes chip stayed up after release.");
+    });
+    run("eyes-gap", function () {
+      resetInput();
+      function overlaps(a, b) {
+        return a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+      }
+      function check(where) {
+        const views = [[390, 700], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const boxes = layoutTargets(w, h);
+          if (!boxes) {
+            fail("eyes-gap", where + " at " + w + " by " + h + " had no button boxes.");
+            continue;
+          }
+          const eye = eyesBox(w, h);
+          if (overlaps(eye, bannerBox(w, h))) fail("eyes-gap", "Eyes covered the banner at " + w + " by " + h + " during " + where + ".");
+          for (let i = 0; i < boxes.length; i++) {
+            if (overlaps(eye, boxes[i])) fail("eyes-gap", "Eyes hit " + boxes[i].id + " at " + w + " by " + h + " during " + where + ".");
+          }
+          if (window.innerWidth === w && window.innerHeight === h) {
+            look(0.12, 0.12);
+            const placed = eyesEl.getBoundingClientRect();
+            const buttons = document.querySelectorAll("button");
+            for (let i = 0; i < buttons.length; i++) {
+              const btn = buttons[i];
+              if (!buttonVisible(btn)) continue;
+              const r = btn.getBoundingClientRect();
+              const box = { x: r.left, y: r.top, w: r.width, h: r.height };
+              if (overlaps(box, { x: placed.left, y: placed.top, w: placed.width, h: placed.height })) {
+                fail("eyes-gap", "Eyes hit the " + btn.id + " button at " + w + " by " + h + ".");
+              }
+            }
+            releaseLook();
+          }
+        }
+      }
+      go("menu");
+      check("menu");
+      start("little");
+      check("deck");
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        openPlay(BAND_IDS[b], "shapes", 1);
+        check(BAND_IDS[b]);
+      }
+      go("rest");
+      check("rest");
+      look(0.5, 0.5);
+      const placed = eyesEl.getBoundingClientRect();
+      const live = eyesBox(window.innerWidth, window.innerHeight);
+      if (eyesEl.hidden) fail("eyes-gap", "Eyes was hidden while a look was held.");
+      if (Math.abs(placed.left - live.x) > 1 || Math.abs(placed.top - live.y) > 1 || Math.abs(placed.width - live.w) > 1 || Math.abs(placed.height - live.h) > 1) {
+        fail("eyes-gap", "The running layout did not place Eyes from eyesBox.");
+      }
+      releaseLook();
+    });
+    run("family-mute", function () {
+      resetInput();
+      go("menu");
+      const muteText = (muteBtn.innerText || "").replace(/\s+/g, "");
+      if (muteText !== "") fail("family-mute", "The mute button had visible text.");
+      if ((muteBtn.innerText || "").indexOf("Mute") >= 0 || (muteBtn.innerText || "").indexOf("Sound") >= 0) {
+        fail("family-mute", "Mute or Sound was visible.");
+      }
+      if (muteBtn.querySelectorAll("svg").length !== 2) fail("family-mute", "The mute button did not hold two speaker icons.");
+      if (state().muted !== false) fail("family-mute", "Sound did not start on.");
+      const box = targetById(centers().targets, "mute");
+      tap(box.nx, box.ny);
+      if (state().muted !== true) fail("family-mute", "The first tap did not mute.");
+      tap(box.nx, box.ny);
+      if (state().muted !== false) fail("family-mute", "The second tap did not turn sound on.");
+    });
+    run("deal-pairs", function () {
+      const counts = { tiny: 4, little: 6, shop: 12, rush: 16 };
+      let firstOrder = null;
+      let differed = false;
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        const band = BAND_IDS[b];
+        for (let d = 0; d < DECK_IDS.length; d++) {
+          const deck = DECK_IDS[d];
+          const allowed = {};
+          for (let f = 0; f < DECKS[deck].length; f++) allowed[DECKS[deck][f].id] = true;
+          for (let n = 1; n <= 8; n++) {
+            openPlay(band, deck, n);
+            const snap = state();
+            if (snap.cards.length !== counts[band]) fail("deal-pairs", band + " " + deck + " seed " + n + " dealt " + snap.cards.length + " cards.");
+            const tally = {};
+            for (let i = 0; i < snap.cards.length; i++) {
+              const face = snap.cards[i].face;
+              if (!allowed[face]) fail("deal-pairs", band + " " + deck + " seed " + n + " used a face from another deck.");
+              if (snap.cards[i].up || snap.cards[i].found) fail("deal-pairs", "A card started face up.");
+              tally[face] = (tally[face] || 0) + 1;
+            }
+            const ids = Object.keys(tally);
+            if (ids.length !== BANDS[band].pairs) fail("deal-pairs", band + " " + deck + " seed " + n + " did not draw that many faces.");
+            for (let i = 0; i < ids.length; i++) {
+              if (tally[ids[i]] !== 2) fail("deal-pairs", band + " " + deck + " seed " + n + " did not pair " + ids[i] + ".");
+            }
+            if (band === "tiny" || band === "little") {
+              const names = boardEl.querySelectorAll(".name");
+              for (let i = 0; i < names.length; i++) {
+                if (!names[i].hidden || names[i].textContent !== "") fail("deal-pairs", "A young band showed a printed label.");
+              }
+            }
+            if (band === "shop" || band === "rush") {
+              const names = boardEl.querySelectorAll(".name");
+              if (names.length !== snap.cards.length) fail("deal-pairs", "An older band missed a label.");
+              for (let i = 0; i < names.length; i++) {
+                const face = faceById(snap.cards[i].face);
+                if (names[i].hidden || names[i].textContent !== face.label) fail("deal-pairs", "A label did not sit under its picture.");
+              }
+            }
+            if (band === "tiny" && deck === "animals") {
+              const order = snap.cards.map(function (card) { return card.face; }).join(",");
+              if (firstOrder === null) firstOrder = order;
+              else if (order !== firstOrder) differed = true;
+            }
+          }
+        }
+      }
+      if (!differed) fail("deal-pairs", "Seeds 1 to 8 dealt the same tiny animals order.");
+    });
+    run("first-flip", function () {
+      openPlay("little", "food", 3);
+      step(50000);
+      const box = cardTarget(0);
+      look(box.nx, box.ny);
+      step(50000);
+      step(50640);
+      if (state().cards[0].up) fail("first-flip", "A 640 ms look turned the card over.");
+      if (state().banner !== "Find a pair.") fail("first-flip", "The banner changed before the flip.");
+      step(50660);
+      const snap = state();
+      if (!snap.cards[0].up) fail("first-flip", "A 660 ms look did not turn the card over.");
+      for (let i = 1; i < snap.cards.length; i++) if (snap.cards[i].up) fail("first-flip", "Another card turned over.");
+      if (snap.banner !== "Look at another card.") fail("first-flip", "The banner did not ask for another card.");
+    });
+    run("pair-stays", function () {
+      openPlay("tiny", "shapes", 4);
+      step(60000);
+      const seen = {};
+      let pair = null;
+      const snap = state().cards;
+      for (let i = 0; i < snap.length; i++) {
+        if (seen[snap[i].face] === undefined) seen[snap[i].face] = i;
+        else pair = [seen[snap[i].face], i];
+      }
+      const a = cardTarget(pair[0]);
+      const b = cardTarget(pair[1]);
+      tap(a.nx, a.ny);
+      tap(b.nx, b.ny);
+      const after = state();
+      if (!after.cards[pair[0]].up || !after.cards[pair[1]].up) fail("pair-stays", "The pair did not stay face up.");
+      if (!after.cards[pair[0]].found || !after.cards[pair[1]].found) fail("pair-stays", "The pair was not marked found.");
+      if (after.banner !== "A pair!") fail("pair-stays", "The banner did not say a pair.");
+      const btn = document.getElementById("card-" + pair[0]);
+      if (btn.getAttribute("data-play") === "true" || btn.getAttribute("aria-disabled") !== "true") {
+        fail("pair-stays", "A found card stayed a play target.");
+      }
+      if (btn.querySelector(".check").hidden) fail("pair-stays", "The pair had no check.");
+    });
+    run("mismatch-returns", function () {
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        const band = BAND_IDS[b];
+        const pause = BANDS[band].pause;
+        openPlay(band, "animals", 2);
+        const t0 = 70000 + b * 10000;
+        step(t0);
+        const cardsNow = state().cards;
+        let first = -1;
+        let second = -1;
+        let third = -1;
+        for (let i = 0; i < cardsNow.length; i++) {
+          if (first < 0) first = i;
+          else if (second < 0 && cardsNow[i].face !== cardsNow[first].face) second = i;
+          else if (third < 0 && i !== first && i !== second) third = i;
+        }
+        tap(cardTarget(first).nx, cardTarget(first).ny);
+        tap(cardTarget(second).nx, cardTarget(second).ny);
+        const opened = state();
+        if (!opened.cards[first].up || !opened.cards[second].up) fail("mismatch-returns", band + " did not leave the two cards up.");
+        if (opened.banner !== "Find a pair.") fail("mismatch-returns", band + " asked for a look while every card refused one.");
+        const other = cardTarget(third);
+        look(other.nx, other.ny);
+        step(t0);
+        step(t0 + 660);
+        if (dwell() !== 0) fail("mismatch-returns", band + " filled the ring during the pause.");
+        if (state().cards[third].up) fail("mismatch-returns", band + " accepted a look during the pause.");
+        if (state().banner !== "Find a pair.") fail("mismatch-returns", band + " changed the banner before the cards turned down.");
+        step(t0 + pause - 1);
+        if (!state().cards[first].up || !state().cards[second].up) fail("mismatch-returns", band + " turned back before the pause.");
+        if (state().banner !== "Find a pair.") fail("mismatch-returns", band + " left the pause asking for another card.");
+        step(t0 + pause);
+        const done = state();
+        if (done.cards[first].up || done.cards[second].up) fail("mismatch-returns", band + " did not turn the cards back after " + pause + " ms.");
+        if (done.cards[third].up) fail("mismatch-returns", band + " turned a third card.");
+        if (done.banner !== "Find a pair.") fail("mismatch-returns", band + " did not keep Find a pair. after the cards turned down.");
+        if (done.banner.indexOf("wrong") >= 0 || done.banner === "No") fail("mismatch-returns", "The banner scolded.");
+        const live = document.getElementById("card-" + third);
+        if (live.getAttribute("data-play") !== "true") fail("mismatch-returns", band + " left a face-down card inert after the pause.");
+      }
+    });
+    run("face-up-inert", function () {
+      openPlay("shop", "food", 5);
+      step(120000);
+      tap(cardTarget(0).nx, cardTarget(0).ny);
+      const box = cardTarget(0);
+      look(box.nx, box.ny);
+      step(120000);
+      step(120660);
+      if (dwell() !== 0) fail("face-up-inert", "The ring filled on a face-up card.");
+      const snap = state();
+      if (!snap.cards[0].up || snap.cards[0].found) fail("face-up-inert", "The face-up card changed.");
+      for (let i = 1; i < snap.cards.length; i++) if (snap.cards[i].up) fail("face-up-inert", "A look on a face-up card turned another card.");
+    });
+    run("finish-rest", function () {
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        const band = BAND_IDS[b];
+        openPlay(band, "shapes", 6);
+        const t0 = 130000 + b * 20000;
+        step(t0);
+        let guard = 0;
+        while (state().screen === "play" && guard < 20) {
+          const nowCards = state().cards;
+          const seen = {};
+          let pair = null;
+          for (let i = 0; i < nowCards.length; i++) {
+            if (nowCards[i].found || nowCards[i].up) continue;
+            if (seen[nowCards[i].face] === undefined) seen[nowCards[i].face] = i;
+            else { pair = [seen[nowCards[i].face], i]; break; }
+          }
+          if (!pair) break;
+          const a = cardTarget(pair[0]);
+          const b2 = cardTarget(pair[1]);
+          tap(a.nx, a.ny);
+          tap(b2.nx, b2.ny);
+          guard += 1;
+        }
+        if (guard !== BANDS[band].pairs) fail("finish-rest", band + " did not clear every pair.");
+        step(t0 + 899);
+        if (state().screen !== "play") fail("finish-rest", band + " left play before 900 ms.");
+        step(t0 + 900);
+        const snap = state();
+        if (snap.screen !== "rest") fail("finish-rest", band + " did not rest after 900 ms.");
+        if (snap.banner !== "You found them all.") fail("finish-rest", "The rest banner was not the calm sentence.");
+        if (restLine.textContent !== "You found them all.") fail("finish-rest", "The rest line changed.");
+        if (/grade|score|wrong|lives|rank/i.test(restLine.textContent)) fail("finish-rest", "The rest card showed a grade.");
+        const again = targetById(centers().targets, "another");
+        if (!again || again.play) fail("finish-rest", "Another was missing or marked as play.");
+        const held = snap.level;
+        tap(again.nx, again.ny);
+        if (state().screen !== "deck" || state().level !== held) fail("finish-rest", "Another did not replay the same band.");
+      }
+    });
+    run("sizes", function () {
+      const expectCols = {
+        tiny: { p: 2, l: 2, size390: 168 },
+        little: { p: 2, l: 3, size390: 168 },
+        shop: { p: 3, l: 4, size390: 114 },
+        rush: { p: 4, l: 4, size390: 83 }
+      };
+      for (let b = 0; b < BAND_IDS.length; b++) {
+        const band = BAND_IDS[b];
+        openPlay(band, "animals", 1);
+        const views = [[390, 700], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const lay = targetsAt(w, h);
+          if (!lay.ok) fail("sizes", band + " at " + w + " by " + h + " was not ok.");
+          const cardsLay = (lay.targets || []).filter(function (t) { return String(t.id).indexOf("card-") === 0; });
+          if (cardsLay.length !== BANDS[band].pairs * 2) fail("sizes", band + " did not report every card.");
+          let cols = 0;
+          for (let i = 0; i < cardsLay.length; i++) {
+            const box = cardsLay[i];
+            if (Math.min(box.w, box.h) < 72) fail("sizes", band + " card " + box.id + " was under 72 at " + w + ".");
+            if (box.w !== box.h) fail("sizes", band + " card was not square.");
+            if (box.w > 168) fail("sizes", band + " card grew past 168.");
+            if (box.x < 16 || box.y < 88 || box.x + box.w > w - 15 || box.y + box.h > h - 15) {
+              fail("sizes", band + " card " + box.id + " left the board inset.");
+            }
+            if (Math.abs(box.y - cardsLay[0].y) < 1) cols += 1;
+          }
+          const want = h >= w ? expectCols[band].p : expectCols[band].l;
+          if (cols !== want) fail("sizes", band + " at " + w + " by " + h + " used " + cols + " columns.");
+          if (w === 390 && expectCols[band].size390 && cardsLay[0] && cardsLay[0].w !== expectCols[band].size390) {
+            fail("sizes", band + " at 390 was " + (cardsLay[0] ? cardsLay[0].w : 0) + " px, not " + expectCols[band].size390 + ".");
+          }
+          if (w === 1024 && (band === "tiny" || band === "little") && cardsLay[0] && cardsLay[0].w !== 168) {
+            fail("sizes", band + " at 1024 was not capped at 168.");
+          }
+        }
+      }
+    });
+    run("family-plain-state", function () {
+      const before = JSON.stringify(state());
+      start("nope");
+      go("sideways");
+      if (JSON.stringify(state()) !== before) fail("family-plain-state", "An unknown band or screen changed the state.");
+      const end = state();
+      if (!("level" in end) || !("screen" in end) || !("banner" in end) || !("muted" in end)) {
+        fail("family-plain-state", "level, screen, banner, or muted was missing.");
+      }
+    });
+    try {
+      assertJunk("at the end");
+    } catch (err) {
+      fail("family-query-inert", err && err.message ? err.message : "The junk check threw.");
+    }
+    try {
+      if (speakCalls !== 0) fail("family-plain-state", "speechSynthesis.speak was called.");
+      if (writes !== 0) fail("family-no-storage", "The page called setItem or removeItem.");
+      if (storeLen !== null && localStorage.length !== storeLen) fail("family-no-storage", "localStorage gained a key.");
+      if (storeLen !== null && localStorage.getItem("pop-pals-v1") !== pop) fail("family-no-storage", "pop-pals-v1 changed.");
+    } catch (err) {
+      fail("family-no-storage", "Storage could not be read.");
+    }
+    try {
+      if (origSet) localStorage.setItem = origSet;
+      if (origRem) localStorage.removeItem = origRem;
+      if (origSpeak && window.speechSynthesis) window.speechSynthesis.speak = origSpeak;
+    } catch (err) {}
+    return { ok: failures.length === 0, failures: failures };
+  }
+
+  window.memoryMatch = {
+    start: start,
+    go: go,
+    look: look,
+    releaseLook: releaseLook,
+    hold: hold,
+    release: release,
+    tap: tap,
+    step: step,
+    state: state,
+    eyes: eyes,
+    dwell: dwell,
+    targetsAt: targetsAt,
+    centers: centers,
+    seed: seed,
+    selfCheck: selfCheck
+  };
+
+  render();
+  const params = new URLSearchParams(location.search);
+  if (params.has("selfcheck")) {
+    checking = true;
+    suppressReconnect = true;
+    if (gazeSock) {
+      try { gazeSock.close(); } catch (err) {}
+      gazeSock = null;
+    }
+    let result;
+    try { result = selfCheck(); }
+    catch (err) {
+      result = { ok: false, failures: ["self-check: " + (err && err.message ? err.message : "The check threw.")] };
+    }
+    const pre = document.createElement("pre");
+    pre.id = "selfcheck-result";
+    pre.textContent = JSON.stringify(result);
+    document.body.appendChild(pre);
+    document.title = result.ok ? "SELFCHECK_OK" : "SELFCHECK_FAIL";
+  } else {
+    if (params.has("rush")) start("rush");
+    else if (params.has("play")) start("tiny");
+    connectGaze();
+    requestAnimationFrame(frame);
+  }
+})();
+</script>
+</body>
+</html>
