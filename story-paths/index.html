@@ -954,17 +954,40 @@
     };
   }
 
+  function eyesBox(w, h, targets) {
+    const bw = 72;
+    const bh = 36;
+    const list = targets || [];
+    const chromeBottom = 8 + 72;
+    const spots = [
+      { x: w - 8 - bw, y: h - 8 - bh },
+      { x: 8, y: h - 8 - bh },
+      { x: w - 8 - bw, y: chromeBottom + 8 },
+      { x: 8, y: chromeBottom + 8 }
+    ];
+    function blocked(box) {
+      if (box.x < -0.5 || box.y < -0.5 || box.x + bw > w + 0.5 || box.y + bh > h + 0.5) return true;
+      for (let i = 0; i < list.length; i++) {
+        const t = list[i];
+        if (box.x < t.x + t.w && box.x + bw > t.x && box.y < t.y + t.h && box.y + bh > t.y) return true;
+      }
+      return false;
+    }
+    for (let i = 0; i < spots.length; i++) {
+      if (!blocked(spots[i])) return { x: spots[i].x, y: spots[i].y, w: bw, h: bh };
+    }
+    return { x: Math.max(0, spots[0].x), y: Math.max(0, spots[0].y), w: bw, h: bh };
+  }
+
   function targetsAt(w, h) {
     render();
     if (!(w >= 320)) return { ok: false, targets: [] };
     const plan = layout(w, h);
     if (!plan) return { ok: false, targets: [] };
-    return {
-      ok: true,
-      targets: plan.targets.map(function (box) {
-        return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
-      })
-    };
+    const targets = plan.targets.map(function (box) {
+      return { id: box.id, x: box.x, y: box.y, w: box.w, h: box.h };
+    });
+    return { ok: true, targets: targets, eyes: eyesBox(w, h, targets) };
   }
 
   function syncScene(box, names) {
@@ -1143,7 +1166,7 @@
       sentenceEl.hidden = true;
     }
     eyesEl.hidden = !eyesOn();
-    place(eyesEl, { x: Math.max(8, w - 84), y: Math.max(8, h - 48), w: 72, h: 36 }, 0);
+    place(eyesEl, eyesBox(w, h, targets), 0);
   }
 
   function ensureAudio() {
@@ -2203,6 +2226,62 @@
       if (root.scrollWidth > root.clientWidth + 2 || root.scrollHeight > root.clientHeight + 2) {
         fail("sizes", "The page needed scrolling.");
       }
+    });
+    run("eyes-gap", function () {
+      function overlaps(a, b) {
+        return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+      }
+      function cardId(id) {
+        return id.indexOf("choice-") === 0 || id.indexOf("story-") === 0 ||
+          id === "read-again" || id === "another-story" || id === "all-done";
+      }
+      function assertClear(where) {
+        const views = [[390, 700], [1024, 768]];
+        for (let v = 0; v < views.length; v++) {
+          const w = views[v][0];
+          const h = views[v][1];
+          const lay = targetsAt(w, h);
+          const eye = lay && lay.eyes;
+          if (!lay.ok || !eye) fail("eyes-gap", where + " at " + w + " by " + h + " had no Eyes box.");
+          else if (eye.w !== 72 || eye.h !== 36) fail("eyes-gap", "The Eyes chip was not 72 by 36.");
+          else {
+            let saw = false;
+            const list = lay.targets || [];
+            for (let i = 0; i < list.length; i++) {
+              const t = list[i];
+              if (cardId(t.id)) saw = true;
+              if (overlaps(eye, t)) fail("eyes-gap", where + " Eyes sat under " + t.id + " at " + w + " by " + h + ".");
+            }
+            if (!saw) fail("eyes-gap", where + " at " + w + " by " + h + " had no card to clear.");
+          }
+        }
+      }
+      resetInput();
+      start("shop");
+      assertClear("stories");
+      tapId("story-boat");
+      assertClear("choices");
+      resetInput();
+      start("tiny");
+      openBall();
+      tapId("choice-0");
+      tapId("choice-0");
+      if (!state().end) fail("eyes-gap", "The cat path did not reach an ending.");
+      assertClear("ending");
+      step(90000);
+      look(0.5, 0.02);
+      step(90020);
+      const liveW = window.innerWidth;
+      const liveH = window.innerHeight;
+      const live = targetsAt(liveW, liveH);
+      const rect = eyesEl.getBoundingClientRect();
+      if (eyesEl.hidden) fail("eyes-gap", "The Eyes chip was hidden on the running path.");
+      else if (!live.eyes) fail("eyes-gap", "The running path had no Eyes box.");
+      else if (Math.abs(rect.left - live.eyes.x) > 1 || Math.abs(rect.top - live.eyes.y) > 1 ||
+        Math.abs(rect.width - live.eyes.w) > 1 || Math.abs(rect.height - live.eyes.h) > 1) {
+        fail("eyes-gap", "render did not place the Eyes chip in the open gap.");
+      }
+      releaseLook();
     });
     run("no-speech", function () {
       if (speakCalls !== 0) fail("no-speech", "speechSynthesis.speak was called.");
